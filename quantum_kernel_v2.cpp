@@ -32,6 +32,11 @@ constexpr double ETA        = 0.70710678118654752440;   // 1/√2
 constexpr double DELTA_S    = 2.41421356237309504880;   // δ_S = 1+√2  (Prop 4)
 constexpr double DELTA_CONJ = 0.41421356237309504880;   // √2-1 = 1/δ_S (Prop 4c)
 
+// Numerical tolerances for quantum operations
+constexpr double COHERENCE_TOLERANCE = 1e-9;             // Coherence bound validation
+constexpr double RADIUS_TOLERANCE    = 1e-9;             // Radius r=1 detection
+constexpr double CONSERVATION_TOL    = 1e-12;            // Silver conservation check
+
 // Section 2: µ = (-1+i)/√2 = e^{i3π/4}
 using Cx = std::complex<double>;
 const Cx MU{ -ETA, ETA };                               // balanced eigenvalue
@@ -72,7 +77,7 @@ struct QState {
 
     // r = |β/α|  (radius parameter from Theorem 11)
     double radius() const {
-        return std::abs(alpha) > 1e-15
+        return std::abs(alpha) > COHERENCE_TOLERANCE
              ? std::abs(beta) / std::abs(alpha) : 0.0;
     }
 
@@ -83,14 +88,14 @@ struct QState {
     void step() { beta *= MU; }
 
     // Theorem 9: balanced ↔ |α|=|β|=1/√2 ↔ C_ℓ1=1
-    bool balanced() const { return std::abs(radius() - 1.0) < 1e-9; }
+    bool balanced() const { return std::abs(radius() - 1.0) < RADIUS_TOLERANCE; }
 };
 
 // ── Theorem 10: Trichotomy classification ────────────────────────────────────
 enum class Regime { FINITE_ORBIT, SPIRAL_OUT, SPIRAL_IN };
 
 Regime classify(double r) {
-    if (std::abs(r - 1.0) < 1e-9) return Regime::FINITE_ORBIT;
+    if (std::abs(r - 1.0) < RADIUS_TOLERANCE) return Regime::FINITE_ORBIT;
     return r > 1.0 ? Regime::SPIRAL_OUT : Regime::SPIRAL_IN;
 }
 
@@ -112,6 +117,13 @@ struct Process {
     std::function<void(Process&)> task;
     bool        interacted = false;                     // interaction flag (per tick)
 
+    // Constructor for explicit initialization
+    Process(uint32_t pid_, std::string name_, QState state_ = QState{}, 
+            uint8_t cycle_pos_ = 0, std::function<void(Process&)> task_ = nullptr,
+            bool interacted_ = false)
+        : pid(pid_), name(std::move(name_)), state(state_), 
+          cycle_pos(cycle_pos_), task(std::move(task_)), interacted(interacted_) {}
+
     // One tick: apply rotation (Section 3 / Theorem 10)
     void tick() {
         state.step();
@@ -123,9 +135,9 @@ struct Process {
     // Corollary 13: all three conditions at once
     bool corollary13() const {
         double r = state.radius();
-        bool orbit_closed = (std::abs(r - 1.0) < 1e-9);
-        bool max_coherence = (std::abs(state.c_l1() - 1.0) < 1e-9);
-        bool palindrome_exact = (std::abs(state.palindrome()) < 1e-9);
+        bool orbit_closed = (std::abs(r - 1.0) < RADIUS_TOLERANCE);
+        bool max_coherence = (std::abs(state.c_l1() - 1.0) < COHERENCE_TOLERANCE);
+        bool palindrome_exact = (std::abs(state.palindrome()) < COHERENCE_TOLERANCE);
         return orbit_closed && max_coherence && palindrome_exact;
     }
 
@@ -168,6 +180,15 @@ struct Process {
  */
 class ProcessComposition {
 public:
+    // Interaction thresholds and damping factors
+    // These values are tuned to balance interaction strength with stability:
+    // - COHERENCE_LOSS_THRESHOLD (0.5): Maximum allowed C drop before damping
+    //   Half the original coherence is the limit before remediation
+    // - DAMPING_FACTOR (0.7): Blend ratio for coherence recovery
+    //   70% new state + 30% original state balances correction with progress
+    static constexpr double COHERENCE_LOSS_THRESHOLD = 0.5;
+    static constexpr double DAMPING_FACTOR = 0.7;
+
     // Configuration for interaction behavior
     struct InteractionConfig {
         bool enable_entanglement = true;      // Allow quantum entanglement
@@ -222,7 +243,8 @@ public:
             double C2_post = p2.state.c_l1();
             
             // Coherence must not increase beyond bound (Theorem 9: C ≤ 1)
-            if (C1_post > 1.0 + 1e-9 || C2_post > 1.0 + 1e-9) {
+            if (C1_post > 1.0 + COHERENCE_TOLERANCE || 
+                C2_post > 1.0 + COHERENCE_TOLERANCE) {
                 // Rollback on coherence violation
                 p1.state = s1_init;
                 p2.state = s2_init;
@@ -233,11 +255,12 @@ public:
                 return false;
             }
 
-            // Prevent runaway incoherence spread
-            if (C1_post < C1_init * 0.5 || C2_post < C2_init * 0.5) {
+            // Prevent runaway incoherence spread (Theorem 9 coherence preservation)
+            if (C1_post < C1_init * COHERENCE_LOSS_THRESHOLD || 
+                C2_post < C2_init * COHERENCE_LOSS_THRESHOLD) {
                 // Excessive coherence loss, apply damping
-                apply_coherence_damping(p1.state, s1_init, 0.7);
-                apply_coherence_damping(p2.state, s2_init, 0.7);
+                apply_coherence_damping(p1.state, s1_init, DAMPING_FACTOR);
+                apply_coherence_damping(p2.state, s2_init, DAMPING_FACTOR);
             }
         }
 
@@ -253,14 +276,11 @@ public:
      * Checks all pairs of processes for Z/8Z position matches
      * Applies interactions where appropriate
      * Returns count of interactions performed
+     * 
+     * Note: interaction flags are reset by Process::tick() before this is called
      */
     uint32_t check_interactions(std::vector<Process>& processes) {
         uint32_t interaction_count = 0;
-        
-        // Reset interaction flags
-        for (auto& p : processes) {
-            p.interacted = false;
-        }
 
         // Check all pairs (i,j) where i < j
         for (size_t i = 0; i < processes.size(); ++i) {
@@ -329,7 +349,7 @@ private:
      */
     void renormalize(QState& s) {
         double norm_sq = std::norm(s.alpha) + std::norm(s.beta);
-        if (norm_sq > 1e-15) {
+        if (norm_sq > COHERENCE_TOLERANCE) {
             double scale = 1.0 / std::sqrt(norm_sq);
             s.alpha *= scale;
             s.beta  *= scale;
@@ -357,17 +377,17 @@ public:
     QuantumKernel() {
         // Prop 4: verify δ_S · (√2-1) = 1
         double conservation = DELTA_S * DELTA_CONJ;
-        if (std::abs(conservation - 1.0) > 1e-12)
+        if (std::abs(conservation - 1.0) > CONSERVATION_TOL)
             throw std::runtime_error("Prop 4 silver conservation violated");
 
         // Theorem 3: verify η² + η² = 1
-        if (std::abs(ETA*ETA + ETA*ETA - 1.0) > 1e-12)
+        if (std::abs(ETA*ETA + ETA*ETA - 1.0) > CONSERVATION_TOL)
             throw std::runtime_error("Theorem 3 critical constant violated");
 
         // Section 3: verify det R(3π/4) = 1
         // det = (-1/√2)(-1/√2) - (-1/√2)(1/√2) = 1/2 + 1/2 = 1
         double det = ETA*ETA + ETA*ETA;
-        if (std::abs(det - 1.0) > 1e-12)
+        if (std::abs(det - 1.0) > CONSERVATION_TOL)
             throw std::runtime_error("Section 3 rotation det violated");
     }
 
@@ -389,7 +409,7 @@ public:
     uint32_t spawn(const std::string& name,
                    std::function<void(Process&)> task = nullptr) {
         uint32_t pid = next_pid_++;
-        processes_.push_back({ pid, name, QState{}, 0, task, false });
+        processes_.emplace_back(pid, name, QState{}, 0, task, false);
         return pid;
     }
 
@@ -427,7 +447,7 @@ public:
             double sc  = coherence_sech(lam);
             std::cout << "  Thm 14:  C(r)=" << C
                       << "  sech(λ)=" << sc
-                      << "  match=" << (std::abs(C-sc)<1e-9 ? "✓" : "✗") << "\n";
+                      << "  match=" << (std::abs(C-sc)<COHERENCE_TOLERANCE ? "✓" : "✗") << "\n";
         }
         
         // Process composition statistics
