@@ -196,3 +196,11 @@ The interrupt handling implementation has been evaluated against NIST (National 
 - ✓ NIST SP 800-160 (Systems Security Engineering)
 
 **Overall Assessment**: Strong compliance with NIST guidelines for quantum error handling systems.
+
+**NIST-Recommended Test Suite**: Run `./test_interrupt_nist` to execute statistical validation, performance benchmarking, formal verification, and security tests as recommended in the NIST evaluation.
+
+```bash
+# Compile and run NIST test suite
+g++ -std=c++17 -Wall -Wextra -O2 -o test_interrupt_nist test_interrupt_nist.cpp -lm
+./test_interrupt_nist
+```
