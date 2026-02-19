@@ -94,13 +94,14 @@ The interrupt system continuously monitors each process's coherence state by mea
 
 #### Recovery Mechanism
 
-When decoherence is detected, the interrupt handler applies corrective actions guided by the coherence function C(r) and Lyapunov duality (Theorem 14):
+When decoherence is detected, the interrupt handler applies corrective actions guided by the coherence function C(r) from Theorem 11:
 
-1. **Correction Strength**: Computed from severity level and recovery rate configuration
-2. **Target Guidance**: Uses r = 1 as target (balanced state from Theorem 9)
-3. **β Adjustment**: Scales the β coefficient to move r toward 1
-4. **Normalization**: Preserves quantum state normalization |α|² + |β|² = 1
-5. **Conservation**: Maintains silver conservation δ_S·(√2-1) = 1 (Prop 4)
+1. **Coherence Measurement**: Computes C(r) = 2r/(1+r²) to quantify current coherence level
+2. **Coherence Defect**: Calculates ΔC = 1 - C(r) as a measure of deviation from ideal balance
+3. **Correction Strength**: Combines coherence defect with severity level and recovery rate configuration
+4. **β Adjustment**: Scales the β coefficient to move r toward 1 by the computed correction amount
+5. **Normalization**: Renormalizes to preserve |α|² + |β|² = 1 after adjustment
+6. **Conservation**: Maintains silver conservation δ_S·(√2-1) = 1 (Prop 4) within numerical tolerances
 
 #### Usage Example
 

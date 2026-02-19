@@ -40,9 +40,9 @@ constexpr double CONSERVATION_TOL    = 1e-12;            // Silver conservation 
 
 // ── Interrupt Handling: Decoherence thresholds ───────────────────────────────
 // Decoherence is detected when r deviates from 1 beyond acceptable tolerances
-constexpr double DECOHERENCE_MINOR   = 0.05;             // Minor deviation: |r-1| > 0.05
-constexpr double DECOHERENCE_MAJOR   = 0.15;             // Major deviation: |r-1| > 0.15
-                                                         // Critical: |r-1| > MAJOR
+constexpr double DECOHERENCE_MINOR   = 0.05;             // Minor deviation: RADIUS_TOLERANCE < |r-1| ≤ 0.05
+constexpr double DECOHERENCE_MAJOR   = 0.15;             // Major deviation: 0.05 < |r-1| ≤ 0.15
+                                                         // Critical: |r-1| > DECOHERENCE_MAJOR
 
 // Recovery bounds for interrupt handling
 constexpr double MIN_RECOVERY_RADIUS = 0.1;              // Minimum r during recovery
@@ -128,13 +128,14 @@ const char* regime_name(Regime reg) {
  * 
  * 1. Monitors phase deviation: measures |r - 1| as decoherence metric
  * 2. Classifies severity: MINOR, MAJOR, or CRITICAL based on thresholds
- * 3. Triggers handlers: applies corrective actions using coherence functions
- * 4. Recovers coherence: guides process back toward r=1 using C(r) and sech(λ)
+ * 3. Triggers handlers: applies corrective actions using coherence function C(r)
+ * 4. Recovers coherence: guides process back toward r=1
  * 
  * Recovery Strategy:
- * - Uses Theorem 14 (C = sech(λ), λ = ln r) to compute correction strength
- * - Applies damping proportional to palindrome residual R(r) (Theorem 12)
- * - Preserves normalization and silver conservation (Prop 4)
+ * - Measures coherence defect: ΔC = 1 - C(r) where C(r) = 2r/(1+r²) (Theorem 11)
+ * - Correction strength proportional to ΔC (coherence-guided recovery)
+ * - Severity multipliers scale intervention (0.5/0.8/1.0 for MINOR/MAJOR/CRITICAL)
+ * - Preserves normalization |α|²+|β|²=1 and silver conservation δ_S·(√2-1)=1 (Prop 4)
  * - Minimal disruption: only affects the decoherent process
  */
 
@@ -181,22 +182,27 @@ struct DecoherenceInterrupt {
 /*
  * Recovery mechanism:
  * 
- * 1. Compute correction strength from coherence function C(r)
- *    - Higher deviation → stronger correction
- *    - Use sech(λ) = C(r) to determine damping (Theorem 14)
+ * 1. Measure current coherence C(r) using Theorem 11: C(r) = 2r/(1+r²)
+ *    - C(1) = 1 indicates perfect balance
+ *    - C(r) < 1 indicates decoherence (deviation from r=1)
+ *    - The coherence defect (1 - C(r)) quantifies the severity
  * 
- * 2. Apply correction to β coefficient (primary decoherence source)
- *    - Scale β toward balanced magnitude |β| = 1/√2
+ * 2. Compute correction strength using coherence defect and severity level
+ *    - Base correction strength: recovery_rate × (1 - C(r))
+ *    - Severity multiplier scales intervention (0.5 for MINOR, 0.8 for MAJOR, 1.0 for CRITICAL)
+ *    - This approach is mathematically grounded in the coherence function
+ * 
+ * 3. Apply correction to β coefficient (primary decoherence source)
+ *    - Scale β toward balanced magnitude |β| = |α| (achieves r=1)
  *    - Preserve phase structure (don't corrupt quantum information)
  * 
- * 3. Verify recovery and update metrics
+ * 4. Verify recovery and update metrics
  *    - Ensure |α|² + |β|² = 1 (normalization)
  *    - Check δ_S·(√2-1) = 1 (silver conservation, Prop 4)
  * 
  * Parameters:
  *   state     - Quantum state to correct (modified in place)
  *   level     - Severity of decoherence (determines correction strength)
- *   log_event - Function to record interrupt event for statistics
  * 
  * Returns: true if recovery successful, false otherwise
  */
@@ -298,18 +304,19 @@ private:
     
     // Apply coherence recovery to quantum state
     /*
-     * Recovery algorithm using coherence function guidance:
+     * Recovery algorithm using coherence function C(r) from Theorem 11:
      * 
      * 1. Determine target: balanced state has |β|/|α| = 1
      * 2. Current deviation: r = |β|/|α|
-     * 3. Correction strength: based on C(r) and severity level
-     * 4. Apply damping: move β toward balanced magnitude
+     * 3. Measure coherence: C(r) = 2r/(1+r²) where C(1) = 1 is optimal
+     * 4. Correction strength: based on coherence defect (1 - C(r)) and severity
+     * 5. Apply correction: move β toward balanced magnitude
      * 
      * Mathematical basis:
-     * - Target: |β_target| = |α| (for r = 1)
-     * - Current: |β| = r·|α|
-     * - Correction: β' = β · (1 + δ) where δ moves r toward 1
-     * - Damping factor: δ ∝ recovery_rate · R(r) (palindrome residual)
+     * - Target: |β_target| = |α| (for r = 1, giving C = 1)
+     * - Current: |β| = r·|α| with coherence C(r)
+     * - Coherence defect: ΔC = 1 - C(r) measures deviation from ideal
+     * - Correction: interpolate r toward 1 by amount ∝ ΔC × recovery_rate
      * 
      * Preserves:
      * - Quantum normalization: |α|² + |β|² = 1
@@ -324,7 +331,11 @@ private:
             return false;
         }
         
-        // Compute correction strength based on severity
+        // Measure current coherence using Theorem 11
+        double C_current = coherence(r);
+        double coherence_defect = 1.0 - C_current;
+        
+        // Compute correction strength based on coherence defect and severity
         double base_strength = config_.recovery_rate;
         double level_multiplier = 1.0;
         
@@ -335,19 +346,16 @@ private:
             case DecoherenceLevel::NONE:     return false;
         }
         
-        double correction_strength = base_strength * level_multiplier;
+        // Correction strength combines coherence defect with severity scaling
+        double correction_strength = base_strength * level_multiplier * coherence_defect;
         
-        // Correction factor: move r toward 1
-        // If r > 1 (spiral out), we want to reduce |β|
-        // If r < 1 (spiral in), we want to increase |β|
-        // The palindrome residual R(r) has the right sign for this:
-        // R(r) > 0 for r > 1, R(r) < 0 for r < 1
+        // Compute target radius: interpolate toward r=1
         double target_r = 1.0;
         double correction_delta = (target_r - r) * correction_strength;
         double new_r = r + correction_delta;
         
-        // Ensure new_r is positive and reasonable
-        if (new_r <= 0.0) new_r = MIN_RECOVERY_RADIUS;
+        // Ensure new_r is within configured recovery bounds
+        if (new_r < MIN_RECOVERY_RADIUS) new_r = MIN_RECOVERY_RADIUS;
         if (new_r > MAX_RECOVERY_RADIUS) new_r = MAX_RECOVERY_RADIUS;
         
         // Apply correction: scale β to achieve new_r
@@ -356,8 +364,21 @@ private:
         double target_beta_mag = new_r * std::abs(state.alpha);
         
         if (current_beta_mag > COHERENCE_TOLERANCE) {
+            // Standard case: rescale existing β to reach target magnitude
             double scale = target_beta_mag / current_beta_mag;
             state.beta *= scale;
+        } else if (target_beta_mag > COHERENCE_TOLERANCE) {
+            // Edge case: |β| is too small to rescale meaningfully
+            // Reseed β with target magnitude and appropriate phase
+            Cx phase;
+            if (current_beta_mag > 0.0) {
+                // Preserve existing phase of β
+                phase = state.beta / current_beta_mag;
+            } else {
+                // β is essentially zero: use canonical balanced eigenvalue µ
+                phase = MU / std::abs(MU);  // Normalize µ to unit magnitude
+            }
+            state.beta = phase * target_beta_mag;
         }
         
         // Renormalize to preserve |α|² + |β|² = 1
@@ -1295,7 +1316,7 @@ int main() {
     
     std::cout << "\n✓ Decoherence interrupt system implemented\n";
     std::cout << "✓ Phase deviation measurement functional (|r-1|)\n";
-    std::cout << "✓ Recovery handlers using C(r) and sech(λ) working\n";
+    std::cout << "✓ Recovery handlers using coherence function C(r) for correction strength\n";
     std::cout << "✓ Coherence restoration preserves normalization\n";
     std::cout << "✓ Silver conservation maintained during recovery\n";
     std::cout << "✓ Minimal disruption to other processes verified\n";
