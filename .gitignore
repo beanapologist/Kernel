@@ -1,0 +1,22 @@
+# Compiled binaries
+quantum_kernel_v2
+*.o
+*.out
+*.exe
+
+# Build artifacts
+*.a
+*.so
+*.dylib
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Temporary files
+*.swp
+*.swo
+*~
+.DS_Store
