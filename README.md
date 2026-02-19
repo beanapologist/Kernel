@@ -140,8 +140,6 @@ The interrupt system is designed to minimize impact on other processes:
 - **Concurrent Safety**: Multiple processes can be corrected independently
 - **Coherent Processes Unaffected**: Processes with r≈1 skip interrupt handling
 
-This ensures memory consistency as processes rotate through the cycle.
-
 ### Building and Running
 
 ```bash

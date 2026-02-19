@@ -42,7 +42,7 @@ constexpr double CONSERVATION_TOL    = 1e-12;            // Silver conservation 
 // Decoherence is detected when r deviates from 1 beyond acceptable tolerances
 constexpr double DECOHERENCE_MINOR   = 0.05;             // Minor deviation: |r-1| > 0.05
 constexpr double DECOHERENCE_MAJOR   = 0.15;             // Major deviation: |r-1| > 0.15
-constexpr double DECOHERENCE_CRITICAL = 0.30;            // Critical: |r-1| > 0.30
+                                                         // Critical: |r-1| > 0.15
 
 // Section 2: µ = (-1+i)/√2 = e^{i3π/4}
 using Cx = std::complex<double>;
@@ -139,7 +139,7 @@ enum class DecoherenceLevel {
     NONE,        // |r-1| ≤ RADIUS_TOLERANCE  (coherent, r≈1)
     MINOR,       // RADIUS_TOLERANCE < |r-1| ≤ DECOHERENCE_MINOR
     MAJOR,       // DECOHERENCE_MINOR < |r-1| ≤ DECOHERENCE_MAJOR
-    CRITICAL     // |r-1| > DECOHERENCE_MAJOR
+    CRITICAL     // |r-1| > DECOHERENCE_MAJOR (i.e., |r-1| > 0.15)
 };
 
 DecoherenceLevel measure_decoherence(double r) {
