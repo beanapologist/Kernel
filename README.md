@@ -12,6 +12,7 @@ A C++ kernel implementation based on validated mathematical theorems from the Pi
 4. **Silver Conservation**: Validates δ_S·(√2-1)=1 during boot sequence
 5. **Process Composition**: Quantum interaction system for process entanglement
 6. **Rotational Memory Addressing**: Z/8Z-based memory model with coherence preservation
+7. **Interrupt Handling**: Decoherence detection and automatic coherence recovery
 
 ### Rotational Memory Addressing
 
@@ -76,6 +77,71 @@ p.mem_read(addr);          // Translated by cycle_pos
 
 This ensures memory consistency as processes rotate through the cycle.
 
+### Interrupt Handling
+
+The kernel implements a sophisticated interrupt handling system that detects and responds to decoherence events in quantum processes. Decoherence occurs when the radius parameter r deviates from the balanced state (r=1), causing processes to spiral out (r>1) or spiral in (r<1).
+
+#### Decoherence Detection
+
+The interrupt system continuously monitors each process's coherence state by measuring phase deviation:
+
+- **Phase Deviation Metric**: |r - 1| where r = |β|/|α|
+- **Severity Levels**:
+  - `NONE`: |r-1| ≤ 10⁻⁹ (coherent, on the 8-cycle)
+  - `MINOR`: 10⁻⁹ < |r-1| ≤ 0.05 (slight deviation)
+  - `MAJOR`: 0.05 < |r-1| ≤ 0.15 (significant deviation)
+  - `CRITICAL`: |r-1| > 0.15 (severe decoherence)
+
+#### Recovery Mechanism
+
+When decoherence is detected, the interrupt handler applies corrective actions guided by the coherence function C(r) and Lyapunov duality (Theorem 14):
+
+1. **Correction Strength**: Computed from severity level and recovery rate configuration
+2. **Target Guidance**: Uses r = 1 as target (balanced state from Theorem 9)
+3. **β Adjustment**: Scales the β coefficient to move r toward 1
+4. **Normalization**: Preserves quantum state normalization |α|² + |β|² = 1
+5. **Conservation**: Maintains silver conservation δ_S·(√2-1) = 1 (Prop 4)
+
+#### Usage Example
+
+```cpp
+QuantumKernel kernel;
+
+// Enable interrupts with custom configuration
+DecoherenceHandler::Config cfg;
+cfg.enable_interrupts = true;
+cfg.enable_recovery = true;
+cfg.log_interrupts = true;  // Debug logging
+cfg.recovery_rate = 0.6;    // 60% recovery strength (0=none, 1=instant)
+
+kernel.enable_interrupts(cfg);
+
+// Spawn processes - decoherence will be handled automatically
+kernel.spawn("Process-1", task_function);
+kernel.run(8);  // Interrupts trigger during tick()
+```
+
+#### Recovery Performance
+
+The recovery rate controls how aggressively the system corrects decoherence:
+
+- **Low rate (0.3)**: Gentle correction, gradual return to r=1
+- **Medium rate (0.6)**: Balanced correction speed and stability
+- **High rate (0.9)**: Aggressive correction, rapid coherence restoration
+
+Higher recovery rates provide faster coherence restoration but may cause overcorrection oscillations. Lower rates are more conservative but take longer to restore balance.
+
+#### Minimal Disruption Guarantee
+
+The interrupt system is designed to minimize impact on other processes:
+
+- **Process Isolation**: Each interrupt only affects the decoherent process
+- **No Cascading**: Interrupts don't trigger additional interrupts
+- **Concurrent Safety**: Multiple processes can be corrected independently
+- **Coherent Processes Unaffected**: Processes with r≈1 skip interrupt handling
+
+This ensures memory consistency as processes rotate through the cycle.
+
 ### Building and Running
 
 ```bash
@@ -115,5 +181,7 @@ The kernel demonstrates:
 6. Cycle-aware process memory access
 7. Memory coherence validation
 8. Bank distribution statistics
+9. Decoherence interrupt handling and recovery
+10. Recovery rate comparisons with different configurations
 
 All mathematical invariants (Prop 4, Theorem 14, Corollary 13) are verified during execution.
