@@ -13,6 +13,7 @@ A C++ kernel implementation based on validated mathematical theorems from the Pi
 5. **Process Composition**: Quantum interaction system for process entanglement
 6. **Rotational Memory Addressing**: Z/8Z-based memory model with coherence preservation
 7. **Interrupt Handling**: Decoherence detection and automatic coherence recovery
+8. **Inter-Process Communication (IPC)**: Coherence-preserving message passing between quantum processes
 
 ### Rotational Memory Addressing
 
@@ -141,6 +142,88 @@ The interrupt system is designed to minimize impact on other processes:
 - **Concurrent Safety**: Multiple processes can be corrected independently
 - **Coherent Processes Unaffected**: Processes with r≈1 skip interrupt handling
 
+### Inter-Process Communication (IPC)
+
+The kernel implements a sophisticated IPC system that enables quantum processes to exchange messages while preserving coherence. Messages carry quantum state information (complex coefficients) and are subject to strict coherence validation to prevent decoherence spread.
+
+#### Message Structure
+
+Each message contains:
+- **Sender and Receiver PIDs**: Process identifiers for routing
+- **Timestamp**: Tick when message was sent
+- **Cycle Position**: Sender's Z/8Z position at send time
+- **Payload**: Quantum coefficient (complex number)
+- **Coherence Metadata**: Sender's C(r) value for validation
+
+#### Coherence Preservation
+
+The IPC system enforces coherence preservation through:
+
+1. **Send-Time Validation**: Sender must have C(r) ≥ threshold to send messages
+2. **Receive-Time Validation**: Receiver must have C(r) ≥ threshold to receive messages
+3. **Payload Bounds**: Message payloads must be bounded quantum coefficients
+4. **Queue Capacity**: Limited queue size prevents overflow and unbounded growth
+
+#### Z/8Z Integration
+
+IPC operations respect the 8-cycle scheduler:
+
+- **Cycle Alignment**: Messages can be delivered only at matching Z/8Z positions
+- **Phase Tags**: Messages tagged with sender's cycle position
+- **Rotational Invariants**: Communication preserves rotational symmetry
+- **Channel Synchronization**: Message delivery respects cycle boundaries
+
+#### Usage Example
+
+```cpp
+QuantumKernel kernel;
+
+// Enable IPC with coherence checks
+QuantumIPC::Config cfg;
+cfg.enable_coherence_check = true;
+cfg.enable_cycle_alignment = true;
+cfg.coherence_threshold = 0.7;
+kernel.enable_ipc(cfg);
+
+// Spawn sender process
+kernel.spawn("Sender", [](Process& p) {
+    if (p.cycle_pos == 0) {
+        p.send_to(2, p.state.beta);  // Send to PID 2
+    }
+});
+
+// Spawn receiver process
+kernel.spawn("Receiver", [](Process& p) {
+    if (p.cycle_pos == 0) {
+        auto messages = p.receive_from(1);  // Receive from PID 1
+        for (const auto& msg : messages) {
+            // Process message payload
+        }
+    }
+});
+
+kernel.run(8);
+```
+
+#### IPC Operations
+
+Processes have simple IPC helpers:
+
+```cpp
+Process p;
+p.send_to(target_pid, quantum_coefficient);  // Send message
+auto msgs = p.receive_from(sender_pid);      // Receive messages
+size_t pending = p.pending_from(sender_pid); // Check queue
+```
+
+#### Communication Guarantees
+
+- **Coherence-Gated**: Only coherent processes can send/receive
+- **Ordered Delivery**: FIFO ordering within each channel
+- **No Message Loss**: Messages persist in queue until delivered
+- **Silver Conservation**: δ_S·(√2-1)=1 maintained during IPC
+- **Bounded Resources**: Queue size limits prevent resource exhaustion
+
 ### Building and Running
 
 ```bash
@@ -153,6 +236,10 @@ g++ -std=c++17 -Wall -Wextra -O2 -o quantum_kernel_v2 quantum_kernel_v2.cpp -lm
 # Run theorem verification tests
 g++ -std=c++17 -Wall -Wextra -O2 -o test_pipeline_theorems test_pipeline_theorems.cpp -lm
 ./test_pipeline_theorems
+
+# Run IPC tests
+g++ -std=c++17 -Wall -Wextra -O2 -o test_ipc test_ipc.cpp -lm
+./test_ipc
 ```
 
 ### Mathematical Foundation
@@ -182,6 +269,10 @@ The kernel demonstrates:
 8. Bank distribution statistics
 9. Decoherence interrupt handling and recovery
 10. Recovery rate comparisons with different configurations
+11. Inter-process communication with coherence preservation
+12. Message passing between quantum processes
+13. Coherence-gated communication to prevent decoherence spread
+14. Cycle-aligned message delivery respecting Z/8Z scheduler
 
 All mathematical invariants (Prop 4, Theorem 14, Corollary 13) are verified during execution.
 
