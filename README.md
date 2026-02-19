@@ -80,13 +80,13 @@ This ensures memory consistency as processes rotate through the cycle.
 
 ```bash
 # Compile the kernel
-g++ -std=c++17 -o quantum_kernel_v2 quantum_kernel_v2.cpp -lm
+g++ -std=c++17 -Wall -Wextra -O2 -o quantum_kernel_v2 quantum_kernel_v2.cpp -lm
 
 # Run the kernel (includes all demonstrations)
 ./quantum_kernel_v2
 
 # Run theorem verification tests
-g++ -std=c++17 -o test_pipeline_theorems test_pipeline_theorems.cpp -lm
+g++ -std=c++17 -Wall -Wextra -O2 -o test_pipeline_theorems test_pipeline_theorems.cpp -lm
 ./test_pipeline_theorems
 ```
 

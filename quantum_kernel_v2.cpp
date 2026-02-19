@@ -154,6 +154,8 @@ public:
         }
         
         // Convert to linear address
+        // Inverse of from_linear: if bank = linear % 8 and offset = linear / 8,
+        // then linear = offset * 8 + bank (verified correct)
         uint32_t to_linear() const {
             return offset * 8 + bank;
         }
@@ -272,14 +274,18 @@ public:
         // Check that all stored quantum coefficients maintain normalization
         // Note: Individual coefficients in isolation don't need to be normalized,
         // only the full quantum state (|α|² + |β|² = 1). This check ensures
-        // that stored coefficients are bounded.
+        // that stored coefficients are bounded to prevent numerical overflow.
+        // 
+        // Bound justification: Since quantum states have |α|,|β| ≤ 1, and we
+        // may store multiple coefficients or intermediate computations, a bound
+        // of 100 allows for reasonable multi-coefficient operations while
+        // catching obvious errors or overflow conditions.
+        constexpr double MAX_COEFFICIENT_NORM = 100.0;
+        
         for (const auto& bank : banks_) {
             for (const auto& coeff : bank.data) {
                 double norm = std::norm(coeff);
-                // Individual coefficients should have reasonable bounds
-                // Since we store both α and β separately, each can be up to 1
-                // But allow some margin for multi-coefficient storage
-                if (norm > 1000.0) {  // Very generous bound for storage
+                if (norm > MAX_COEFFICIENT_NORM) {
                     return false;
                 }
             }
@@ -633,12 +639,9 @@ public:
     void tick() {
         ++tick_;
         
-        // Rotate memory addressing to track with cycle progression
-        if (tick_ % 8 == 0 && tick_ > 0) {
-            // After each complete 8-cycle, we can optionally rotate memory
-            // This demonstrates the rotational memory addressing capability
-            // For now, keep addressing stable unless explicitly rotated
-        }
+        // Note: Memory addressing rotation could be synchronized with cycle progression
+        // Currently, rotation is performed explicitly via memory().rotate_addressing()
+        // to give precise control over when memory maps are transformed.
         
         // Apply process composition before individual ticks
         if (composition_enabled_) {
