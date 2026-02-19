@@ -121,7 +121,7 @@ struct Process {
     Process(uint32_t pid_, std::string name_, QState state_ = QState{}, 
             uint8_t cycle_pos_ = 0, std::function<void(Process&)> task_ = nullptr,
             bool interacted_ = false)
-        : pid(pid_), name(std::move(name_)), state(state_), 
+        : pid(pid_), name(std::move(name_)), state(std::move(state_)), 
           cycle_pos(cycle_pos_), task(std::move(task_)), interacted(interacted_) {}
 
     // One tick: apply rotation (Section 3 / Theorem 10)
@@ -248,6 +248,7 @@ public:
                 // Rollback on coherence violation
                 p1.state = s1_init;
                 p2.state = s2_init;
+                ++coherence_violations_;
                 
                 if (config_.log_interactions) {
                     std::cout << "      ✗ Coherence violation, interaction rolled back\n";
@@ -267,19 +268,20 @@ public:
         // Mark processes as interacted this tick
         p1.interacted = true;
         p2.interacted = true;
+        ++total_interactions_;  // Only count successful interactions
 
         return true;
     }
 
-    // ── Batch interaction check across all process pairs ─────────────────────
+    // ── Apply interactions across all process pairs ──────────────────────────
     /*
      * Checks all pairs of processes for Z/8Z position matches
      * Applies interactions where appropriate
-     * Returns count of interactions performed
+     * Returns count of successful interactions performed
      * 
      * Note: interaction flags are reset by Process::tick() before this is called
      */
-    uint32_t check_interactions(std::vector<Process>& processes) {
+    uint32_t apply_interactions(std::vector<Process>& processes) {
         uint32_t interaction_count = 0;
 
         // Check all pairs (i,j) where i < j
@@ -338,18 +340,18 @@ private:
         // Re-normalize to preserve |α|²+|β|²=1 (quantum normalization)
         renormalize(s1);
         renormalize(s2);
-
-        ++total_interactions_;
     }
 
     // ── Renormalization helper ────────────────────────────────────────────────
     /*
      * Ensures |α|²+|β|²=1 after transformations
      * Scales α and β proportionally to maintain their relative phases
+     * Only renormalizes if state has deviated from unit normalization
      */
     void renormalize(QState& s) {
         double norm_sq = std::norm(s.alpha) + std::norm(s.beta);
-        if (norm_sq > COHERENCE_TOLERANCE) {
+        // Only renormalize if significantly different from 1.0
+        if (std::abs(norm_sq - 1.0) > COHERENCE_TOLERANCE) {
             double scale = 1.0 / std::sqrt(norm_sq);
             s.alpha *= scale;
             s.beta  *= scale;
@@ -418,7 +420,7 @@ public:
         
         // Apply process composition before individual ticks
         if (composition_enabled_) {
-            uint32_t interactions = composition_.check_interactions(processes_);
+            uint32_t interactions = composition_.apply_interactions(processes_);
             if (interactions > 0 && composition_.config_.log_interactions) {
                 std::cout << "  tick " << tick_ << ": " << interactions 
                           << " interaction(s) occurred\n";
