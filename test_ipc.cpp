@@ -149,21 +149,21 @@ void test_cycle_alignment() {
     bool should_deliver_match = (receiver_pos_match == sender_pos);
     test_assert(should_deliver_match, "Exact cycle position match allows delivery");
     
-    // Test case 2: Position 0 (cycle completion, special case)
+    // Test case 2: Position 0 (should not be special)
     uint8_t receiver_pos_zero = 0;
-    bool should_deliver_zero = (receiver_pos_zero == sender_pos || receiver_pos_zero == 0);
-    test_assert(should_deliver_zero, "Position 0 allows delivery (cycle completion)");
+    bool should_not_deliver_zero = (receiver_pos_zero != sender_pos);
+    test_assert(should_not_deliver_zero, "Position 0 does not bypass cycle alignment");
     
     // Test case 3: Different position
     uint8_t receiver_pos_diff = 5;
     bool should_wait = (receiver_pos_diff != sender_pos && receiver_pos_diff != 0);
     test_assert(should_wait, "Different position defers delivery");
     
-    // Test case 4: Z/8Z boundary (7 and 0)
+    // Test case 4: Z/8Z boundary (7 and 0 are different positions)
     uint8_t boundary_send = 7;
     uint8_t boundary_recv = 0;
-    bool boundary_delivery = (boundary_recv == boundary_send || boundary_recv == 0);
-    test_assert(boundary_delivery, "Z/8Z boundary handled correctly");
+    bool boundary_mismatch = (boundary_recv != boundary_send);
+    test_assert(boundary_mismatch, "Z/8Z positions 7 and 0 are distinct");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -343,9 +343,9 @@ void test_coherence_boundaries() {
     
     for (double threshold : thresholds) {
         for (double coherence : coherences) {
-            bool should_allow = (coherence >= threshold);
-            bool computed = (coherence >= threshold);
-            test_assert(computed == should_allow, 
+            bool expected_result = (coherence >= threshold);
+            // Test that coherence check gives expected result
+            test_assert(expected_result == (coherence >= threshold), 
                         "Threshold " + std::to_string(threshold) + 
                         " vs coherence " + std::to_string(coherence));
         }

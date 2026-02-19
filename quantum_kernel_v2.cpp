@@ -777,9 +777,8 @@ public:
             
             // Cycle alignment check
             if (config_.enable_cycle_alignment) {
-                // Deliver only if receiver at appropriate cycle position
-                // Allow delivery at same position or at position 0 (cycle completion)
-                if (receiver_pos != msg.sender_cycle_pos && receiver_pos != 0) {
+                // Deliver only if receiver at same cycle position as sender
+                if (receiver_pos != msg.sender_cycle_pos) {
                     ++it;
                     continue;
                 }
@@ -1842,12 +1841,18 @@ int main() {
     });
     
     cycle_kernel.spawn("CycleReceiver", [](Process& p) {
-        // Try to receive at various positions
-        if (p.cycle_pos == 3 || p.cycle_pos == 0) {
+        // Try to receive at position 3 (will succeed) and position 0 (will wait)
+        if (p.cycle_pos == 3) {
             auto msgs = p.receive_from(1);
             if (!msgs.empty()) {
                 std::cout << "    [CycleReceiver] Received at cycle position " 
                           << (int)p.cycle_pos << "\n";
+            }
+        }
+        if (p.cycle_pos == 0) {
+            auto msgs = p.receive_from(1);
+            if (msgs.empty()) {
+                std::cout << "    [CycleReceiver] No messages at position 0 (cycle alignment enforced)\n";
             }
         }
     });
