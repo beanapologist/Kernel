@@ -3,6 +3,7 @@ quantum_kernel_v2
 test_pipeline_theorems
 test_interrupt_nist
 test_debug
+benchmark_nist_ir8356
 *.o
 *.out
 *.exe
