@@ -1,5 +1,7 @@
 # Compiled binaries
 quantum_kernel_v2
+test_pipeline_theorems
+test_debug
 *.o
 *.out
 *.exe
