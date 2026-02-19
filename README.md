@@ -236,6 +236,10 @@ g++ -std=c++17 -Wall -Wextra -O2 -o quantum_kernel_v2 quantum_kernel_v2.cpp -lm
 # Run theorem verification tests
 g++ -std=c++17 -Wall -Wextra -O2 -o test_pipeline_theorems test_pipeline_theorems.cpp -lm
 ./test_pipeline_theorems
+
+# Run IPC tests
+g++ -std=c++17 -Wall -Wextra -O2 -o test_ipc test_ipc.cpp -lm
+./test_ipc
 ```
 
 ### Mathematical Foundation
