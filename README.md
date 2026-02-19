@@ -240,6 +240,10 @@ g++ -std=c++17 -Wall -Wextra -O2 -o test_pipeline_theorems test_pipeline_theorem
 # Run IPC tests
 g++ -std=c++17 -Wall -Wextra -O2 -o test_ipc test_ipc.cpp -lm
 ./test_ipc
+
+# Run NIST IR 8356 scalability benchmarks
+g++ -std=c++17 -Wall -Wextra -O2 -o benchmark_nist_ir8356 benchmark_nist_ir8356.cpp -lm
+./benchmark_nist_ir8356
 ```
 
 ### Mathematical Foundation
@@ -287,6 +291,36 @@ The interrupt handling implementation has been evaluated against NIST (National 
 - ✓ NIST SP 800-160 (Systems Security Engineering)
 
 **Overall Assessment**: Strong compliance with NIST guidelines for quantum error handling systems.
+
+### NIST IR 8356 Scalability Benchmarks
+
+The kernel includes comprehensive benchmarking tools to evaluate scalability against metrics outlined in **NIST IR 8356: Considerations for Managing the Security of Operational Quantum Computing Systems**. See [NIST_IR8356_BENCHMARKS.md](NIST_IR8356_BENCHMARKS.md) for detailed methodology and analysis.
+
+**Benchmark Categories:**
+1. **Process Spawning Scalability**: Capacity to spawn quantum processes under high-load states
+2. **8-Cycle Scheduling Throughput**: Operations per cycle with varying workloads
+3. **Memory Addressing Scalability**: Z/8Z rotational memory performance at scale
+4. **Coherence Preservation at Scale**: C(r) stability as system size increases
+
+**Core Metrics Evaluated:**
+- ✓ Qubit error rates (via decoherence detection)
+- ✓ Coherence times (via C(r) = 2r/(1+r²) tracking)
+- ✓ Gate fidelities (via 8-cycle µ operations)
+- ✓ Scalability limits (process, memory, throughput)
+
+**Run the NIST IR 8356 benchmark suite:**
+
+```bash
+# Compile and run full benchmark suite
+g++ -std=c++17 -Wall -Wextra -O2 -o benchmark_nist_ir8356 benchmark_nist_ir8356.cpp -lm
+./benchmark_nist_ir8356
+
+# Run specific benchmark categories
+./benchmark_nist_ir8356 --test=process_spawn
+./benchmark_nist_ir8356 --test=scheduling
+./benchmark_nist_ir8356 --test=memory
+./benchmark_nist_ir8356 --test=coherence
+```
 
 **NIST-Recommended Test Suite**: Run `./test_interrupt_nist` to execute statistical validation, performance benchmarking, formal verification, and security tests as recommended in the NIST evaluation.
 
