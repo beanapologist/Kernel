@@ -42,7 +42,11 @@ constexpr double CONSERVATION_TOL    = 1e-12;            // Silver conservation 
 // Decoherence is detected when r deviates from 1 beyond acceptable tolerances
 constexpr double DECOHERENCE_MINOR   = 0.05;             // Minor deviation: |r-1| > 0.05
 constexpr double DECOHERENCE_MAJOR   = 0.15;             // Major deviation: |r-1| > 0.15
-                                                         // Critical: |r-1| > 0.15
+                                                         // Critical: |r-1| > MAJOR
+
+// Recovery bounds for interrupt handling
+constexpr double MIN_RECOVERY_RADIUS = 0.1;              // Minimum r during recovery
+constexpr double MAX_RECOVERY_RADIUS = 10.0;             // Maximum r during recovery
 
 // Section 2: µ = (-1+i)/√2 = e^{i3π/4}
 using Cx = std::complex<double>;
@@ -139,7 +143,7 @@ enum class DecoherenceLevel {
     NONE,        // |r-1| ≤ RADIUS_TOLERANCE  (coherent, r≈1)
     MINOR,       // RADIUS_TOLERANCE < |r-1| ≤ DECOHERENCE_MINOR
     MAJOR,       // DECOHERENCE_MINOR < |r-1| ≤ DECOHERENCE_MAJOR
-    CRITICAL     // |r-1| > DECOHERENCE_MAJOR (i.e., |r-1| > 0.15)
+    CRITICAL     // |r-1| > DECOHERENCE_MAJOR
 };
 
 DecoherenceLevel measure_decoherence(double r) {
@@ -284,6 +288,7 @@ public:
         return interrupt_history_;
     }
     
+    // Public access to config for kernel integration
     Config config_;
 
 private:
@@ -342,8 +347,8 @@ private:
         double new_r = r + correction_delta;
         
         // Ensure new_r is positive and reasonable
-        if (new_r <= 0.0) new_r = 0.1;
-        if (new_r > 10.0) new_r = 10.0;
+        if (new_r <= 0.0) new_r = MIN_RECOVERY_RADIUS;
+        if (new_r > MAX_RECOVERY_RADIUS) new_r = MAX_RECOVERY_RADIUS;
         
         // Apply correction: scale β to achieve new_r
         // new_r = |β'| / |α|  →  |β'| = new_r · |α|
@@ -1241,14 +1246,16 @@ int main() {
     
     // Process 2: Will spiral out (r>1, requires recovery)
     int_kernel.spawn("Spiral-Out", [](Process& p) {
+        // Apply moderate outward perturbation (20%) at cycle position 1
         if (p.cycle_pos == 1 && std::abs(p.state.radius()-1.0) < 0.01)
-            p.state.beta *= 1.2;  // Perturb outward
+            p.state.beta *= 1.2;
     });
     
     // Process 3: Will spiral in (r<1, requires recovery)
     int_kernel.spawn("Spiral-In", [](Process& p) {
+        // Apply moderate inward perturbation (20%) at cycle position 1
         if (p.cycle_pos == 1 && std::abs(p.state.radius()-1.0) < 0.01)
-            p.state.beta *= 0.8;  // Perturb inward
+            p.state.beta *= 0.8;
     });
     
     std::cout << "Initial state:\n";
@@ -1274,10 +1281,10 @@ int main() {
         test_cfg.recovery_rate = rate;
         test_kernel.enable_interrupts(test_cfg);
         
-        // Spawn decoherent process
+        // Spawn decoherent process with strong perturbation (30%)
         test_kernel.spawn("Test", [](Process& p) {
             if (p.cycle_pos == 1 && std::abs(p.state.radius()-1.0) < 0.01)
-                p.state.beta *= 1.3;  // Strong perturbation
+                p.state.beta *= 1.3;
         });
         
         test_kernel.run(16);  // Two cycles
