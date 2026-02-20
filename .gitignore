@@ -2,9 +2,11 @@
 quantum_kernel_v2
 quantum_kernel_v2_bin
 test_pipeline_theorems
+test_pipeline_theorems_bin
 test_interrupt_nist
 test_debug
 test_null_geodesic
+test_ipc_bin
 benchmark_nist_ir8356
 *.o
 *.out
