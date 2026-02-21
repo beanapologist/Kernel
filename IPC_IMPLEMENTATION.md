@@ -20,6 +20,7 @@ This document describes the IPC functionality added to the Quantum Kernel v2.0, 
    - `sender_cycle_pos`: Z/8Z position at send time
    - `payload`: Complex quantum coefficient
    - `sender_coherence`: C(r) value for validation
+   - `encrypted`: AES-256-GCM encrypted payload data (IV, ciphertext, GCM tag, HMAC-SHA256)
 
 3. **Process Integration**
    - `send_to(pid, payload)`: Send message
@@ -57,6 +58,16 @@ Messages respect the 8-cycle scheduler:
 - Prevents numerical overflow
 - Maintains bounded state space
 
+#### 5. Classical Cryptographic Security (AES-256-GCM + HMAC-SHA256)
+
+When a channel has a symmetric key configured (via `set_channel_key`):
+- **Encryption**: Payload is encrypted with AES-256-GCM (256-bit key, random 12-byte IV) before queuing
+- **Integrity**: HMAC-SHA256 is computed over IV ∥ ciphertext ∥ GCM tag and stored with the message
+- **Delivery**: HMAC is verified (constant-time) and payload is decrypted before delivery; messages failing integrity checks are silently dropped
+- **Per-channel keys**: Each directional channel has its own independent symmetric key
+
+Channels without a key operate identically to prior behavior (backward-compatible).
+
 ## Configuration
 
 ```cpp
@@ -68,6 +79,11 @@ cfg.max_queue_size = 100;               // Per-channel limit
 cfg.log_messages = true;                // Debug logging
 
 kernel.enable_ipc(cfg);
+
+// Enable AES-256-GCM encryption on a specific channel
+std::vector<uint8_t> key(32);           // 32-byte symmetric key
+RAND_bytes(key.data(), 32);
+kernel.ipc().set_channel_key(1, 2, key); // Encrypt channel PID 1 → PID 2
 ```
 
 ## Usage Examples
@@ -137,7 +153,7 @@ IPC operations do not modify process states directly, only exchange information.
 
 ### Test Coverage
 
-1. **Unit Tests** (`test_ipc.cpp`): 94 tests covering:
+1. **Unit Tests** (`test_ipc.cpp`): 124 tests covering:
    - Message structure integrity
    - Coherence validation logic
    - Payload bounds checking
@@ -145,6 +161,9 @@ IPC operations do not modify process states directly, only exchange information.
    - Queue FIFO ordering
    - Channel independence
    - Metadata preservation
+   - AES-256-GCM encryption/decryption roundtrip
+   - HMAC-SHA256 integrity and tamper detection
+   - Channel-level encryption key configuration
 
 2. **Integration Tests**: Kernel demonstrations showing:
    - Basic message passing
@@ -155,8 +174,8 @@ IPC operations do not modify process states directly, only exchange information.
 ### Test Results
 
 ```
-Total tests:  94
-Passed:       94 ✓
+Total tests:  124
+Passed:       124 ✓
 Failed:       0 ✗
 ```
 
@@ -176,15 +195,18 @@ No regression in existing theorem tests (56 tests) or NIST interrupt tests.
 3. **Payload Limits**: Prevents numerical overflow attacks
 4. **Process Isolation**: Each channel is independent
 5. **No State Corruption**: IPC doesn't modify sender/receiver states
+6. **AES-256-GCM Encryption**: Optional per-channel payload encryption with authenticated encryption
+7. **HMAC-SHA256 Integrity**: Message integrity verified before decryption; constant-time comparison prevents timing attacks
+8. **Per-Channel Keys**: Independent symmetric keys per directional channel limit blast radius of key compromise
 
 ## Future Enhancements
 
 Potential improvements (not currently implemented):
 - Priority-based message delivery
 - Broadcast/multicast support
-- Message encryption for secure communication
 - Adaptive coherence thresholds
 - Message compression for large payloads
+- Key rotation and ephemeral session keys
 
 ## References
 

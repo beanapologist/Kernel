@@ -26,6 +26,11 @@
 #include <stdexcept>
 #include <cstdint>
 #include <memory>
+#include <cstring>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/rand.h>
+#include <openssl/crypto.h>
 
 // ── Theorem 3: Critical constants ────────────────────────────────────────────
 // η = λ = 1/√2  (unique solution to 2λ²=1, positive root)
@@ -632,6 +637,16 @@ public:
         uint8_t sender_cycle_pos;               // Sender's Z/8Z position when sent
         Cx payload;                             // Quantum coefficient (message data)
         double sender_coherence;                // C(r) of sender at send time
+
+        // Classical cryptographic fields (AES-256-GCM + HMAC-SHA256)
+        struct EncryptedData {
+            std::vector<uint8_t> iv;            // 12-byte AES-256-GCM IV
+            std::vector<uint8_t> ciphertext;    // Encrypted payload bytes
+            std::vector<uint8_t> tag;           // 16-byte GCM authentication tag
+            std::vector<uint8_t> hmac;          // 32-byte HMAC-SHA256
+            bool is_encrypted = false;
+        };
+        EncryptedData encrypted;                // Populated when channel has a key
         
         Message(uint32_t from, uint32_t to, uint64_t tick, uint8_t pos, 
                 const Cx& data, double coherence)
@@ -646,6 +661,7 @@ public:
         std::vector<Message> queue;             // FIFO message queue
         uint64_t messages_sent = 0;
         uint64_t messages_delivered = 0;
+        std::vector<uint8_t> channel_key;       // 32-byte AES-256 key (empty = no encryption)
         
         Channel(uint32_t from, uint32_t to) 
             : sender_pid(from), receiver_pid(to) {}
@@ -717,8 +733,26 @@ public:
         }
         
         // Create and enqueue message
-        channel.queue.emplace_back(from_pid, to_pid, tick, sender_pos, 
-                                   data, sender_coherence);
+        Message msg(from_pid, to_pid, tick, sender_pos, data, sender_coherence);
+        
+        // If channel has an encryption key, encrypt payload and compute HMAC
+        if (!channel.channel_key.empty()) {
+            Message::EncryptedData enc;
+            if (!encrypt_payload(data, channel.channel_key, enc)) {
+                if (config_.log_messages) {
+                    std::cout << "    ✗ IPC: PID " << from_pid 
+                              << " → PID " << to_pid 
+                              << " BLOCKED (encryption failed)\n";
+                }
+                ++blocked_sends_;
+                return false;
+            }
+            enc.hmac = compute_hmac(channel.channel_key, hmac_input(enc));
+            enc.is_encrypted = true;
+            msg.encrypted = enc;
+        }
+        
+        channel.queue.push_back(std::move(msg));
         ++channel.messages_sent;
         ++total_messages_sent_;
         
@@ -784,8 +818,39 @@ public:
                 }
             }
             
+            // Decrypt payload if message is encrypted
+            Message deliver_msg = msg;
+            if (msg.encrypted.is_encrypted) {
+                if (channel.channel_key.empty()) {
+                    ++it;
+                    continue;  // No key available to decrypt
+                }
+                // Validate HMAC-SHA256 integrity
+                if (!verify_hmac(channel.channel_key, hmac_input(msg.encrypted), msg.encrypted.hmac)) {
+                    if (config_.log_messages) {
+                        std::cout << "    ✗ IPC: PID " << to_pid 
+                                  << " ← PID " << from_pid 
+                                  << " REJECTED (HMAC verification failed)\n";
+                    }
+                    it = channel.queue.erase(it);
+                    continue;
+                }
+                // Decrypt AES-256-GCM payload
+                Cx decrypted;
+                if (!decrypt_payload(msg.encrypted, channel.channel_key, decrypted)) {
+                    if (config_.log_messages) {
+                        std::cout << "    ✗ IPC: PID " << to_pid 
+                                  << " ← PID " << from_pid 
+                                  << " REJECTED (decryption failed)\n";
+                    }
+                    it = channel.queue.erase(it);
+                    continue;
+                }
+                deliver_msg.payload = decrypted;
+            }
+
             // Message validated for delivery
-            delivered.push_back(msg);
+            delivered.push_back(deliver_msg);
             ++channel.messages_delivered;
             ++total_messages_delivered_;
             
@@ -806,6 +871,18 @@ public:
     
     // ── Channel Management ────────────────────────────────────────────────────
     
+    // Set symmetric encryption key for a channel (AES-256-GCM + HMAC-SHA256)
+    // key must be exactly 32 bytes; pass empty vector to disable encryption
+    void set_channel_key(uint32_t from_pid, uint32_t to_pid, 
+                         const std::vector<uint8_t>& key) {
+        if (!key.empty() && key.size() != 32) {
+            throw std::invalid_argument(
+                "Channel key must be exactly 32 bytes for AES-256-GCM");
+        }
+        auto& channel = get_or_create_channel(from_pid, to_pid);
+        channel.channel_key = key;
+    }
+
     // Get pending message count for a channel
     size_t pending_count(uint32_t from_pid, uint32_t to_pid) const {
         auto channel_it = find_channel(from_pid, to_pid);
@@ -866,6 +943,132 @@ private:
     uint64_t total_messages_delivered_ = 0;
     uint64_t blocked_sends_ = 0;
     
+    // ── Classical Cryptography Helpers (AES-256-GCM + HMAC-SHA256) ──────────
+
+    // Serialized size of complex<double>: 8 bytes real + 8 bytes imaginary
+    static constexpr size_t SERIALIZED_CX_SIZE = 16;
+
+    // Serialize complex<double> to SERIALIZED_CX_SIZE bytes (two little-endian doubles)
+    static std::vector<uint8_t> serialize_cx(const Cx& c) {
+        std::vector<uint8_t> buf(SERIALIZED_CX_SIZE);
+        double re = c.real(), im = c.imag();
+        std::memcpy(buf.data(),     &re, 8);
+        std::memcpy(buf.data() + 8, &im, 8);
+        return buf;
+    }
+
+    // Deserialize SERIALIZED_CX_SIZE bytes back to complex<double>
+    static Cx deserialize_cx(const std::vector<uint8_t>& buf) {
+        double re, im;
+        std::memcpy(&re, buf.data(),     8);
+        std::memcpy(&im, buf.data() + 8, 8);
+        return Cx{re, im};
+    }
+
+    // Build HMAC input: IV || ciphertext || GCM tag
+    static std::vector<uint8_t> hmac_input(const Message::EncryptedData& enc) {
+        std::vector<uint8_t> data;
+        data.insert(data.end(), enc.iv.begin(),         enc.iv.end());
+        data.insert(data.end(), enc.ciphertext.begin(), enc.ciphertext.end());
+        data.insert(data.end(), enc.tag.begin(),        enc.tag.end());
+        return data;
+    }
+
+    // Compute HMAC-SHA256 over data using key; returns 32-byte digest
+    static std::vector<uint8_t> compute_hmac(const std::vector<uint8_t>& key,
+                                              const std::vector<uint8_t>& data) {
+        std::vector<uint8_t> result(32);
+        unsigned int len = 32;
+        HMAC(EVP_sha256(), key.data(), static_cast<int>(key.size()),
+             data.data(), data.size(), result.data(), &len);
+        result.resize(len);
+        return result;
+    }
+
+    // Constant-time HMAC verification
+    static bool verify_hmac(const std::vector<uint8_t>& key,
+                             const std::vector<uint8_t>& data,
+                             const std::vector<uint8_t>& expected) {
+        auto computed = compute_hmac(key, data);
+        if (computed.size() != expected.size()) return false;
+        return CRYPTO_memcmp(computed.data(), expected.data(), computed.size()) == 0;
+    }
+
+    // Encrypt a complex payload using AES-256-GCM; returns true on success
+    static bool encrypt_payload(const Cx& payload, const std::vector<uint8_t>& key,
+                                 Message::EncryptedData& enc) {
+        constexpr int IV_LEN  = 12;
+        constexpr int TAG_LEN = 16;
+
+        enc.iv.resize(IV_LEN);
+        if (RAND_bytes(enc.iv.data(), IV_LEN) != 1) return false;
+
+        auto plaintext = serialize_cx(payload);
+        enc.ciphertext.resize(plaintext.size());
+        enc.tag.resize(TAG_LEN);
+
+        EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) return false;
+
+        bool ok = false;
+        do {
+            if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr,
+                                   nullptr, nullptr) != 1) break;
+            if (EVP_EncryptInit_ex(ctx, nullptr, nullptr,
+                                   key.data(), enc.iv.data()) != 1) break;
+            int len = 0;
+            if (EVP_EncryptUpdate(ctx, enc.ciphertext.data(), &len,
+                                  plaintext.data(),
+                                  static_cast<int>(plaintext.size())) != 1) break;
+            int final_len = 0;
+            if (EVP_EncryptFinal_ex(ctx, enc.ciphertext.data() + len,
+                                    &final_len) != 1) break;
+            enc.ciphertext.resize(len + final_len);
+            if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG,
+                                    TAG_LEN, enc.tag.data()) != 1) break;
+            ok = true;
+        } while (false);
+
+        EVP_CIPHER_CTX_free(ctx);
+        return ok;
+    }
+
+    // Decrypt an AES-256-GCM encrypted payload; returns true on success
+    static bool decrypt_payload(const Message::EncryptedData& enc,
+                                 const std::vector<uint8_t>& key,
+                                 Cx& payload) {
+        std::vector<uint8_t> plaintext(enc.ciphertext.size());
+
+        EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+        if (!ctx) return false;
+
+        bool ok = false;
+        do {
+            if (EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr,
+                                   nullptr, nullptr) != 1) break;
+            if (EVP_DecryptInit_ex(ctx, nullptr, nullptr,
+                                   key.data(), enc.iv.data()) != 1) break;
+            int len = 0;
+            if (EVP_DecryptUpdate(ctx, plaintext.data(), &len,
+                                  enc.ciphertext.data(),
+                                  static_cast<int>(enc.ciphertext.size())) != 1) break;
+            // Set expected GCM tag before finalizing
+            std::vector<uint8_t> tag_copy = enc.tag;
+            if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+                                    static_cast<int>(tag_copy.size()),
+                                    tag_copy.data()) != 1) break;
+            int final_len = 0;
+            if (EVP_DecryptFinal_ex(ctx, plaintext.data() + len, &final_len) <= 0) break;
+            plaintext.resize(len + final_len);
+            if (plaintext.size() != SERIALIZED_CX_SIZE) break;
+            payload = deserialize_cx(plaintext);
+            ok = true;
+        } while (false);
+
+        EVP_CIPHER_CTX_free(ctx);
+        return ok;
+    }
+
     // Find channel by sender and receiver PIDs
     std::vector<Channel>::iterator find_channel(uint32_t from_pid, uint32_t to_pid) {
         return std::find_if(channels_.begin(), channels_.end(),
