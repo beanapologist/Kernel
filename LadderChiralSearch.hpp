@@ -6,6 +6,9 @@
  * (e^y − 1) is applied on the positive-imaginary domain when kick_base < 1.0,
  * providing super-linear amplification of the target-state amplitude.
  *
+ * The β-amplitude register is stored as an Eigen::VectorXcd, enabling
+ * efficient norm computation and future matrix-operator extensions.
+ *
  * Integration:
  *   Include after ChiralNonlinearGate.hpp (QState must be in scope).
  *   Adjust kick_base to switch between linear and exponential regimes.
@@ -18,9 +21,23 @@
 #include <cstddef>
 #include <vector>
 
+#include <Eigen/Dense>
+
 #include "ChiralNonlinearGate.hpp"
 
 namespace kernel::quantum {
+
+// ── StepResult ────────────────────────────────────────────────────────────────
+// Return value of LadderChiralSearch::ladder_step.
+//
+//   p_target  — normalised probability of measuring the target state
+//   coherence — average C(r) = 2r/(1+r²) across all n states (Theorem 11)
+//               where r_i = |β_i| / |α_i|; higher means more coherent ensemble
+//
+struct StepResult {
+    double p_target  = 0.0;
+    double coherence = 0.0;
+};
 
 // ── LadderChiralSearch ────────────────────────────────────────────────────────
 // Chiral ladder search over n candidate states.
@@ -38,7 +55,7 @@ namespace kernel::quantum {
 //   s.ladder_step(8);    // one step over 8 states
 //
 struct LadderChiralSearch {
-    size_t target   = 0;
+    size_t target    = 0;
     double kick_base = 1.0;
 
     // ── ladder_step ───────────────────────────────────────────────────────────
@@ -50,10 +67,11 @@ struct LadderChiralSearch {
     //   3. Applies the chiral non-linear rotation µ to every state:
     //        - kick_base >= 1.0  → kick_strength = 0 (purely linear)
     //        - kick_base <  1.0  → kick_strength = e^(Im(β)) − 1  (Euler kick)
-    //   4. Returns the probability of measuring the target state after the step.
+    //   4. Stores β amplitudes in an Eigen::VectorXcd for efficient norm computation.
+    //   5. Returns StepResult{p_target, C(r)} for the evolved target state.
     //
-    double ladder_step(size_t n) {
-        if (n == 0) return 0.0;
+    StepResult ladder_step(size_t n) {
+        if (n == 0) return {};
 
         // Build state register: n copies of the canonical coherent state
         std::vector<QState> states(n);
@@ -75,16 +93,31 @@ struct LadderChiralSearch {
             s = chiral_nonlinear(s, kick_strength);
         }
 
-        // Probability of measuring target ∝ |β|² of the (now-evolved) target
-        const double p_target = std::norm(states[idx].beta);
-
-        // Normalisation denominator
-        double total = 0.0;
-        for (const auto& s : states) {
-            total += std::norm(s.beta);
+        // Collect β amplitudes into an Eigen vector for norm operations
+        Eigen::VectorXcd betas(static_cast<Eigen::Index>(n));
+        for (size_t i = 0; i < n; ++i) {
+            betas[static_cast<Eigen::Index>(i)] = states[i].beta;
         }
 
-        return (total > 0.0) ? p_target / total : 0.0;
+        // Normalised probability of measuring target: |β_target|² / ‖β‖²
+        const double total    = betas.squaredNorm();
+        const double p_target = (total > 0.0)
+            ? std::norm(betas[static_cast<Eigen::Index>(idx)]) / total
+            : 0.0;
+
+        // Average coherence C(r) = 2r/(1+r²) across all n states (Theorem 11).
+        // r_i = |β_i| / |α_i|; α is unchanged by chiral_nonlinear, so |α| = CHIRAL_ETA.
+        // Averaging across states reveals how the kick redistributes coherence
+        // between the marked target and the unmarked background.
+        double coh_sum = 0.0;
+        for (Eigen::Index i = 0; i < static_cast<Eigen::Index>(n); ++i) {
+            const double r_i     = std::abs(betas[i]) / CHIRAL_ETA;
+            const double denom_i = 1.0 + r_i * r_i;
+            coh_sum += (2.0 * r_i) / denom_i;
+        }
+        const double coherence = coh_sum / static_cast<double>(n);
+
+        return {p_target, coherence};
     }
 };
 
