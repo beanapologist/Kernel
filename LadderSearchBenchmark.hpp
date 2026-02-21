@@ -125,12 +125,12 @@ inline void benchmark_kick_vs_nokick(size_t steps    = 30,
 // Parameters
 //   steps      — number of ladder steps per run (default: 30)
 //   runs       — number of repetitions for timing statistics (default: 10)
-//   n_values   — register sizes to sweep (default: {8, 16, 32, 64, 128})
+//   n_values   — register sizes to sweep (default: {8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096})
 //
 inline void benchmark_kick_vs_nokick_at_scale(
         size_t steps  = 30,
         size_t runs   = 10,
-        const std::vector<size_t>& n_values = {8, 16, 32, 64, 128}) {
+        const std::vector<size_t>& n_values = {8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096}) {
     std::cout << "\n╔═══ Benchmark: Euler Kick vs No-Kick — Scale Sweep ═════════╗\n";
     std::cout << "  steps=" << steps << "  runs=" << runs << "\n";
 
