@@ -4,6 +4,7 @@ test_pipeline_theorems
 test_interrupt_nist
 test_debug
 benchmark_nist_ir8356
+test_ipc
 *.o
 *.out
 *.exe

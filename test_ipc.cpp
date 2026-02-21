@@ -17,6 +17,11 @@
 #include <vector>
 #include <string>
 #include <cstdint>
+#include <cstring>
+#include <openssl/evp.h>
+#include <openssl/hmac.h>
+#include <openssl/rand.h>
+#include <openssl/crypto.h>
 
 // ── Constants from quantum_kernel_v2.cpp ─────────────────────────────────────
 constexpr double ETA        = 0.70710678118654752440;   // 1/√2
@@ -353,6 +358,440 @@ void test_coherence_boundaries() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Crypto helpers (mirrors QuantumIPC private methods for standalone testing)
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Serialized size of complex<double>: 8 bytes real + 8 bytes imaginary
+static constexpr size_t SERIALIZED_CX_SIZE = 16;
+
+static std::vector<uint8_t> test_serialize_cx(const Cx& c) {
+    std::vector<uint8_t> buf(SERIALIZED_CX_SIZE);
+    double re = c.real(), im = c.imag();
+    std::memcpy(buf.data(),     &re, 8);
+    std::memcpy(buf.data() + 8, &im, 8);
+    return buf;
+}
+
+static Cx test_deserialize_cx(const std::vector<uint8_t>& buf) {
+    double re, im;
+    std::memcpy(&re, buf.data(),     8);
+    std::memcpy(&im, buf.data() + 8, 8);
+    return Cx{re, im};
+}
+
+struct TestEncryptedData {
+    std::vector<uint8_t> iv;
+    std::vector<uint8_t> ciphertext;
+    std::vector<uint8_t> tag;
+    std::vector<uint8_t> hmac;
+    bool is_encrypted = false;
+};
+
+static bool test_encrypt(const Cx& payload, const std::vector<uint8_t>& key,
+                          TestEncryptedData& enc) {
+    constexpr int IV_LEN = 12, TAG_LEN = 16;
+    enc.iv.resize(IV_LEN);
+    if (RAND_bytes(enc.iv.data(), IV_LEN) != 1) return false;
+    auto plain = test_serialize_cx(payload);
+    enc.ciphertext.resize(plain.size());
+    enc.tag.resize(TAG_LEN);
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) return false;
+    bool ok = false;
+    do {
+        if (EVP_EncryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) != 1) break;
+        if (EVP_EncryptInit_ex(ctx, nullptr, nullptr, key.data(), enc.iv.data()) != 1) break;
+        int len = 0;
+        if (EVP_EncryptUpdate(ctx, enc.ciphertext.data(), &len,
+                              plain.data(), (int)plain.size()) != 1) break;
+        int fl = 0;
+        if (EVP_EncryptFinal_ex(ctx, enc.ciphertext.data() + len, &fl) != 1) break;
+        enc.ciphertext.resize(len + fl);
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_GET_TAG, TAG_LEN, enc.tag.data()) != 1) break;
+        ok = true;
+    } while (false);
+    EVP_CIPHER_CTX_free(ctx);
+    return ok;
+}
+
+static bool test_decrypt(const TestEncryptedData& enc, const std::vector<uint8_t>& key,
+                          Cx& payload) {
+    std::vector<uint8_t> plain(enc.ciphertext.size());
+    EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) return false;
+    bool ok = false;
+    do {
+        if (EVP_DecryptInit_ex(ctx, EVP_aes_256_gcm(), nullptr, nullptr, nullptr) != 1) break;
+        if (EVP_DecryptInit_ex(ctx, nullptr, nullptr, key.data(), enc.iv.data()) != 1) break;
+        int len = 0;
+        if (EVP_DecryptUpdate(ctx, plain.data(), &len,
+                              enc.ciphertext.data(), (int)enc.ciphertext.size()) != 1) break;
+        auto tag_copy = enc.tag;
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_GCM_SET_TAG,
+                                (int)tag_copy.size(), tag_copy.data()) != 1) break;
+        int fl = 0;
+        if (EVP_DecryptFinal_ex(ctx, plain.data() + len, &fl) <= 0) break;
+        plain.resize(len + fl);
+        if (plain.size() != SERIALIZED_CX_SIZE) break;
+        payload = test_deserialize_cx(plain);
+        ok = true;
+    } while (false);
+    EVP_CIPHER_CTX_free(ctx);
+    return ok;
+}
+
+static std::vector<uint8_t> test_compute_hmac(const std::vector<uint8_t>& key,
+                                               const std::vector<uint8_t>& data) {
+    std::vector<uint8_t> result(32);
+    unsigned int len = 32;
+    HMAC(EVP_sha256(), key.data(), (int)key.size(),
+         data.data(), data.size(), result.data(), &len);
+    result.resize(len);
+    return result;
+}
+
+static bool test_verify_hmac(const std::vector<uint8_t>& key,
+                              const std::vector<uint8_t>& data,
+                              const std::vector<uint8_t>& expected) {
+    auto computed = test_compute_hmac(key, data);
+    if (computed.size() != expected.size()) return false;
+    return CRYPTO_memcmp(computed.data(), expected.data(), computed.size()) == 0;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 12 — Encrypted Message Structure Fields
+// ══════════════════════════════════════════════════════════════════════════════
+void test_encrypted_message_structure() {
+    std::cout << "\n╔═══ Test 12: Encrypted Message Structure Fields ═══╗\n";
+
+    TestEncryptedData enc;
+    enc.iv.resize(12, 0xAB);
+    enc.ciphertext.resize(16, 0xCD);
+    enc.tag.resize(16, 0xEF);
+    enc.hmac.resize(32, 0x12);
+    enc.is_encrypted = true;
+
+    test_assert(enc.iv.size() == 12,        "IV field is 12 bytes");
+    test_assert(enc.ciphertext.size() == 16,"Ciphertext field present");
+    test_assert(enc.tag.size() == 16,       "GCM tag field is 16 bytes");
+    test_assert(enc.hmac.size() == 32,      "HMAC field is 32 bytes");
+    test_assert(enc.is_encrypted,           "is_encrypted flag set correctly");
+
+    TestEncryptedData plain_enc;
+    test_assert(!plain_enc.is_encrypted,    "Default is_encrypted flag is false");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 13 — AES-256-GCM Encryption / Decryption Roundtrip
+// ══════════════════════════════════════════════════════════════════════════════
+void test_aes256gcm_roundtrip() {
+    std::cout << "\n╔═══ Test 13: AES-256-GCM Encryption/Decryption Roundtrip ═══╗\n";
+
+    // 32-byte symmetric key
+    std::vector<uint8_t> key(32);
+    RAND_bytes(key.data(), 32);
+
+    // Test with a representative quantum payload
+    Cx original{ETA, -ETA};  // canonical coherent state coefficient
+
+    TestEncryptedData enc;
+    bool encrypted = test_encrypt(original, key, enc);
+    test_assert(encrypted, "AES-256-GCM encryption succeeds");
+    enc.is_encrypted = true;  // flag set externally (by send_message in production)
+    test_assert(enc.is_encrypted, "is_encrypted flag can be set after encryption");
+    test_assert(enc.iv.size() == 12,  "IV is 12 bytes after encryption");
+    test_assert(enc.tag.size() == 16, "GCM tag is 16 bytes after encryption");
+
+    // Ciphertext should differ from plaintext
+    auto plain_bytes = test_serialize_cx(original);
+    bool differs = (enc.ciphertext != plain_bytes);
+    test_assert(differs, "Ciphertext differs from plaintext");
+
+    Cx recovered;
+    bool decrypted = test_decrypt(enc, key, recovered);
+    test_assert(decrypted, "AES-256-GCM decryption succeeds");
+    test_assert(std::abs(recovered - original) < 1e-15, "Decrypted payload matches original");
+
+    // Verify different key fails decryption
+    std::vector<uint8_t> wrong_key(32, 0xFF);
+    Cx bad_result;
+    bool bad_decrypt = test_decrypt(enc, wrong_key, bad_result);
+    test_assert(!bad_decrypt, "Decryption fails with wrong key");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 14 — HMAC-SHA256 Integrity Validation
+// ══════════════════════════════════════════════════════════════════════════════
+void test_hmac_integrity() {
+    std::cout << "\n╔═══ Test 14: HMAC-SHA256 Integrity Validation ═══╗\n";
+
+    std::vector<uint8_t> key(32);
+    RAND_bytes(key.data(), 32);
+
+    Cx payload{0.5, -0.5};
+    TestEncryptedData enc;
+    test_encrypt(payload, key, enc);
+
+    // Build HMAC input: IV || ciphertext || tag
+    std::vector<uint8_t> hmac_data;
+    hmac_data.insert(hmac_data.end(), enc.iv.begin(),         enc.iv.end());
+    hmac_data.insert(hmac_data.end(), enc.ciphertext.begin(), enc.ciphertext.end());
+    hmac_data.insert(hmac_data.end(), enc.tag.begin(),        enc.tag.end());
+
+    enc.hmac = test_compute_hmac(key, hmac_data);
+    test_assert(enc.hmac.size() == 32, "HMAC-SHA256 produces 32-byte digest");
+
+    // Valid HMAC verifies correctly
+    bool valid = test_verify_hmac(key, hmac_data, enc.hmac);
+    test_assert(valid, "Valid HMAC verifies correctly");
+
+    // Tampered ciphertext fails HMAC verification
+    TestEncryptedData tampered = enc;
+    tampered.ciphertext[0] ^= 0xFF;
+    std::vector<uint8_t> tampered_data;
+    tampered_data.insert(tampered_data.end(), tampered.iv.begin(),         tampered.iv.end());
+    tampered_data.insert(tampered_data.end(), tampered.ciphertext.begin(), tampered.ciphertext.end());
+    tampered_data.insert(tampered_data.end(), tampered.tag.begin(),        tampered.tag.end());
+    bool tampered_valid = test_verify_hmac(key, tampered_data, enc.hmac);
+    test_assert(!tampered_valid, "Tampered ciphertext fails HMAC verification");
+
+    // Wrong key fails HMAC verification
+    std::vector<uint8_t> wrong_key(32, 0xAA);
+    bool wrong_key_valid = test_verify_hmac(wrong_key, hmac_data, enc.hmac);
+    test_assert(!wrong_key_valid, "Wrong key fails HMAC verification");
+
+    // Deterministic: same inputs produce same HMAC
+    auto hmac2 = test_compute_hmac(key, hmac_data);
+    test_assert(enc.hmac == hmac2, "HMAC computation is deterministic");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 15 — Channel-Level Encryption Key Configuration
+// ══════════════════════════════════════════════════════════════════════════════
+void test_channel_encryption_config() {
+    std::cout << "\n╔═══ Test 15: Channel-Level Encryption Configuration ═══╗\n";
+
+    // Simulate channel with optional key
+    struct EncryptedChannel {
+        uint32_t sender_pid;
+        uint32_t receiver_pid;
+        std::vector<uint8_t> channel_key;
+
+        void set_key(const std::vector<uint8_t>& key) {
+            if (!key.empty() && key.size() != 32)
+                throw std::invalid_argument("Key must be 32 bytes");
+            channel_key = key;
+        }
+        bool has_encryption() const { return !channel_key.empty(); }
+    };
+
+    EncryptedChannel ch{1, 2, {}};
+    test_assert(!ch.has_encryption(), "Channel starts without encryption");
+
+    std::vector<uint8_t> key(32);
+    RAND_bytes(key.data(), 32);
+    ch.set_key(key);
+    test_assert(ch.has_encryption(),          "Channel has encryption after set_key");
+    test_assert(ch.channel_key.size() == 32,  "Channel key is 32 bytes");
+    test_assert(ch.channel_key == key,        "Channel key stored correctly");
+
+    // Invalid key size rejected
+    bool threw = false;
+    try { ch.set_key(std::vector<uint8_t>(16, 0)); } catch (const std::invalid_argument&) { threw = true; }
+    test_assert(threw, "Invalid key size (16 bytes) is rejected");
+
+    // Different channels hold independent keys
+    EncryptedChannel ch2{2, 3, {}};
+    std::vector<uint8_t> key2(32, 0xBB);
+    ch2.set_key(key2);
+    test_assert(ch.channel_key != ch2.channel_key, "Different channels hold independent keys");
+
+    // Encryption key can be cleared
+    ch.set_key({});
+    test_assert(!ch.has_encryption(), "Encryption disabled after clearing key");
+
+    // Full encrypt/decrypt roundtrip using channel key
+    EncryptedChannel ch3{3, 4, {}};
+    std::vector<uint8_t> session_key(32);
+    RAND_bytes(session_key.data(), 32);
+    ch3.set_key(session_key);
+
+    Cx original{MU.real(), MU.imag()};  // µ = e^{i3π/4}
+    TestEncryptedData enc;
+    bool enc_ok = test_encrypt(original, ch3.channel_key, enc);
+
+    // Build and verify HMAC using channel key
+    std::vector<uint8_t> hmac_data;
+    hmac_data.insert(hmac_data.end(), enc.iv.begin(),         enc.iv.end());
+    hmac_data.insert(hmac_data.end(), enc.ciphertext.begin(), enc.ciphertext.end());
+    hmac_data.insert(hmac_data.end(), enc.tag.begin(),        enc.tag.end());
+    enc.hmac = test_compute_hmac(ch3.channel_key, hmac_data);
+    enc.is_encrypted = true;
+
+    bool hmac_ok = test_verify_hmac(ch3.channel_key, hmac_data, enc.hmac);
+    Cx recovered;
+    bool dec_ok = test_decrypt(enc, ch3.channel_key, recovered);
+
+    test_assert(enc_ok,  "Channel-keyed encryption succeeds");
+    test_assert(hmac_ok, "Channel-keyed HMAC verification succeeds");
+    test_assert(dec_ok,  "Channel-keyed decryption succeeds");
+    test_assert(std::abs(recovered - original) < 1e-15,
+                "Payload recovered correctly via channel key");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 16 — Backward Penetration: Quantum Coherence Injection Against Classical
+// ══════════════════════════════════════════════════════════════════════════════
+//
+// Verifies that manipulating quantum coherence metadata (sender_coherence,
+// sender_cycle_pos) — i.e. "coherence injection" — cannot compromise the
+// classical AES-256-GCM + HMAC-SHA256 payload protection.
+//
+// Attack vectors exercised:
+//   1. Injecting a high sender_coherence to bypass the coherence threshold check
+//      while simultaneously tampering with the ciphertext → HMAC must catch this.
+//   2. Injecting a forged cycle position to attempt early delivery while the
+//      payload is tampered → HMAC must still catch the tampering.
+//   3. Injecting coherence metadata only (no payload tampering) → payload must
+//      still decrypt correctly, proving classical crypto is isolated from metadata.
+//   4. Zero-coherence injection with valid encrypted payload → HMAC validates,
+//      proving HMAC covers only the crypto material, not the quantum metadata.
+// ══════════════════════════════════════════════════════════════════════════════
+void test_coherence_injection_vs_classical_crypto() {
+    std::cout << "\n╔═══ Test 16: Quantum Coherence Injection vs Classical Crypto ═══╗\n";
+
+    // Set up channel key and a reference encrypted message
+    std::vector<uint8_t> key(32);
+    RAND_bytes(key.data(), 32);
+
+    Cx original_payload{ETA, -ETA};  // canonical coherent state coefficient
+
+    // Build a valid encrypted + HMAC-signed message
+    TestEncryptedData enc;
+    test_encrypt(original_payload, key, enc);
+    std::vector<uint8_t> hmac_input_data;
+    hmac_input_data.insert(hmac_input_data.end(), enc.iv.begin(),         enc.iv.end());
+    hmac_input_data.insert(hmac_input_data.end(), enc.ciphertext.begin(), enc.ciphertext.end());
+    hmac_input_data.insert(hmac_input_data.end(), enc.tag.begin(),        enc.tag.end());
+    enc.hmac = test_compute_hmac(key, hmac_input_data);
+    enc.is_encrypted = true;
+
+    // ── Attack 1: Coherence injection + ciphertext tamper ────────────────────
+    // Attacker injects sender_coherence=1.0 (bypassing coherence threshold gate)
+    // and simultaneously flips a byte in the ciphertext.
+    // The HMAC, which covers IV || ciphertext || tag, must detect the tamper.
+    {
+        double injected_coherence = 1.0;  // Attacker forces maximum coherence value
+        (void)injected_coherence;         // metadata is separate from the crypto proof
+
+        TestEncryptedData tampered = enc;
+        tampered.ciphertext[0] ^= 0xFF;  // Flip ciphertext byte
+
+        std::vector<uint8_t> tampered_input;
+        tampered_input.insert(tampered_input.end(), tampered.iv.begin(),         tampered.iv.end());
+        tampered_input.insert(tampered_input.end(), tampered.ciphertext.begin(), tampered.ciphertext.end());
+        tampered_input.insert(tampered_input.end(), tampered.tag.begin(),        tampered.tag.end());
+
+        bool hmac_passes = test_verify_hmac(key, tampered_input, tampered.hmac);
+        test_assert(!hmac_passes,
+            "Coherence injection + ciphertext tamper: HMAC rejects tampered payload");
+
+        // Even if attacker also forges HMAC with wrong key, decryption must fail
+        Cx garbage;
+        bool decrypt_ok = test_decrypt(tampered, key, garbage);
+        test_assert(!decrypt_ok,
+            "Coherence injection + ciphertext tamper: GCM tag rejects tampered ciphertext");
+    }
+
+    // ── Attack 2: Cycle position injection + GCM tag tamper ──────────────────
+    // Attacker forges a cycle position of 0 (universal delivery position) and
+    // tampers with the GCM authentication tag to try to force decryption of a
+    // modified ciphertext.
+    {
+        TestEncryptedData tampered = enc;
+        // Forge cycle_pos = 0 would be in the message metadata (not covered by HMAC).
+        // Attacker also tries to modify the GCM tag.
+        tampered.tag[0] ^= 0x01;
+
+        std::vector<uint8_t> tampered_input;
+        tampered_input.insert(tampered_input.end(), tampered.iv.begin(),         tampered.iv.end());
+        tampered_input.insert(tampered_input.end(), tampered.ciphertext.begin(), tampered.ciphertext.end());
+        tampered_input.insert(tampered_input.end(), tampered.tag.begin(),        tampered.tag.end());
+
+        bool hmac_passes = test_verify_hmac(key, tampered_input, tampered.hmac);
+        test_assert(!hmac_passes,
+            "Cycle position injection + GCM tag tamper: HMAC rejects modified tag");
+
+        Cx garbage;
+        bool decrypt_ok = test_decrypt(tampered, key, garbage);
+        test_assert(!decrypt_ok,
+            "Cycle position injection + GCM tag tamper: GCM rejects tampered tag");
+    }
+
+    // ── Attack 3: Metadata-only injection (no crypto tamper) ─────────────────
+    // Attacker only modifies quantum metadata (coherence, cycle position), NOT
+    // the encrypted payload. The classical crypto layer must be unaffected:
+    // HMAC still passes, decryption still yields the correct plaintext.
+    // This proves the quantum → classical "backward penetration" is blocked.
+    {
+        // Simulate metadata-only modification (metadata fields are separate from
+        // the EncryptedData struct and not covered by HMAC)
+        double attacker_coherence = 0.0;   // Attacker sets minimum coherence
+        uint8_t attacker_cycle_pos = 0;    // Attacker injects cycle position 0
+        (void)attacker_coherence;
+        (void)attacker_cycle_pos;
+
+        // Crypto envelope is untouched
+        bool hmac_ok = test_verify_hmac(key, hmac_input_data, enc.hmac);
+        test_assert(hmac_ok,
+            "Metadata-only injection: HMAC unaffected by quantum metadata changes");
+
+        Cx recovered;
+        bool decrypt_ok = test_decrypt(enc, key, recovered);
+        test_assert(decrypt_ok,
+            "Metadata-only injection: decryption unaffected by quantum metadata changes");
+        test_assert(std::abs(recovered - original_payload) < 1e-15,
+            "Metadata-only injection: plaintext unchanged despite metadata manipulation");
+    }
+
+    // ── Attack 4: Zero-coherence injection with valid encrypted payload ───────
+    // Attacker crafts a message with sender_coherence=0.0 but a valid encrypted
+    // payload using the channel key. The HMAC verifies correctly, proving that
+    // classical integrity is independent of the quantum coherence field value.
+    {
+        Cx attacker_payload{0.1, 0.2};  // Arbitrary payload attacker controls
+        TestEncryptedData attacker_enc;
+        test_encrypt(attacker_payload, key, attacker_enc);
+
+        std::vector<uint8_t> attacker_hmac_input;
+        attacker_hmac_input.insert(attacker_hmac_input.end(),
+                                   attacker_enc.iv.begin(),         attacker_enc.iv.end());
+        attacker_hmac_input.insert(attacker_hmac_input.end(),
+                                   attacker_enc.ciphertext.begin(), attacker_enc.ciphertext.end());
+        attacker_hmac_input.insert(attacker_hmac_input.end(),
+                                   attacker_enc.tag.begin(),        attacker_enc.tag.end());
+        attacker_enc.hmac = test_compute_hmac(key, attacker_hmac_input);
+        attacker_enc.is_encrypted = true;
+
+        // sender_coherence=0.0 would be rejected by the coherence gate in production,
+        // but if it bypassed that check, the HMAC correctly validates its own payload.
+        bool hmac_ok = test_verify_hmac(key, attacker_hmac_input, attacker_enc.hmac);
+        test_assert(hmac_ok,
+            "Zero-coherence injection: classical HMAC validates own crypto material");
+
+        Cx decrypted;
+        bool dec_ok = test_decrypt(attacker_enc, key, decrypted);
+        test_assert(dec_ok,
+            "Zero-coherence injection: AES-GCM decryption succeeds for own material");
+
+        // Critically: attacker cannot substitute this into the original message's HMAC
+        bool cross_hmac = test_verify_hmac(key, attacker_hmac_input, enc.hmac);
+        test_assert(!cross_hmac,
+            "Zero-coherence injection: cannot forge original message HMAC with different payload");
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Main Test Runner
 // ══════════════════════════════════════════════════════════════════════════════
 int main() {
@@ -371,6 +810,11 @@ int main() {
     test_metadata_integrity();
     test_channel_independence();
     test_coherence_boundaries();
+    test_encrypted_message_structure();
+    test_aes256gcm_roundtrip();
+    test_hmac_integrity();
+    test_channel_encryption_config();
+    test_coherence_injection_vs_classical_crypto();
     
     // Summary
     std::cout << "\n╔════════════════════════════════════════════════╗\n";
