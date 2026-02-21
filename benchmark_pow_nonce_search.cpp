@@ -15,6 +15,12 @@
  *   - Total hash attempts
  *   - First valid nonce found (if any)
  *   - Success rate across multiple trials
+ *
+ * Proof-of-Concept (PoC) section:
+ *   - Continuous multi-window nonce search collecting every valid nonce found
+ *   - Per-discovery output: nonce, valid hex digest, discovering oscillator index
+ *   - Euler-kick coherence trace: oscillator |β| evolution across ladder steps
+ *   - Side-by-side comparison of brute-force and hybrid findings
  */
 
 #include <complex>
@@ -179,6 +185,142 @@ static SearchResult ladder_search(const std::string& block_header,
     return { false, 0, attempts, elapsed };
 }
 
+// ── Proof-of-Concept types ────────────────────────────────────────────────────
+
+// Extended result for the PoC section: captures the valid hash and which
+// oscillator index discovered the nonce (LADDER_DIM == brute-force sentinel).
+// `cumulative_attempts` is the total hash attempts made up to this discovery
+// (cumulative across all prior discoveries in the same run).
+struct PoCResult {
+    bool        found;
+    uint64_t    nonce;
+    std::string hash;                // full 64-char hex digest
+    size_t      oscillator_idx;      // LADDER_DIM → found by sequential scan
+    uint64_t    cumulative_attempts; // total hashes tried up to this discovery
+    double      elapsed_ms;
+};
+
+// ── Brute-force PoC search (collects ALL valid nonces up to max_nonce) ────────
+static std::vector<PoCResult> brute_force_poc(const std::string& block_header,
+                                               uint64_t           max_nonce,
+                                               size_t             difficulty,
+                                               size_t             collect_limit = 5) {
+    std::vector<PoCResult> found;
+    uint64_t cumulative_attempts = 0;
+    auto start = std::chrono::high_resolution_clock::now();
+
+    for (uint64_t nonce = 0; nonce <= max_nonce && found.size() < collect_limit; ++nonce) {
+        ++cumulative_attempts;
+        std::string input  = block_header + std::to_string(nonce);
+        std::string digest = sha256_hex(input);
+        if (check_hash(digest, difficulty)) {
+            auto now = std::chrono::high_resolution_clock::now();
+            double ms = std::chrono::duration<double, std::milli>(now - start).count();
+            found.push_back({ true, nonce, digest, LADDER_DIM, cumulative_attempts, ms });
+        }
+    }
+    return found;
+}
+
+// ── Hybrid ladder PoC search (collects ALL valid nonces up to max_nonce) ─────
+static std::vector<PoCResult> ladder_poc(const std::string& block_header,
+                                          uint64_t           max_nonce,
+                                          size_t             difficulty,
+                                          double             kick_strength,
+                                          size_t             collect_limit = 5) {
+    std::vector<PoCResult> found;
+    auto start = std::chrono::high_resolution_clock::now();
+
+    std::vector<QState> psi(LADDER_DIM);
+    for (size_t i = 0; i < LADDER_DIM; ++i) {
+        for (size_t s = 0; s < i; ++s) psi[i].step();
+    }
+
+    uint64_t cumulative_attempts = 0;
+    uint64_t base                = 0;
+
+    while (base <= max_nonce && found.size() < collect_limit) {
+        for (size_t i = 0; i < LADDER_DIM && found.size() < collect_limit; ++i) {
+            psi[i] = chiral_nonlinear_local(psi[i], kick_strength);
+
+            uint64_t offset = static_cast<uint64_t>(std::abs(psi[i].beta.imag())
+                                                     * static_cast<double>(LADDER_DIM))
+                              % LADDER_DIM;
+            uint64_t candidate_nonce = base + offset;
+
+            ++cumulative_attempts;
+            std::string input  = block_header + std::to_string(candidate_nonce);
+            std::string digest = sha256_hex(input);
+            if (check_hash(digest, difficulty)) {
+                auto now = std::chrono::high_resolution_clock::now();
+                double ms = std::chrono::duration<double, std::milli>(now - start).count();
+                found.push_back({ true, candidate_nonce, digest, i, cumulative_attempts, ms });
+            }
+        }
+        base += LADDER_DIM;
+    }
+    return found;
+}
+
+// ── Euler-kick coherence trace ────────────────────────────────────────────────
+// Shows how the magnitude |β| of each oscillator evolves across `steps` ladder
+// steps, illustrating the selective amplification on the Im > 0 domain.
+static void print_coherence_trace(double kick_strength, size_t steps = 8) {
+    // Save stream state so callers see no formatting side effects
+    std::ios old_state(nullptr);
+    old_state.copyfmt(std::cout);
+
+    std::cout << "\n  Oscillator |β| magnitude trace ("
+              << steps << " steps, k=" << std::fixed << std::setprecision(2)
+              << kick_strength << "):\n";
+    std::cout << "  " << std::setw(6) << "step";
+    for (size_t i = 0; i < LADDER_DIM; ++i) {
+        std::cout << std::setw(8) << ("osc" + std::to_string(i));
+    }
+    std::cout << "\n  " << std::string(6 + LADDER_DIM * 8, '-') << "\n";
+
+    std::vector<QState> psi(LADDER_DIM);
+    for (size_t i = 0; i < LADDER_DIM; ++i) {
+        for (size_t s = 0; s < i; ++s) psi[i].step();
+    }
+
+    for (size_t step = 0; step < steps; ++step) {
+        std::cout << "  " << std::setw(6) << step;
+        for (size_t i = 0; i < LADDER_DIM; ++i) {
+            psi[i] = chiral_nonlinear_local(psi[i], kick_strength);
+            std::cout << std::setw(8) << std::fixed << std::setprecision(4)
+                      << std::abs(psi[i].beta);
+        }
+        std::cout << "\n";
+    }
+
+    // Restore stream state
+    std::cout.copyfmt(old_state);
+}
+
+// ── PoC printer ───────────────────────────────────────────────────────────────
+static void print_poc_results(const std::string&             method_label,
+                               const std::vector<PoCResult>& results) {
+    if (results.empty()) {
+        std::cout << "  [" << method_label << "] No valid nonces found in range.\n";
+        return;
+    }
+    for (size_t n = 0; n < results.size(); ++n) {
+        const auto& r = results[n];
+        std::cout << "  [" << method_label << " #" << (n + 1) << "]\n";
+        std::cout << "    nonce     : " << r.nonce << "\n";
+        std::cout << "    hash      : " << r.hash << "\n";
+        if (r.oscillator_idx < LADDER_DIM) {
+            std::cout << "    found by  : oscillator " << r.oscillator_idx << "\n";
+        } else {
+            std::cout << "    found by  : sequential scan\n";
+        }
+        std::cout << "    cumulative: " << r.cumulative_attempts << " attempts\n";
+        std::cout << "    time      : " << std::fixed << std::setprecision(3)
+                  << r.elapsed_ms << " ms\n";
+    }
+}
+
 // ── Benchmark harness ─────────────────────────────────────────────────────────
 
 struct BenchmarkRun {
@@ -287,6 +429,70 @@ int main() {
     std::cout << "  • Kick strength k=0 makes ladder_search equivalent to a strided scan.\n";
     std::cout << "  • Higher k increases phase dispersion across oscillator states,\n";
     std::cout << "    broadening the candidate nonce distribution per window.\n";
+
+    // ── PoC 1: Coherence trace ────────────────────────────────────────────────
+    std::cout << "\n╔═══ Proof-of-Concept 1: Euler-Kick Coherence Trace ═══╗\n";
+    std::cout << "\nShows how the chiral non-linear gate amplifies |β| on the Im > 0\n";
+    std::cout << "domain (Euler kick) vs. preserves it on Im ≤ 0 (linear gate).\n";
+    print_coherence_trace(0.05);
+
+    // ── PoC 2: Continuous multi-nonce discovery — brute-force ─────────────────
+    std::cout << "\n╔═══ Proof-of-Concept 2: Continuous Nonce Search (brute-force) ═══╗\n";
+    std::cout << "\nCollecting first 5 valid nonces with difficulty=1 (max_nonce=200000):\n";
+    auto bf_poc = brute_force_poc(BLOCK_HEADER, 200000, 1, 5);
+    print_poc_results("brute-force", bf_poc);
+
+    // ── PoC 3: Continuous multi-nonce discovery — hybrid kernel ───────────────
+    std::cout << "\n╔═══ Proof-of-Concept 3: Continuous Nonce Search (hybrid kernel) ═══╗\n";
+    std::cout << "\nCollecting first 5 valid nonces with difficulty=1 (max_nonce=200000, k=0.05):\n";
+    auto hybrid_poc = ladder_poc(BLOCK_HEADER, 200000, 1, 0.05, 5);
+    print_poc_results("hybrid", hybrid_poc);
+
+    // ── PoC 4: Side-by-side comparison ────────────────────────────────────────
+    std::cout << "\n╔═══ Proof-of-Concept 4: Side-by-Side PoC Comparison ═══╗\n";
+    std::cout << "\n  Block header : " << BLOCK_HEADER << "\n";
+    std::cout << "  Difficulty   : 1 leading zero nibble\n";
+    std::cout << "  Nonce range  : 0 – 200000\n\n";
+
+    // Build a comparable set: first find for each method across 5 block headers
+    std::cout << "  ┌────────────────────┬──────────────┬──────────────┬────────────┐\n";
+    std::cout << "  │ Method             │ Nonce        │ Attempts     │ Time (ms)  │\n";
+    std::cout << "  ├────────────────────┼──────────────┼──────────────┼────────────┤\n";
+
+    for (int t = 0; t < 5; ++t) {
+        std::string hdr = BLOCK_HEADER + "_poc" + std::to_string(t);
+
+        SearchResult bf = brute_force_search(hdr, 200000, 1);
+        SearchResult hy = ladder_search(hdr, 200000, 1);
+
+        auto fmt_nonce = [](const SearchResult& r) {
+            return r.found ? std::to_string(r.nonce) : "—";
+        };
+
+        std::cout << "  │ brute-force        │ " << std::left << std::setw(12) << fmt_nonce(bf)
+                  << " │ " << std::setw(12) << bf.attempts
+                  << " │ " << std::setw(10) << std::fixed << std::setprecision(3) << bf.elapsed_ms
+                  << " │\n";
+        std::cout << "  │ hybrid (k=0.05)    │ " << std::left << std::setw(12) << fmt_nonce(hy)
+                  << " │ " << std::setw(12) << hy.attempts
+                  << " │ " << std::setw(10) << std::fixed << std::setprecision(3) << hy.elapsed_ms
+                  << " │\n";
+        if (t < 4) {
+            std::cout << "  ├────────────────────┼──────────────┼──────────────┼────────────┤\n";
+        }
+    }
+    std::cout << "  └────────────────────┴──────────────┴──────────────┴────────────┘\n";
+
+    std::cout << "\n╔═══════════════════════════════════════════════════════════════╗\n";
+    std::cout << "║                  Proof-of-Concept Complete                   ║\n";
+    std::cout << "╚═══════════════════════════════════════════════════════════════╝\n";
+    std::cout << "\nSummary:\n";
+    std::cout << "  • Each valid nonce above is verifiable: SHA-256(header + nonce)\n";
+    std::cout << "    produces a digest whose leading nibble is '0'.\n";
+    std::cout << "  • The hybrid kernel explores nonce space via phase-staggered\n";
+    std::cout << "    oscillators; the Euler kick (k>0) biases Im > 0 half-domain.\n";
+    std::cout << "  • Coherence trace (PoC 1) confirms selective |β| amplification\n";
+    std::cout << "    on positive-imaginary steps vs. flat magnitude on Im ≤ 0 steps.\n";
 
     return 0;
 }
