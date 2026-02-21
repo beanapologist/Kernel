@@ -102,6 +102,9 @@ struct QState {
     bool balanced() const { return std::abs(radius() - 1.0) < RADIUS_TOLERANCE; }
 };
 
+// ── Chiral Non-Linear Gate ────────────────────────────────────────────────────
+#include "ChiralNonlinearGate.hpp"
+
 // ── Theorem 10: Trichotomy classification ────────────────────────────────────
 enum class Regime { FINITE_ORBIT, SPIRAL_OUT, SPIRAL_IN };
 
@@ -900,6 +903,7 @@ struct Process {
     uint8_t     cycle_pos = 0;                          // position in Z/8Z
     std::function<void(Process&)> task;
     bool        interacted = false;                     // interaction flag (per tick)
+    double      coherence_kick_strength = 0.0;          // chiral non-linear kick (0 = linear)
     RotationalMemory* memory = nullptr;                 // Shared memory reference
     QuantumIPC* ipc = nullptr;                          // IPC system reference
     uint64_t* current_tick = nullptr;                   // Current kernel tick
@@ -957,9 +961,9 @@ struct Process {
         return ipc ? ipc->pending_count(from_pid, pid) : 0;
     }
 
-    // One tick: apply rotation (Section 3 / Theorem 10)
+    // One tick: apply chiral non-linear rotation (Section 3 / Theorem 10)
     void tick() {
-        state.step();
+        state = kernel::quantum::chiral_nonlinear(state, coherence_kick_strength);
         cycle_pos = (cycle_pos + 1) % 8;               // Z/8Z arithmetic
         interacted = false;                             // reset interaction flag
         if (task) task(*this);

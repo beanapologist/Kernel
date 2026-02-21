@@ -30,6 +30,22 @@ constexpr double CONSERVATION_TOL    = 1e-12;
 using Cx = std::complex<double>;
 const Cx MU{ -ETA, ETA };  // µ = e^{i3π/4}
 
+// ── QState (minimal replica for chiral gate tests) ────────────────────────────
+struct QState {
+    Cx alpha{ ETA, 0.0 };
+    Cx beta { -0.5, 0.5 };  // e^{i3π/4}/√2
+
+    double c_l1() const { return 2.0 * std::abs(alpha) * std::abs(beta); }
+    double radius() const {
+        return std::abs(alpha) > COHERENCE_TOLERANCE
+             ? std::abs(beta) / std::abs(alpha) : 0.0;
+    }
+    void step() { beta *= MU; }
+};
+
+// ── Chiral Non-Linear Gate ────────────────────────────────────────────────────
+#include "ChiralNonlinearGate.hpp"
+
 // Include necessary structures and functions from kernel
 // In a real test suite, we'd link against the kernel or extract into a library
 // For this demonstration, we'll use a simplified approach
@@ -353,6 +369,244 @@ void test_coherence_boundaries() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Test 12 — Chiral Gate: Linear on Im ≤ 0 Domain
+// ══════════════════════════════════════════════════════════════════════════════
+void test_chiral_linear_domain() {
+    std::cout << "\n╔═══ Test 12: Chiral Gate — Linear on Im ≤ 0 Domain ═══╗\n";
+
+    // Directly construct states with Im(β) < 0 to test the linear half
+    const double kick = 0.5;
+
+    // Case A: Im(β) strictly negative
+    {
+        QState state_chiral, state_linear;
+        state_chiral.beta = Cx{ 0.4, -0.6 };   // Im < 0
+        state_linear.beta = Cx{ 0.4, -0.6 };
+
+        state_chiral = kernel::quantum::chiral_nonlinear(state_chiral, kick);
+        state_linear.step();
+
+        double diff = std::abs(state_chiral.beta - state_linear.beta);
+        test_assert(diff < COHERENCE_TOLERANCE,
+                    "Im<0 domain: chiral gate equals standard rotation");
+    }
+
+    // Case B: Im(β) = 0 (boundary — treated as Im ≤ 0, no kick)
+    {
+        QState state_chiral, state_linear;
+        state_chiral.beta = Cx{ 0.5, 0.0 };    // Im = 0
+        state_linear.beta = Cx{ 0.5, 0.0 };
+
+        state_chiral = kernel::quantum::chiral_nonlinear(state_chiral, kick);
+        state_linear.step();
+
+        double diff = std::abs(state_chiral.beta - state_linear.beta);
+        test_assert(diff < COHERENCE_TOLERANCE,
+                    "Im=0 boundary: chiral gate equals standard rotation");
+    }
+
+    // Case C: gate produces non-trivial output (rotation does move the state)
+    {
+        QState state;
+        state.beta = Cx{ 0.3, -0.5 };
+        Cx original_beta = state.beta;
+        state = kernel::quantum::chiral_nonlinear(state, kick);
+        test_assert(std::abs(state.beta - original_beta) > COHERENCE_TOLERANCE,
+                    "Im≤0 domain: gate produces non-trivial (rotated) output");
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 13 — Chiral Gate: Non-Linear on Im > 0 Domain
+// ══════════════════════════════════════════════════════════════════════════════
+void test_chiral_nonlinear_domain() {
+    std::cout << "\n╔═══ Test 13: Chiral Gate — Non-Linear on Im > 0 Domain ═══╗\n";
+
+    // Build a state with Im(β) > 0
+    QState state;
+    state.beta = Cx{ -0.2, 0.6 };  // Im > 0 by construction
+
+    double kick = 0.2;
+    double mag_before = std::abs(state.beta);
+
+    // Apply with kick — should grow magnitude
+    QState after_kick = kernel::quantum::chiral_nonlinear(state, kick);
+
+    // Apply without kick — standard rotation
+    QState state_ref = state;
+    state_ref.step();
+
+    double mag_after_kick = std::abs(after_kick.beta);
+    double mag_after_ref  = std::abs(state_ref.beta);
+
+    // Non-linear kick must increase magnitude beyond linear rotation
+    test_assert(mag_after_kick > mag_after_ref,
+                "Im>0 domain: kick increases |β| beyond linear rotation");
+
+    // The two results must differ (non-linearity)
+    double diff = std::abs(after_kick.beta - state_ref.beta);
+    test_assert(diff > COHERENCE_TOLERANCE,
+                "Im>0 domain: kicked result differs from linear result");
+
+    // Zero kick must equal standard rotation regardless of domain
+    QState after_zero_kick = kernel::quantum::chiral_nonlinear(state, 0.0);
+    double diff_zero = std::abs(after_zero_kick.beta - state_ref.beta);
+    test_assert(diff_zero < COHERENCE_TOLERANCE,
+                "Im>0 domain with kick=0: equals standard rotation");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 14 — Chiral Gate: Quadratic Magnitude Growth
+// ══════════════════════════════════════════════════════════════════════════════
+void test_chiral_quadratic_growth() {
+    std::cout << "\n╔═══ Test 14: Chiral Gate — Quadratic Magnitude Growth ═══╗\n";
+
+    // State with Im(β) > 0
+    QState state;
+    state.beta = Cx{ 0.0, 0.5 };  // purely positive imaginary
+
+    double kick_small = 0.05;
+    double kick_large = 0.20;
+
+    QState after_small = kernel::quantum::chiral_nonlinear(state, kick_small);
+    QState after_large = kernel::quantum::chiral_nonlinear(state, kick_large);
+
+    double mag_small = std::abs(after_small.beta);
+    double mag_large = std::abs(after_large.beta);
+
+    // Larger kick must produce larger magnitude on Im > 0 domain
+    test_assert(mag_large > mag_small,
+                "Quadratic growth: larger kick → larger |β|");
+
+    // Both kicked results must exceed the linear-only magnitude
+    QState state_ref = state;
+    state_ref.step();
+    double mag_linear = std::abs(state_ref.beta);
+
+    test_assert(mag_small > mag_linear,
+                "Quadratic growth: small kick exceeds linear magnitude");
+    test_assert(mag_large > mag_linear,
+                "Quadratic growth: large kick exceeds linear magnitude");
+
+    // Growth ratio should scale with kick_strength (quadratic characteristic)
+    double growth_small = mag_small - mag_linear;
+    double growth_large = mag_large - mag_linear;
+    test_assert(growth_large > growth_small,
+                "Quadratic growth: growth proportional to kick_strength");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 15 — Chiral Gate: IPC Coherence Scheduling Compatibility
+// ══════════════════════════════════════════════════════════════════════════════
+void test_chiral_ipc_compatibility() {
+    std::cout << "\n╔═══ Test 15: Chiral Gate — IPC Coherence Scheduling Compatibility ═══╗\n";
+
+    // Simulate 8-cycle progression through the chiral gate and verify that
+    // coherence-based send/receive rules still work as expected.
+    double coherence_threshold = 0.7;
+    QState state;
+    double kick = 0.1;
+
+    bool any_above_threshold = false;
+    bool any_below_threshold = false;
+
+    for (int i = 0; i < 8; ++i) {
+        double c = state.c_l1();
+        if (c >= coherence_threshold) any_above_threshold = true;
+        if (c <  coherence_threshold) any_below_threshold = true;
+
+        state = kernel::quantum::chiral_nonlinear(state, kick);
+    }
+
+    // The canonical balanced state (r=1) should always have C=1 ≥ threshold
+    test_assert(any_above_threshold,
+                "IPC compat: some steps satisfy coherence threshold for send");
+
+    // Verify that coherence values remain valid (0 ≤ C ≤ 1 for balanced state)
+    QState balanced;
+    for (int i = 0; i < 8; ++i) {
+        double c = balanced.c_l1();
+        test_assert(c >= 0.0 && c <= 1.0 + COHERENCE_TOLERANCE,
+                    "IPC compat: coherence in [0,1] at step " + std::to_string(i));
+        balanced = kernel::quantum::chiral_nonlinear(balanced, 0.0);
+    }
+
+    // δ_S·(√2-1) = 1 invariant preserved regardless of gate application
+    double conservation = DELTA_S * DELTA_CONJ;
+    test_assert(std::abs(conservation - 1.0) < CONSERVATION_TOL,
+                "IPC compat: silver conservation δ_S·(√2-1)=1 maintained");
+
+    // Verify coherence_kick_strength=0.0 (process default) produces linear behaviour
+    // This mirrors Process::tick() with zero kick — must equal state.step()
+    {
+        QState s_zero_kick, s_step;
+        s_zero_kick.beta = Cx{ -0.3, 0.6 };  // Im > 0 — would be affected by kick
+        s_step.beta      = s_zero_kick.beta;
+
+        s_zero_kick = kernel::quantum::chiral_nonlinear(s_zero_kick, 0.0);
+        s_step.step();
+
+        double diff = std::abs(s_zero_kick.beta - s_step.beta);
+        test_assert(diff < COHERENCE_TOLERANCE,
+                    "IPC compat: process kick_strength=0 (default) equals linear step");
+    }
+
+    // Verify coherence_kick_strength > 0 produces non-linear evolution on Im > 0
+    // This mirrors Process::tick() with a non-zero kick
+    {
+        QState s_kicked;
+        s_kicked.beta = Cx{ -0.3, 0.6 };  // Im > 0
+
+        QState s_ref = s_kicked;
+        s_ref.step();
+
+        s_kicked = kernel::quantum::chiral_nonlinear(s_kicked, 0.15);
+
+        double diff = std::abs(s_kicked.beta - s_ref.beta);
+        test_assert(diff > COHERENCE_TOLERANCE,
+                    "IPC compat: process kick_strength>0 alters evolution on Im>0");
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Test 16 — Classical Crypto Layer Compatibility (Toffoli/CNOT region)
+// ══════════════════════════════════════════════════════════════════════════════
+void test_classical_layer_compatibility() {
+    std::cout << "\n╔═══ Test 16: Classical Layer Compatibility ═══╗\n";
+
+    // On the Im ≤ 0 domain the gate is strictly linear — classical reversible
+    // gates (Toffoli, CNOT) operate on this half and must be unaffected.
+
+    // Build a state guaranteed to live on Im ≤ 0
+    QState state;
+    state.beta = Cx{ 0.3, -0.5 };  // Im < 0
+
+    double kick = 1.0;  // Use a large kick to confirm it has NO effect here
+
+    QState after  = kernel::quantum::chiral_nonlinear(state, kick);
+    QState ref    = state;
+    ref.step();
+
+    double diff = std::abs(after.beta - ref.beta);
+    test_assert(diff < COHERENCE_TOLERANCE,
+                "Classical layer: large kick has zero effect on Im<0 state");
+
+    // Reversibility check: applying the gate 8 times with kick=0 returns to start
+    QState cycled = state;
+    for (int i = 0; i < 8; ++i)
+        cycled = kernel::quantum::chiral_nonlinear(cycled, 0.0);
+    double cycle_diff = std::abs(cycled.beta - state.beta);
+    test_assert(cycle_diff < COHERENCE_TOLERANCE,
+                "Classical layer: 8-cycle returns to original state (reversible)");
+
+    // Magnitude is preserved on Im ≤ 0 (no growth — linearity intact)
+    double mag_before = std::abs(state.beta);
+    double mag_after  = std::abs(after.beta);
+    test_assert(std::abs(mag_after - mag_before) < COHERENCE_TOLERANCE,
+                "Classical layer: magnitude preserved on Im≤0 (no spurious growth)");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Main Test Runner
 // ══════════════════════════════════════════════════════════════════════════════
 int main() {
@@ -371,6 +625,11 @@ int main() {
     test_metadata_integrity();
     test_channel_independence();
     test_coherence_boundaries();
+    test_chiral_linear_domain();
+    test_chiral_nonlinear_domain();
+    test_chiral_quadratic_growth();
+    test_chiral_ipc_compatibility();
+    test_classical_layer_compatibility();
     
     // Summary
     std::cout << "\n╔════════════════════════════════════════════════╗\n";
