@@ -4,12 +4,20 @@ test_pipeline_theorems
 test_interrupt_nist
 test_debug
 benchmark_nist_ir8356
+benchmark_pow_nonce_search
 test_ipc_bin
 test_pipeline_bin
 test_chiral_gate
+test_qudit_kernel
 *.o
 *.out
 *.exe
+
+# Code coverage artifacts
+*.gcda
+*.gcno
+coverage.info
+coverage/
 
 # Build artifacts
 *.a
