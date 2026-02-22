@@ -479,6 +479,89 @@ static uint64_t coherent_phase_search_noisy(uint64_t n, uint64_t t_idx,
   return max_steps;
 }
 
+// ── Phase-noisy coherent search
+// ───────────────────────────────────────────────
+// Identical algorithm to coherent_phase_search() except that at each step the
+// accumulated slow phasor angle is perturbed by a uniform(-eps, eps) noise
+// sample, modelling physical phase jitter:
+//
+//   phase_k = k · ΔΦ + Σ_{j=0}^{k-1} u_j,   u_j ~ U(-eps, eps)
+//
+// When eps = 0 the function is numerically identical to coherent_phase_search()
+// (same scale factor, same slow-phasor computation).  As eps grows, accumulated
+// phase error disrupts the Dirichlet-kernel constructive interference, raising
+// the scaling exponent from 0.5 toward 1.0.
+//
+// Coherence analysis: the expected Dirichlet accumulation after K steps decays
+// as exp(-K·eps²/6).  For detection to be unaffected, K_detect·eps²/6 << 1,
+// i.e., eps << sqrt(6/K_detect) ≈ sqrt(6/(0.165·√n)).  For n = 2^26:
+//   eps_crit ≈ sqrt(6/1317) ≈ 0.067 rad.
+// Phase noise below ~0.05 rad produces no measurable scaling change across
+// k = 10…26.  max_steps = 200·4√n gives adequate headroom for detection under
+// heavy noise without excessive CI runtime.
+static uint64_t coherent_phase_search_phase_noisy(uint64_t n, uint64_t t_idx,
+                                                  double eps,
+                                                  std::mt19937_64 &rng) {
+  const double sqrt_n = std::sqrt(static_cast<double>(n));
+  const double theta_target =
+      CS_TWO_PI * static_cast<double>(t_idx) / static_cast<double>(n);
+  const Cx target_phasor{std::cos(theta_target), std::sin(theta_target)};
+
+  // Use the same integer scale as coherent_phase_search() for consistency.
+  const uint64_t scale =
+      static_cast<uint64_t>(PALINDROME_DENOM_FACTOR / sqrt_n);
+  const auto bridge = NullSliceBridge::build_8cycle_bridge();
+
+  std::array<double, 8> accum{};
+  accum.fill(0.0);
+
+  const double threshold = 0.15 * sqrt_n;
+  // 200x coherent safety: enough for random-walk detection at high eps while
+  // keeping CI runtime tractable.
+  const uint64_t max_steps = 200 * 4 * static_cast<uint64_t>(sqrt_n) + 16;
+
+  KernelState ks;
+
+  double phase_noise_accum = 0.0; // running sum of all per-step noise samples
+
+  for (uint64_t step = 0; step < max_steps; ++step) {
+    // Accumulate one phase jitter sample (0 when eps = 0 due to the guard).
+    if (eps > 0.0) {
+      std::uniform_real_distribution<double> noise_dist(-eps, eps);
+      phase_noise_accum += noise_dist(rng);
+    }
+
+    // Slow phasor: structured ΔΦ sweep + accumulated phase noise.
+    const double base_angle = static_cast<double>(step * scale) *
+                              kernel::quantum::PRECESSION_DELTA_PHASE;
+    const Cx slow_phasor{std::cos(base_angle + phase_noise_accum),
+                         std::sin(base_angle + phase_noise_accum)};
+
+    const double g_eff = 1.0 / ks.r_eff();
+
+    for (int j = 0; j < 8; ++j) {
+      const Cx probe = slow_phasor * bridge[j];
+      const double contrib = probe.real() * target_phasor.real() +
+                             probe.imag() * target_phasor.imag();
+      accum[j] += g_eff * contrib;
+    }
+
+    double best = 0.0;
+    for (int j = 0; j < 8; ++j) {
+      const double a = std::abs(accum[j]);
+      if (a > best)
+        best = a;
+    }
+    if (best >= threshold)
+      return step + 1;
+
+    ks.step();
+    if (ks.has_drift())
+      ks.auto_renormalize();
+  }
+  return max_steps;
+}
+
 // ── Coherence robustness tests
 // ────────────────────────────────────────────────
 // 1. Canonical state stays coherent under µ-rotation + palindrome precession.
@@ -1048,6 +1131,95 @@ static bool test_coherence_ablation() {
   return ok;
 }
 
+// ── 11. Coherence Destruction (phase noise)
+// ─────────────────────────────────────────────
+// For each ε in EPS_LEVELS injects per-step phase jitter
+//   phase_k = k·ΔΦ + Σ u_j,  u_j ~ U(-ε, ε)
+// and measures the log-log scaling exponent α over k = 10…26 (step 2).
+//
+// Epsilon selection: the Dirichlet coherence time is ~6/ε² steps.  For
+// ε < ~0.05 the coherence time exceeds the search detection time at all
+// tractable k, so the exponent is indistinguishable from 0.5.  The chosen
+// EPS_LEVELS span from negligible (0, 0.01) through moderate (0.05, 0.1) to
+// heavy (0.5, 1.0) phase decoherence, illustrating the full transition from
+// Θ(√n) to near-Θ(n) scaling.
+//
+// Asserts:
+//   α(ε=0)   ∈ [0.45, 0.55]            — coherent case
+//   α(ε=0.1) > SLOPE_UPPER              — noise exits the √n band
+//   α(ε=0.1) < α(ε=0.5) < α(ε=1.0)    — monotone increase at high ε
+//
+// All searches use a deterministic RNG (seed = TEST_RNG_SEED + 2) so that CI
+// produces identical slopes every run.
+static bool test_coherence_destruction() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Coherence Destruction (phase noise,"
+               " k=10\u202626) \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(12) << "\u03b5 (rad)"
+            << "slope (\u03b1)\n";
+  std::cout << "  " << std::string(26, '-') << "\n";
+
+  // ε = 0 and 0.01: below coherence-disruption threshold → slope ≈ 0.5
+  // ε = 0.05, 0.1: transition — exponent begins to rise above 0.5
+  // ε = 0.5, 1.0:  strong decoherence → exponent approaches 1.0
+  static const double EPS_LEVELS[] = {0.0, 0.01, 0.05, 0.1, 0.5, 1.0};
+  static constexpr int N_EPS = 6;
+
+  std::vector<double> slopes(N_EPS, 0.0);
+
+  for (int ei = 0; ei < N_EPS; ++ei) {
+    const double eps = EPS_LEVELS[ei];
+    // Fresh RNG for each epsilon level: reproducible across CI runs.
+    std::mt19937_64 rng(TEST_RNG_SEED + 2);
+    std::vector<double> log_ns, log_avgs;
+
+    for (int k = 10; k <= 26; k += 2) {
+      const uint64_t n = 1ULL << k;
+      const int trials = 10;
+      double coh_sum = 0.0;
+      for (int tr = 0; tr < trials; ++tr) {
+        const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
+                               static_cast<uint64_t>(trials + 1);
+        coh_sum += static_cast<double>(
+            coherent_phase_search_phase_noisy(n, t_idx, eps, rng));
+      }
+      const double coh_avg = coh_sum / trials;
+      log_ns.push_back(std::log(static_cast<double>(n)));
+      log_avgs.push_back(std::log(coh_avg));
+    }
+
+    slopes[ei] = linreg_slope(log_ns, log_avgs);
+    std::cout << std::fixed << std::setprecision(4) << "  " << std::left
+              << std::setw(12) << eps << slopes[ei] << "\n";
+  }
+
+  // ── Assertions ───────────────────────────────────────────────────────────
+  // Named references into slopes[] for readability.
+  const double alpha_0 = slopes[0];  // ε = 0.0  (coherent baseline)
+  const double alpha_01 = slopes[3]; // ε = 0.1  (transition zone)
+  const double alpha_05 = slopes[4]; // ε = 0.5  (heavy decoherence)
+  const double alpha_10 = slopes[5]; // ε = 1.0  (complete decoherence)
+
+  std::cout << "\n";
+  chk(alpha_0 >= SLOPE_LOWER && alpha_0 <= SLOPE_UPPER,
+      "\u03b1(\u03b5=0) \u2208 [0.45, 0.55]  \u2014 \u221an scaling holds "
+      "without noise");
+  chk(alpha_01 > SLOPE_UPPER,
+      "\u03b1(\u03b5=0.1) > 0.55  \u2014 phase decoherence exits \u221an "
+      "band");
+  // Slopes at the three high-epsilon levels must be strictly increasing.
+  chk(alpha_01 < alpha_05 && alpha_05 < alpha_10,
+      "\u03b1 strictly increases for \u03b5 \u2208 {0.1, 0.5, 1.0}  "
+      "\u2014 monotone decoherence-scaling trade-off");
+  return ok;
+}
+
 // ── 9. Constant-Factor Analysis
 // ────────────────────────────────────────────────
 // Estimates the coefficient c in T(n) = c·√n from coh_avg/√n for each n.
@@ -1227,6 +1399,10 @@ int main() {
   // ── Coherence ablation study ──────────────────────────────────────────────
   const bool ablation_ok = test_coherence_ablation();
   assert(ablation_ok);
+
+  // ── Coherence destruction (phase noise) ──────────────────────────────────
+  const bool destruction_ok = test_coherence_destruction();
+  assert(destruction_ok);
 
   // ── Constant-factor analysis ──────────────────────────────────────────────
   const bool factor_ok = test_constant_factor();
