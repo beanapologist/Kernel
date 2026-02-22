@@ -103,6 +103,26 @@ struct SearchResult {
     double   elapsed_ms;
 };
 
+// Metrics specific to oscillator-based adaptive search strategies.
+struct AdaptiveMetrics {
+    double mean_phase_dispersion; // mean std-dev of |Im(β)| across oscillators
+    double mean_beta_magnitude;   // mean |β| across oscillators per window
+    double hash_rate_khps;        // kilo-hashes per second
+};
+
+// Returns phase dispersion: std-dev of |Im(β_i)| across all oscillators.
+static double compute_phase_dispersion(const std::vector<QState>& psi) {
+    double sum = 0.0, sum_sq = 0.0;
+    for (const auto& s : psi) {
+        double v = std::abs(s.beta.imag());
+        sum    += v;
+        sum_sq += v * v;
+    }
+    const double n   = static_cast<double>(psi.size());
+    const double var = sum_sq / n - (sum / n) * (sum / n);
+    return (var > 0.0) ? std::sqrt(var) : 0.0;
+}
+
 // ── Brute-force search ────────────────────────────────────────────────────────
 
 SearchResult brute_force_search(const std::string& block_header,
@@ -182,6 +202,176 @@ static SearchResult ladder_search(const std::string& block_header,
 
     auto end = std::chrono::high_resolution_clock::now();
     double elapsed = std::chrono::duration<double, std::milli>(end - start).count();
+    return { false, 0, attempts, elapsed };
+}
+
+// ── Exploration-Convergence search (Benchmark 7) ─────────────────────────────
+// Uses positive-imaginary axis for coherence-driven exploration (high kick) and
+// negative-real axis for stability-driven convergence (reduced kick).
+// Kick strength decays exponentially from KICK_HIGH to KICK_LOW as the search
+// progresses, transitioning from exploration to convergence mode.
+static SearchResult exploration_convergence_search(const std::string& block_header,
+                                                   uint64_t           max_nonce,
+                                                   size_t             difficulty,
+                                                   AdaptiveMetrics*   metrics = nullptr) {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    std::vector<QState> psi(LADDER_DIM);
+    for (size_t i = 0; i < LADDER_DIM; ++i) {
+        for (size_t s = 0; s < i; ++s) psi[i].step();
+    }
+
+    constexpr double KICK_HIGH  = 0.30;  // initial exploration kick (Im > 0)
+    constexpr double KICK_LOW   = 0.01;  // final convergence kick  (Re < 0)
+    constexpr double DECAY_RATE = 3.0;   // exponential decay rate (higher → faster convergence)
+
+    uint64_t attempts      = 0;
+    uint64_t base          = 0;
+    uint64_t window_count  = 0;
+    double   total_disp    = 0.0;
+    double   total_mag     = 0.0;
+
+    while (base <= max_nonce) {
+        // Exponentially decay kick from KICK_HIGH to KICK_LOW
+        const double progress = (max_nonce > 0)
+            ? static_cast<double>(base) / static_cast<double>(max_nonce)
+            : 0.0;
+        const double kick_decayed = KICK_HIGH * std::exp(-DECAY_RATE * progress) + KICK_LOW;
+
+        if (metrics) {
+            total_disp += compute_phase_dispersion(psi);
+            double mag_sum = 0.0;
+            for (const auto& s : psi) mag_sum += std::abs(s.beta);
+            total_mag += mag_sum / static_cast<double>(LADDER_DIM);
+            ++window_count;
+        }
+
+        for (size_t i = 0; i < LADDER_DIM; ++i) {
+            // Positive imaginary: exploration (full decayed kick)
+            // Negative real:      convergence (half kick for stability)
+            // Otherwise:          minimal kick
+            const bool exploring  = (psi[i].beta.imag() > 0.0);
+            const bool converging = (psi[i].beta.real()  < 0.0);
+            const double eff_kick = exploring  ? kick_decayed
+                                  : converging ? kick_decayed * 0.5
+                                               : kick_decayed * 0.1;
+
+            psi[i] = chiral_nonlinear_local(psi[i], eff_kick);
+
+            // Normalize |β| to ETA to prevent magnitude overflow on long searches;
+            // phase information (used for candidate offset) is fully preserved.
+            const double mag = std::abs(psi[i].beta);
+            if (mag > 0.0) psi[i].beta *= (ETA / mag);
+
+            const uint64_t offset = static_cast<uint64_t>(
+                std::abs(psi[i].beta.imag()) * static_cast<double>(LADDER_DIM))
+                % LADDER_DIM;
+            const uint64_t candidate_nonce = base + offset;
+
+            ++attempts;
+            const std::string input = block_header + std::to_string(candidate_nonce);
+            if (check_hash(sha256_hex(input), difficulty)) {
+                auto end = std::chrono::high_resolution_clock::now();
+                const double elapsed = std::chrono::duration<double, std::milli>(end - start).count();
+                if (metrics) {
+                    metrics->mean_phase_dispersion = window_count > 0
+                        ? total_disp / static_cast<double>(window_count) : 0.0;
+                    metrics->mean_beta_magnitude = window_count > 0
+                        ? total_mag  / static_cast<double>(window_count) : 0.0;
+                    metrics->hash_rate_khps = (elapsed > 0.0)
+                        ? static_cast<double>(attempts) / elapsed : 0.0;
+                }
+                return { true, candidate_nonce, attempts, elapsed };
+            }
+        }
+        base += LADDER_DIM;
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    const double elapsed = std::chrono::duration<double, std::milli>(end - start).count();
+    if (metrics) {
+        metrics->mean_phase_dispersion = window_count > 0
+            ? total_disp / static_cast<double>(window_count) : 0.0;
+        metrics->mean_beta_magnitude = window_count > 0
+            ? total_mag  / static_cast<double>(window_count) : 0.0;
+        metrics->hash_rate_khps = (elapsed > 0.0)
+            ? static_cast<double>(attempts) / elapsed : 0.0;
+    }
+    return { false, 0, attempts, elapsed };
+}
+
+// ── Static adaptive kick search with metrics (Benchmark 9) ───────────────────
+// Identical to ladder_search but additionally collects phase dispersion and
+// stability metrics — no coherence feedback drives the kick strength.
+static SearchResult ladder_search_with_metrics(const std::string& block_header,
+                                               uint64_t           max_nonce,
+                                               size_t             difficulty,
+                                               double             kick_strength,
+                                               AdaptiveMetrics*   metrics = nullptr) {
+    auto start = std::chrono::high_resolution_clock::now();
+
+    std::vector<QState> psi(LADDER_DIM);
+    for (size_t i = 0; i < LADDER_DIM; ++i) {
+        for (size_t s = 0; s < i; ++s) psi[i].step();
+    }
+
+    uint64_t attempts     = 0;
+    uint64_t base         = 0;
+    uint64_t window_count = 0;
+    double   total_disp   = 0.0;
+    double   total_mag    = 0.0;
+
+    while (base <= max_nonce) {
+        if (metrics) {
+            total_disp += compute_phase_dispersion(psi);
+            double mag_sum = 0.0;
+            for (const auto& s : psi) mag_sum += std::abs(s.beta);
+            total_mag += mag_sum / static_cast<double>(LADDER_DIM);
+            ++window_count;
+        }
+
+        for (size_t i = 0; i < LADDER_DIM; ++i) {
+            psi[i] = chiral_nonlinear_local(psi[i], kick_strength);
+
+            // Normalize |β| to ETA to prevent magnitude overflow on long searches;
+            // phase information (used for candidate offset) is fully preserved.
+            const double mag = std::abs(psi[i].beta);
+            if (mag > 0.0) psi[i].beta *= (ETA / mag);
+
+            const uint64_t offset = static_cast<uint64_t>(
+                std::abs(psi[i].beta.imag()) * static_cast<double>(LADDER_DIM))
+                % LADDER_DIM;
+            const uint64_t candidate_nonce = base + offset;
+
+            ++attempts;
+            const std::string input = block_header + std::to_string(candidate_nonce);
+            if (check_hash(sha256_hex(input), difficulty)) {
+                auto end = std::chrono::high_resolution_clock::now();
+                const double elapsed = std::chrono::duration<double, std::milli>(end - start).count();
+                if (metrics) {
+                    metrics->mean_phase_dispersion = window_count > 0
+                        ? total_disp / static_cast<double>(window_count) : 0.0;
+                    metrics->mean_beta_magnitude = window_count > 0
+                        ? total_mag  / static_cast<double>(window_count) : 0.0;
+                    metrics->hash_rate_khps = (elapsed > 0.0)
+                        ? static_cast<double>(attempts) / elapsed : 0.0;
+                }
+                return { true, candidate_nonce, attempts, elapsed };
+            }
+        }
+        base += LADDER_DIM;
+    }
+
+    auto end = std::chrono::high_resolution_clock::now();
+    const double elapsed = std::chrono::duration<double, std::milli>(end - start).count();
+    if (metrics) {
+        metrics->mean_phase_dispersion = window_count > 0
+            ? total_disp / static_cast<double>(window_count) : 0.0;
+        metrics->mean_beta_magnitude = window_count > 0
+            ? total_mag  / static_cast<double>(window_count) : 0.0;
+        metrics->hash_rate_khps = (elapsed > 0.0)
+            ? static_cast<double>(attempts) / elapsed : 0.0;
+    }
     return { false, 0, attempts, elapsed };
 }
 
@@ -319,6 +509,60 @@ static void print_poc_results(const std::string&             method_label,
         std::cout << "    time      : " << std::fixed << std::setprecision(3)
                   << r.elapsed_ms << " ms\n";
     }
+}
+
+// ── Multi-strategy summary (Benchmarks 7-9) ──────────────────────────────────
+// Prints a single summary row covering time-to-solution, phase dispersion,
+// mean |β| stability, and hashing rate.
+static void print_adaptive_summary(const std::string&      label,
+                                   const SearchResult&     r,
+                                   const AdaptiveMetrics&  m) {
+    std::cout << "  " << std::left << std::setw(24) << label;
+    if (r.found) {
+        std::cout << "  found   nonce=" << std::setw(10) << r.nonce;
+    } else {
+        std::cout << "  NOT FOUND          ";
+    }
+    std::cout << "  attempts=" << std::setw(9) << r.attempts
+              << "  time=" << std::fixed << std::setprecision(3)
+              << std::setw(8) << r.elapsed_ms << " ms"
+              << "  disp=" << std::setprecision(4) << std::setw(7) << m.mean_phase_dispersion
+              << "  |β|=" << std::setw(6) << m.mean_beta_magnitude
+              << "  rate=" << std::setprecision(1)
+              << std::setw(8) << m.hash_rate_khps << " kH/s\n";
+}
+
+// Run all three strategies for one difficulty level and print results side-by-side.
+static void run_adaptive_benchmark(const std::string& block_header,
+                                   size_t   difficulty,
+                                   uint64_t max_nonce,
+                                   int      trials) {
+    std::cout << "\n  difficulty=" << difficulty
+              << "  max_nonce=" << max_nonce
+              << "  trials=" << trials << "\n";
+    std::cout << "  " << std::string(115, '-') << "\n";
+
+    for (int t = 0; t < trials; ++t) {
+        const std::string hdr = block_header + "_adv" + std::to_string(t);
+        std::cout << "  trial " << t << ":\n";
+
+        // Benchmark 7 row: Exploration-Convergence
+        AdaptiveMetrics m7{};
+        const SearchResult r7 = exploration_convergence_search(hdr, max_nonce, difficulty, &m7);
+        print_adaptive_summary("  explr-conv", r7, m7);
+
+        // Benchmark 8 row: Uniform Brute Force (control — no oscillators)
+        const SearchResult r8 = brute_force_search(hdr, max_nonce, difficulty);
+        const AdaptiveMetrics m8{ 0.0, 0.0,
+            (r8.elapsed_ms > 0.0) ? static_cast<double>(r8.attempts) / r8.elapsed_ms : 0.0 };
+        print_adaptive_summary("  brute-force", r8, m8);
+
+        // Benchmark 9 row: Static Adaptive Kick (k=0.05, no coherence feedback)
+        AdaptiveMetrics m9{};
+        const SearchResult r9 = ladder_search_with_metrics(hdr, max_nonce, difficulty, 0.05, &m9);
+        print_adaptive_summary("  static-adapt", r9, m9);
+    }
+    std::cout << "  " << std::string(115, '-') << "\n";
 }
 
 // ── Benchmark harness ─────────────────────────────────────────────────────────
@@ -493,6 +737,93 @@ int main() {
     std::cout << "    oscillators; the Euler kick (k>0) biases Im > 0 half-domain.\n";
     std::cout << "  • Coherence trace (PoC 1) confirms selective |β| amplification\n";
     std::cout << "    on positive-imaginary steps vs. flat magnitude on Im ≤ 0 steps.\n";
+
+    // ── Benchmark 7: Exploration-Convergence Strategy ────────────────────────
+    std::cout << "\n╔═══ Benchmark 7: Exploration-Convergence Strategy ═══╗\n";
+    std::cout << "\nCoherence-driven exploration (Im > 0) with stability-driven convergence\n";
+    std::cout << "(Re < 0). Kick decays from k=0.30 to k=0.01 as the search progresses.\n";
+    std::cout << "Columns: strategy | nonce found | attempts | time-to-solution |\n";
+    std::cout << "         phase dispersion | mean |β| | hashing rate\n";
+
+    std::cout << "\n  ── Low Difficulty (difficulty=1, max_nonce=50000, trials=3) ──\n";
+    run_adaptive_benchmark(BLOCK_HEADER, 1, 50000, 3);
+
+    std::cout << "\n  ── Medium Difficulty (difficulty=2, max_nonce=200000, trials=3) ──\n";
+    run_adaptive_benchmark(BLOCK_HEADER, 2, 200000, 3);
+
+    std::cout << "\n  ── High Difficulty / Stress Test (difficulty=4, max_nonce=2000000, trials=1) ──\n";
+    run_adaptive_benchmark(BLOCK_HEADER, 4, 2000000, 1);
+
+    // ── Benchmark 8: Uniform Brute Force (Control) ───────────────────────────
+    std::cout << "\n╔═══ Benchmark 8: Uniform Brute Force — Control Baseline ═══╗\n";
+    std::cout << "\nSequential scan of the full nonce space.  Serves as the control\n";
+    std::cout << "reference against which adaptive strategies are evaluated.\n";
+
+    std::cout << "\n  ── Low Difficulty (difficulty=1, max_nonce=50000, trials=3) ──\n";
+    {
+        std::vector<SearchResult> res;
+        for (int t = 0; t < 3; ++t)
+            res.push_back(brute_force_search(BLOCK_HEADER + "_ctrl" + std::to_string(t), 50000, 1));
+        print_run_summary("brute-force (ctrl)", res);
+    }
+
+    std::cout << "\n  ── Medium Difficulty (difficulty=2, max_nonce=200000, trials=3) ──\n";
+    {
+        std::vector<SearchResult> res;
+        for (int t = 0; t < 3; ++t)
+            res.push_back(brute_force_search(BLOCK_HEADER + "_ctrl" + std::to_string(t), 200000, 2));
+        print_run_summary("brute-force (ctrl)", res);
+    }
+
+    std::cout << "\n  ── High Difficulty / Stress Test (difficulty=4, max_nonce=2000000, trials=1) ──\n";
+    {
+        std::vector<SearchResult> res;
+        res.push_back(brute_force_search(BLOCK_HEADER + "_ctrl0", 2000000, 4));
+        print_run_summary("brute-force (ctrl)", res);
+    }
+
+    // ── Benchmark 9: Static Adaptive Kick Strength ───────────────────────────
+    std::cout << "\n╔═══ Benchmark 9: Static Adaptive Kick Strength ═══╗\n";
+    std::cout << "\nFixed kick_strength=0.05 ladder search (no coherence feedback).\n";
+    std::cout << "Tracks phase dispersion and |β| stability for comparison with B7.\n";
+
+    std::cout << "\n  ── Low Difficulty (difficulty=1, max_nonce=50000, trials=3) ──\n";
+    for (int t = 0; t < 3; ++t) {
+        const std::string hdr = BLOCK_HEADER + "_sa" + std::to_string(t);
+        AdaptiveMetrics m{};
+        const SearchResult r = ladder_search_with_metrics(hdr, 50000, 1, 0.05, &m);
+        print_adaptive_summary("  static-adapt (t" + std::to_string(t) + ")", r, m);
+    }
+
+    std::cout << "\n  ── Medium Difficulty (difficulty=2, max_nonce=200000, trials=3) ──\n";
+    for (int t = 0; t < 3; ++t) {
+        const std::string hdr = BLOCK_HEADER + "_sa" + std::to_string(t);
+        AdaptiveMetrics m{};
+        const SearchResult r = ladder_search_with_metrics(hdr, 200000, 2, 0.05, &m);
+        print_adaptive_summary("  static-adapt (t" + std::to_string(t) + ")", r, m);
+    }
+
+    std::cout << "\n  ── High Difficulty / Stress Test (difficulty=4, max_nonce=2000000, trials=1) ──\n";
+    {
+        const std::string hdr = BLOCK_HEADER + "_sa0";
+        AdaptiveMetrics m{};
+        const SearchResult r = ladder_search_with_metrics(hdr, 2000000, 4, 0.05, &m);
+        print_adaptive_summary("  static-adapt (t0)", r, m);
+    }
+
+    std::cout << "\n╔═══════════════════════════════════════════════════════════════╗\n";
+    std::cout << "║           Adaptive Strategy Benchmarks 7-9 Complete          ║\n";
+    std::cout << "╚═══════════════════════════════════════════════════════════════╝\n";
+    std::cout << "\nNotes (Benchmarks 7-9):\n";
+    std::cout << "  • B7 Exploration-Convergence: decaying kick biases Im>0 early\n";
+    std::cout << "    for broad phase coverage, then Re<0 convergence narrows focus.\n";
+    std::cout << "  • B8 Brute-Force Control: uniform scan; sets time/attempt baseline.\n";
+    std::cout << "  • B9 Static Adaptive Kick: fixed k=0.05 without coherence feedback;\n";
+    std::cout << "    phase dispersion and |β| are tracked but not fed back to the kick.\n";
+    std::cout << "  • Phase dispersion (disp): std-dev of |Im(β)| across oscillators.\n";
+    std::cout << "    Higher dispersion → more diverse candidate set per window.\n";
+    std::cout << "  • |β| column: mean oscillator magnitude; rising values indicate\n";
+    std::cout << "    continued Euler-kick amplification (should plateau at convergence).\n";
 
     return 0;
 }

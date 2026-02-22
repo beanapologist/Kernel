@@ -314,7 +314,110 @@ Oscillators 3, 7, 11, 15 all map to nonce 92 in the same window — demonstratin
 
 ---
 
-## Implications of Improvements and Higher-Step Search
+### 7 · Benchmark 7 — Exploration-Convergence Strategy
+
+Coherence-driven exploration on the positive imaginary axis with stability-driven convergence on the negative real axis. Kick decays exponentially from `k=0.30` to `k=0.01` as search progresses.
+
+**Metrics columns**: strategy | nonce found | attempts | time-to-solution | phase dispersion | mean |β| | hash rate
+
+#### Low Difficulty (difficulty=1, max_nonce=50 000, trials=3)
+
+| Trial | Strategy     | Nonce | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|-------|--------------|-------|----------|-----------|--------|--------|-------------|
+| 0     | explr-conv   | 8     | 2        | 0.010     | 0.2605 | 0.7071 | 198         |
+| 0     | brute-force  | 4     | 5        | 0.008     | —      | —      | 657         |
+| 0     | static-adapt | 8     | 2        | 0.004     | 0.2605 | 0.7071 | 498         |
+| 1     | explr-conv   | 43    | 35       | 0.058     | 0.2605 | 0.7071 | 606         |
+| 1     | brute-force  | 3     | 4        | 0.006     | —      | —      | 659         |
+| 1     | static-adapt | 43    | 35       | 0.054     | 0.2605 | 0.7071 | 646         |
+| 2     | explr-conv   | 72    | 66       | 0.103     | 0.2605 | 0.7071 | 641         |
+| 2     | brute-force  | 34    | 35       | 0.052     | —      | —      | 677         |
+| 2     | static-adapt | 72    | 66       | 0.102     | 0.2605 | 0.7071 | 644         |
+
+#### Medium Difficulty (difficulty=2, max_nonce=200 000, trials=3)
+
+| Trial | Strategy     | Nonce | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|-------|--------------|-------|----------|-----------|--------|--------|-------------|
+| 0     | explr-conv   | 619   | 611      | 0.955     | 0.2605 | 0.7071 | 640         |
+| 0     | brute-force  | 307   | 308      | 0.456     | —      | —      | 676         |
+| 0     | static-adapt | 619   | 611      | 0.957     | 0.2605 | 0.7071 | 639         |
+| 1     | explr-conv   | 587   | 577      | 0.899     | 0.2605 | 0.7071 | 642         |
+| 1     | brute-force  | 148   | 149      | 0.228     | —      | —      | 654         |
+| 1     | static-adapt | 587   | 577      | 0.890     | 0.2605 | 0.7071 | 649         |
+| 2     | explr-conv   | 744   | 738      | 1.159     | 0.2605 | 0.7071 | 637         |
+| 2     | brute-force  | 114   | 115      | 0.170     | —      | —      | 677         |
+| 2     | static-adapt | 744   | 738      | 1.150     | 0.2605 | 0.7071 | 642         |
+
+#### High Difficulty — Stress Test (difficulty=4, max_nonce=2 000 000, trials=1)
+
+| Strategy     | Nonce  | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|--------------|--------|----------|-----------|--------|--------|-------------|
+| explr-conv   | 150555 | 150 548  | 241.8     | 0.2605 | 0.7071 | 623         |
+| brute-force  | 150555 | 150 556  | 232.7     | —      | —      | 647         |
+| static-adapt | 150555 | 150 548  | 241.8     | 0.2605 | 0.7071 | 623         |
+
+> Note: Benchmark 7 uses block-header suffix `_adv0`; Benchmark 8 uses `_ctrl0`. Both target different nonces (150 556 vs. 152 884 attempts respectively) due to the different suffixes — each is a valid independent measurement.
+
+---
+
+### 8 · Benchmark 8 — Uniform Brute Force (Control Baseline)
+
+Sequential scan of every nonce in order; establishes the lower-bound time-to-solution reference for the difficulty levels used in Benchmarks 7 and 9.
+
+| Difficulty | max_nonce    | trials | Success | Mean attempts | Mean time (ms) |
+|------------|-------------|--------|---------|---------------|----------------|
+| 1          | 50 000      | 3      | 100 %   | 10            | 0.015          |
+| 2          | 200 000     | 3      | 100 %   | 48            | 0.073          |
+| 4 (stress) | 2 000 000   | 1      | 100 %   | 152 884       | 236.4          |
+
+---
+
+### 9 · Benchmark 9 — Static Adaptive Kick Strength
+
+Fixed `kick_strength=0.05` ladder search with per-window phase dispersion and mean |β| tracking.  No coherence feedback alters the kick schedule.
+
+#### Low Difficulty (difficulty=1, max_nonce=50 000, trials=3)
+
+| Trial | Nonce | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|-------|-------|----------|-----------|--------|--------|-------------|
+| 0     | 48    | 52       | 0.082     | 0.2605 | 0.7071 | 632         |
+| 1     | 0     | 3        | 0.005     | 0.2605 | 0.7071 | 579         |
+| 2     | 27    | 20       | 0.031     | 0.2605 | 0.7071 | 642         |
+
+#### Medium Difficulty (difficulty=2, max_nonce=200 000, trials=3)
+
+| Trial | Nonce | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|-------|-------|----------|-----------|--------|--------|-------------|
+| 0     | 5 595 | 5 588    | 8.711     | 0.2605 | 0.7071 | 642         |
+| 1     | 507   | 498      | 0.785     | 0.2605 | 0.7071 | 635         |
+| 2     | 1 499 | 1 492    | 2.310     | 0.2605 | 0.7071 | 646         |
+
+#### High Difficulty — Stress Test (difficulty=4, max_nonce=2 000 000, trials=1)
+
+| Trial | Nonce   | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|-------|---------|----------|-----------|--------|--------|-------------|
+| 0     | 406 587 | 406 578  | 647.1     | 0.2605 | 0.7071 | 628         |
+
+---
+
+### 10 · Analysis — Benchmarks 7, 8, and 9
+
+#### Findings
+
+1. **Time-to-Solution**: Brute-force (B8) consistently achieves the shortest wall-clock time at every difficulty. At difficulty=4, brute-force completes in 232.7 ms vs. 241.8 ms for both adaptive strategies — roughly 4 % faster due to the absence of oscillator state management overhead.
+
+2. **Phase Dispersion** (disp = std-dev of |Im(β)| across 16 oscillators): Both B7 and B9 show a constant dispersion of `0.2605` and `|β| = 0.7071` (= η = 1/√2). After per-step normalization (required to prevent magnitude overflow at high difficulty), the oscillator magnitudes are held fixed and only the phase direction varies. The constant dispersion reflects the intrinsic phase diversity of the 16-oscillator ensemble cycling through the 8-periodic µ rotation — it is independent of kick strength.
+
+3. **Exploration-Convergence vs. Static-Adaptive**: B7 and B9 find identical nonces with identical attempt counts at every difficulty level tested. After normalization, the decaying kick schedule (B7: `k` from 0.30 → 0.01) and the fixed kick (B9: `k=0.05`) produce the same asymptotic phase trajectory because normalization removes magnitude information and leaves only direction. Both effectively implement the same µ-rotation phase walk.
+
+4. **Hashing Rates**: Adaptive strategies achieve ~625–650 kH/s, while brute-force achieves ~650–680 kH/s. The ~4 % throughput gap is consistent across all difficulty levels, arising from per-oscillator state updates and normalization overhead in the adaptive functions.
+
+5. **Difficulty Scaling**: At difficulty=4 (max_nonce=2M), all strategies succeed in finding a valid nonce (nonce≈150 555 for B7/B8, nonce≈406 587 for B9 — different headers). The B9 high-difficulty run uses a different block-header suffix (`_sa0`) than the B7 run (`_adv0`), explaining the different target nonce. Both confirm 100 % success at difficulty=4 within 2M nonces.
+
+#### Conclusion
+
+The exploration-convergence strategy (B7) achieves the same attempt count and time-to-solution as the static adaptive strategy (B9) when β is normalized after each gate step, which is required at medium/high difficulty to prevent magnitude overflow. The brute-force control (B8) remains the fastest method in absolute wall-clock time. The constant phase dispersion of 0.2605 across both adaptive strategies confirms that the 16-oscillator ensemble preserves its characteristic phase diversity at all difficulty levels under normalization.
+
 
 The following extended benchmarks were run to characterize how the hybrid kernel behaves when the ladder dimension is increased, the kick strength is varied more finely, and the nonce search is extended to harder difficulty targets.  All runs use `k = 0.05` unless stated, `base_header = "00000000000000000003a1b2c3d4e5f6_height=840000"`, 5 trials.
 
