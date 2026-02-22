@@ -206,10 +206,17 @@ static SearchResult ladder_search(const std::string& block_header,
 }
 
 // ── Exploration-Convergence search (Benchmark 7) ─────────────────────────────
-// Uses positive-imaginary axis for coherence-driven exploration (high kick) and
-// negative-real axis for stability-driven convergence (reduced kick).
-// Kick strength decays exponentially from KICK_HIGH to KICK_LOW as the search
-// progresses, transitioning from exploration to convergence mode.
+// Uses positive-imaginary axis for coherence-driven exploration and negative-real
+// axis for stability-driven convergence.  The effective kick per oscillator is
+// determined by Ohm's (parallel) addition of the two domain kicks:
+//
+//   k_ohm = (KICK_EXPLORE * KICK_CONVERGE) / (KICK_EXPLORE + KICK_CONVERGE)
+//
+// This is the harmonic combination (parallel-resistor formula), where the smaller
+// component dominates.  Per oscillator:
+//   Im > 0 only   → KICK_EXPLORE  (exploration half-plane: full amplification)
+//   Re < 0 only   → KICK_CONVERGE (convergence half-plane: stability focus)
+//   both / neither → k_ohm         (Ohm's addition: blended combined kick)
 static SearchResult exploration_convergence_search(const std::string& block_header,
                                                    uint64_t           max_nonce,
                                                    size_t             difficulty,
@@ -221,23 +228,21 @@ static SearchResult exploration_convergence_search(const std::string& block_head
         for (size_t s = 0; s < i; ++s) psi[i].step();
     }
 
-    constexpr double KICK_HIGH  = 0.30;  // initial exploration kick (Im > 0)
-    constexpr double KICK_LOW   = 0.01;  // final convergence kick  (Re < 0)
-    constexpr double DECAY_RATE = 3.0;   // exponential decay rate (higher → faster convergence)
+    // Domain-specific kick strengths
+    constexpr double KICK_EXPLORE  = 0.30;  // Im > 0: coherence-driven exploration
+    constexpr double KICK_CONVERGE = 0.01;  // Re < 0: stability-driven convergence
+    // Ohm's (parallel) addition: k_ohm = (0.30 × 0.01)/(0.30 + 0.01) ≈ 0.00968
+    // Used when both or neither domain condition holds — smaller component dominates.
+    constexpr double KICK_OHM = (KICK_EXPLORE * KICK_CONVERGE)
+                                / (KICK_EXPLORE + KICK_CONVERGE);
 
-    uint64_t attempts      = 0;
-    uint64_t base          = 0;
-    uint64_t window_count  = 0;
-    double   total_disp    = 0.0;
-    double   total_mag     = 0.0;
+    uint64_t attempts     = 0;
+    uint64_t base         = 0;
+    uint64_t window_count = 0;
+    double   total_disp   = 0.0;
+    double   total_mag    = 0.0;
 
     while (base <= max_nonce) {
-        // Exponentially decay kick from KICK_HIGH to KICK_LOW
-        const double progress = (max_nonce > 0)
-            ? static_cast<double>(base) / static_cast<double>(max_nonce)
-            : 0.0;
-        const double kick_decayed = KICK_HIGH * std::exp(-DECAY_RATE * progress) + KICK_LOW;
-
         if (metrics) {
             total_disp += compute_phase_dispersion(psi);
             double mag_sum = 0.0;
@@ -247,14 +252,17 @@ static SearchResult exploration_convergence_search(const std::string& block_head
         }
 
         for (size_t i = 0; i < LADDER_DIM; ++i) {
-            // Positive imaginary: exploration (full decayed kick)
-            // Negative real:      convergence (half kick for stability)
-            // Otherwise:          minimal kick
             const bool exploring  = (psi[i].beta.imag() > 0.0);
             const bool converging = (psi[i].beta.real()  < 0.0);
-            const double eff_kick = exploring  ? kick_decayed
-                                  : converging ? kick_decayed * 0.5
-                                               : kick_decayed * 0.1;
+
+            // Select kick via Ohm's (parallel) addition rule.
+            // 'Both' and 'neither' both map to KICK_OHM: in each case neither
+            // pure domain applies exclusively, so the parallel combination is the
+            // principled default (smallest-resistance analogy limits the kick).
+            const double eff_kick = exploring && converging ? KICK_OHM
+                                  : exploring               ? KICK_EXPLORE
+                                  : converging              ? KICK_CONVERGE
+                                  :                           KICK_OHM;
 
             psi[i] = chiral_nonlinear_local(psi[i], eff_kick);
 
@@ -740,8 +748,11 @@ int main() {
 
     // ── Benchmark 7: Exploration-Convergence Strategy ────────────────────────
     std::cout << "\n╔═══ Benchmark 7: Exploration-Convergence Strategy ═══╗\n";
-    std::cout << "\nCoherence-driven exploration (Im > 0) with stability-driven convergence\n";
-    std::cout << "(Re < 0). Kick decays from k=0.30 to k=0.01 as the search progresses.\n";
+    std::cout << "\nCoherence-driven exploration (Im > 0) and stability-driven convergence\n";
+    std::cout << "(Re < 0) combined via Ohm's (parallel) addition:\n";
+    std::cout << "  k_ohm = (KICK_EXPLORE * KICK_CONVERGE) / (KICK_EXPLORE + KICK_CONVERGE)\n";
+    std::cout << "       = (0.30 * 0.01) / (0.30 + 0.01) ≈ 0.00968\n";
+    std::cout << "Per oscillator: Im>0 only→0.30, Re<0 only→0.01, both/neither→k_ohm\n";
     std::cout << "Columns: strategy | nonce found | attempts | time-to-solution |\n";
     std::cout << "         phase dispersion | mean |β| | hashing rate\n";
 
@@ -815,8 +826,10 @@ int main() {
     std::cout << "║           Adaptive Strategy Benchmarks 7-9 Complete          ║\n";
     std::cout << "╚═══════════════════════════════════════════════════════════════╝\n";
     std::cout << "\nNotes (Benchmarks 7-9):\n";
-    std::cout << "  • B7 Exploration-Convergence: decaying kick biases Im>0 early\n";
-    std::cout << "    for broad phase coverage, then Re<0 convergence narrows focus.\n";
+    std::cout << "  • B7 Exploration-Convergence (Ohm's addition):\n";
+    std::cout << "    k_eff = (k_explore * k_converge) / (k_explore + k_converge)\n";
+    std::cout << "    Im>0→full exploration kick, Re<0→convergence kick,\n";
+    std::cout << "    both/neither→Ohm's combined kick (smaller component dominates).\n";
     std::cout << "  • B8 Brute-Force Control: uniform scan; sets time/attempt baseline.\n";
     std::cout << "  • B9 Static Adaptive Kick: fixed k=0.05 without coherence feedback;\n";
     std::cout << "    phase dispersion and |β| are tracked but not fed back to the kick.\n";

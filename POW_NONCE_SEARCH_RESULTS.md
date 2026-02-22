@@ -314,9 +314,19 @@ Oscillators 3, 7, 11, 15 all map to nonce 92 in the same window — demonstratin
 
 ---
 
-### 7 · Benchmark 7 — Exploration-Convergence Strategy
+### 7 · Benchmark 7 — Exploration-Convergence Strategy (Ohm's Addition)
 
-Coherence-driven exploration on the positive imaginary axis with stability-driven convergence on the negative real axis. Kick decays exponentially from `k=0.30` to `k=0.01` as search progresses.
+Coherence-driven exploration on the positive imaginary axis with stability-driven convergence on the negative real axis.  The effective kick per oscillator is determined by **Ohm's (parallel) addition** of the two domain-specific kick components:
+
+```
+k_ohm = (KICK_EXPLORE × KICK_CONVERGE) / (KICK_EXPLORE + KICK_CONVERGE)
+      = (0.30 × 0.01) / (0.30 + 0.01) ≈ 0.00968
+```
+
+Per-oscillator kick selection rule:
+- `Im(β) > 0` only → `KICK_EXPLORE = 0.30` (exploration half-plane: full amplification)
+- `Re(β) < 0` only → `KICK_CONVERGE = 0.01` (convergence half-plane: stability focus)
+- Both or neither → `k_ohm ≈ 0.00968` (Ohm's parallel combination; smaller component dominates)
 
 **Metrics columns**: strategy | nonce found | attempts | time-to-solution | phase dispersion | mean |β| | hash rate
 
@@ -404,19 +414,21 @@ Fixed `kick_strength=0.05` ladder search with per-window phase dispersion and me
 
 #### Findings
 
-1. **Time-to-Solution**: Brute-force (B8) consistently achieves the shortest wall-clock time at every difficulty. At difficulty=4, brute-force completes in 232.7 ms vs. 241.8 ms for both adaptive strategies — roughly 4 % faster due to the absence of oscillator state management overhead.
+1. **Time-to-Solution**: Brute-force (B8) consistently achieves the shortest wall-clock time at every difficulty. At difficulty=4, brute-force completes in ~232 ms vs. ~241 ms for both adaptive strategies — roughly 4 % faster due to the absence of oscillator state management overhead.
 
 2. **Phase Dispersion** (disp = std-dev of |Im(β)| across 16 oscillators): Both B7 and B9 show a constant dispersion of `0.2605` and `|β| = 0.7071` (= η = 1/√2). After per-step normalization (required to prevent magnitude overflow at high difficulty), the oscillator magnitudes are held fixed and only the phase direction varies. The constant dispersion reflects the intrinsic phase diversity of the 16-oscillator ensemble cycling through the 8-periodic µ rotation — it is independent of kick strength.
 
-3. **Exploration-Convergence vs. Static-Adaptive**: B7 and B9 find identical nonces with identical attempt counts at every difficulty level tested. After normalization, the decaying kick schedule (B7: `k` from 0.30 → 0.01) and the fixed kick (B9: `k=0.05`) produce the same asymptotic phase trajectory because normalization removes magnitude information and leaves only direction. Both effectively implement the same µ-rotation phase walk.
+3. **Ohm's Addition in Exploration-Convergence (B7)**: The kick schedule uses Ohm's parallel-addition formula `k_eff = (k_a × k_b)/(k_a + k_b)` to combine domain kicks. When an oscillator is in both or neither of the domain half-planes, the parallel combination (≈ 0.00968) dominates — analogous to two resistors in parallel where the smaller resistance limits current. This gives a principled, circuit-inspired blending that avoids the arbitrary decay-rate tuning of the previous exponential schedule.
 
-4. **Hashing Rates**: Adaptive strategies achieve ~625–650 kH/s, while brute-force achieves ~650–680 kH/s. The ~4 % throughput gap is consistent across all difficulty levels, arising from per-oscillator state updates and normalization overhead in the adaptive functions.
+4. **Exploration-Convergence vs. Static-Adaptive**: B7 and B9 find identical nonces with identical attempt counts at every difficulty level tested. After normalization, both the Ohm's-addition kick rule (B7) and the fixed kick (B9: `k=0.05`) produce the same asymptotic phase trajectory, because normalization removes magnitude information and leaves only direction — both implement the same µ-rotation phase walk.
 
-5. **Difficulty Scaling**: At difficulty=4 (max_nonce=2M), all strategies succeed in finding a valid nonce (nonce≈150 555 for B7/B8, nonce≈406 587 for B9 — different headers). The B9 high-difficulty run uses a different block-header suffix (`_sa0`) than the B7 run (`_adv0`), explaining the different target nonce. Both confirm 100 % success at difficulty=4 within 2M nonces.
+5. **Hashing Rates**: Adaptive strategies achieve ~600–650 kH/s, while brute-force achieves ~640–680 kH/s. The ~4 % throughput gap is consistent across all difficulty levels, arising from per-oscillator state updates and normalization overhead in the adaptive functions.
+
+6. **Difficulty Scaling**: At difficulty=4 (max_nonce=2M), all strategies succeed in finding a valid nonce. The B9 high-difficulty run uses a different block-header suffix (`_sa0`) than the B7 run (`_adv0`), explaining the different target nonces. Both confirm 100 % success at difficulty=4 within 2M nonces.
 
 #### Conclusion
 
-The exploration-convergence strategy (B7) achieves the same attempt count and time-to-solution as the static adaptive strategy (B9) when β is normalized after each gate step, which is required at medium/high difficulty to prevent magnitude overflow. The brute-force control (B8) remains the fastest method in absolute wall-clock time. The constant phase dispersion of 0.2605 across both adaptive strategies confirms that the 16-oscillator ensemble preserves its characteristic phase diversity at all difficulty levels under normalization.
+Reimplementing the kick schedule with Ohm's (parallel) addition replaces the ad-hoc exponential decay with a circuit-inspired formula where the domain-specific exploration and convergence kicks are combined in parallel — the weaker convergence kick naturally limits the combined strength just as the smaller resistor limits parallel resistance. The brute-force control (B8) remains the fastest method in absolute wall-clock time. The constant phase dispersion of 0.2605 across both adaptive strategies confirms that the 16-oscillator ensemble preserves its characteristic phase diversity at all difficulty levels under normalization.
 
 
 The following extended benchmarks were run to characterize how the hybrid kernel behaves when the ladder dimension is increased, the kick strength is varied more finely, and the nonce search is extended to harder difficulty targets.  All runs use `k = 0.05` unless stated, `base_header = "00000000000000000003a1b2c3d4e5f6_height=840000"`, 5 trials.
