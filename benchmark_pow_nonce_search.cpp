@@ -465,6 +465,99 @@ static BenchmarkRun run_benchmark(size_t difficulty, uint64_t max_nonce,
   return run;
 }
 
+// ── Difficulty scaling sweep
+// ────────────────────────────────────────────────── Runs both methods across
+// difficulties 1–5 and prints a structured comparison table.  max_nonce values
+// are chosen so brute-force reliably finds at least one valid nonce per trial
+// (≈ 5× expected_gap = 5 × 16^difficulty).  The hybrid may exhaust the range at
+// higher difficulties (reported as 0 % success), which is itself a significant
+// finding about the limits of fixed-LADDER_DIM search.
+static void run_difficulty_scaling_sweep(const std::string &block_header) {
+  struct SweepEntry {
+    size_t difficulty;
+    uint64_t max_nonce; // ≈ 5 × 16^difficulty for reliable BF success
+    int trials;
+    const char *label;
+  };
+
+  const std::vector<SweepEntry> sweep = {
+      {1, 50000, 5, "1 nibble  (gap ~16)"},
+      {2, 200000, 3, "2 nibbles (gap ~256)"},
+      {3, 500000, 2, "3 nibbles (gap ~4 096)"},
+      {4, 2000000, 2, "4 nibbles (gap ~65 536)"},
+      {5, 5000000, 1, "5 nibbles (gap ~1 048 576)"},
+  };
+
+  // Table header
+  std::cout << "\n";
+  std::cout << "  ┌──────────────────────────┬───────┬───────┬────────────┬──"
+               "──────┬────────────┬──────────┬──────────┐\n";
+  std::cout << "  │ Difficulty               │Trials │BF succ│ BF att     │ "
+               "BF ms  │ HY att     │  HY ms   │ Ratio    │\n";
+  std::cout << "  ├──────────────────────────┼───────┼───────┼────────────┼──"
+               "──────┼────────────┼──────────┼──────────┤\n";
+
+  for (const auto &e : sweep) {
+    uint64_t bf_att = 0, hy_att = 0;
+    double bf_ms = 0.0, hy_ms = 0.0;
+    int bf_found = 0, hy_found = 0;
+
+    for (int t = 0; t < e.trials; ++t) {
+      std::string hdr = block_header + "_sw" + std::to_string(t);
+      auto bf = brute_force_search(hdr, e.max_nonce, e.difficulty);
+      auto hy = ladder_search(hdr, e.max_nonce, e.difficulty);
+      bf_att += bf.attempts;
+      bf_ms += bf.elapsed_ms;
+      if (bf.found)
+        ++bf_found;
+      hy_att += hy.attempts;
+      hy_ms += hy.elapsed_ms;
+      if (hy.found)
+        ++hy_found;
+    }
+
+    double bf_mean_att = static_cast<double>(bf_att) / e.trials;
+    double hy_mean_att = static_cast<double>(hy_att) / e.trials;
+    double ratio = (bf_mean_att > 0.5) ? hy_mean_att / bf_mean_att : 0.0;
+
+    std::ostringstream bf_suc, hy_suc_str;
+    bf_suc << bf_found << "/" << e.trials;
+    hy_suc_str << hy_found << "/" << e.trials;
+
+    std::cout << std::fixed;
+    std::cout << "  │ " << std::left << std::setw(24) << e.label << " │ "
+              << std::setw(5) << e.trials << " │ " << std::setw(5)
+              << bf_suc.str() << " │ " << std::setw(10) << std::setprecision(0)
+              << bf_mean_att << " │ " << std::setw(6) << std::setprecision(0)
+              << bf_ms / e.trials << " │ " << std::setw(10)
+              << std::setprecision(0) << hy_mean_att << " │ " << std::setw(8)
+              << std::setprecision(0) << hy_ms / e.trials << " │ ";
+    if (hy_found > 0) {
+      std::cout << std::setw(6) << std::setprecision(1) << ratio << "x │\n";
+    } else {
+      std::cout << std::setw(7) << "N/A (0%)" << " │\n";
+    }
+  }
+
+  std::cout << "  └──────────────────────────┴───────┴───────┴────────────┴──"
+               "──────┴────────────┴──────────┴──────────┘\n";
+
+  std::cout << "\n  Notes:\n";
+  std::cout
+      << "  • BF = brute-force sequential scan; HY = hybrid ladder (k=0.05, "
+         "LADDER_DIM=16)\n";
+  std::cout
+      << "  • 'N/A (0%)' means hybrid exhausted max_nonce without finding "
+         "a valid nonce.\n";
+  std::cout << "  • At difficulty ≥ 5 the expected inter-nonce gap (16^5 ≈ 1M) "
+               "exceeds the\n";
+  std::cout << "    effective window coverage (LADDER_DIM = 16), so the hybrid "
+               "rarely samples\n";
+  std::cout
+      << "    a position that coincides with a valid nonce — brute-force is "
+         "strictly better.\n";
+}
+
 // ── Main
 // ──────────────────────────────────────────────────────────────────────
 
@@ -537,6 +630,15 @@ int main() {
   std::cout << "\n  Stress-testing scalability at difficulty=4 (expected gap "
                "~65536).\n";
   run_benchmark(4, 2000000, 2, BLOCK_HEADER);
+
+  // ── Benchmark 7: Difficulty Scaling Sweep (1–5 nibbles) ──────────────────
+  std::cout
+      << "\n╔═══ Benchmark 7: Difficulty Scaling Sweep (1–5 nibbles) ═══╗\n";
+  std::cout << "\n  Systematic comparison across difficulties 1–5 (k=0.05, "
+               "LADDER_DIM=16).\n";
+  std::cout << "  max_nonce ≈ 5×16^difficulty to ensure ≥5 valid nonces in "
+               "range.\n";
+  run_difficulty_scaling_sweep(BLOCK_HEADER);
 
   std::cout << "\n╔════════════════════════════════════════════════════════════"
                "═══╗\n";
