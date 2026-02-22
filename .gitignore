@@ -39,3 +39,11 @@ coverage/
 test_palindrome_precession
 test_kernel_pipeline
 test_coherent_search
+
+# CMake build directories
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+_CPack_Packages/
