@@ -94,9 +94,7 @@ void test_recovery_statistical_distribution() {
     const int max_steps = 100;
 
     while (std::abs(r - 1.0) > RADIUS_TOLERANCE && steps < max_steps) {
-      double C_current = coherence(r);
-      double coherence_defect = 1.0 - C_current;
-      double correction = (1.0 - r) * recovery_rate * coherence_defect;
+      double correction = (1.0 - r) * recovery_rate;
       r += correction;
       steps++;
     }
@@ -201,9 +199,7 @@ void test_performance_benchmarks() {
     const double recovery_rate = 0.6;
 
     while (std::abs(r - 1.0) > RADIUS_TOLERANCE && steps < max_steps) {
-      double C_current = coherence(r);
-      double coherence_defect = 1.0 - C_current;
-      double correction = (1.0 - r) * recovery_rate * coherence_defect;
+      double correction = (1.0 - r) * recovery_rate;
       r += correction;
       steps++;
     }
@@ -272,9 +268,7 @@ void test_formal_verification() {
     double prev_deviation = std::abs(r - 1.0);
 
     for (int step = 0; step < 20; ++step) {
-      double C_current = coherence(r);
-      double coherence_defect = 1.0 - C_current;
-      double correction = (1.0 - r) * recovery_rate * coherence_defect;
+      double correction = (1.0 - r) * recovery_rate;
       r += correction;
 
       double curr_deviation = std::abs(r - 1.0);

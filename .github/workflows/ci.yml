@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install clang-format
-        run: sudo apt-get install -y clang-format
+        run: sudo apt-get update -y && sudo apt-get install -y clang-format
 
       - name: Check formatting
         run: |
@@ -38,6 +38,7 @@ jobs:
             test_qudit_kernel.cpp \
             test_interrupt_nist.cpp \
             benchmark_nist_ir8356.cpp \
+            benchmark_pow_nonce_search.cpp \
             ChiralNonlinearGate.hpp \
             LadderChiralSearch.hpp \
             LadderSearchBenchmark.hpp
@@ -48,9 +49,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: sudo apt-get install -y libssl-dev libeigen3-dev
 
       - name: Build test_pipeline_theorems
         run: g++ -std=c++17 -Wall -Wextra -O2 -o test_pipeline_theorems test_pipeline_theorems.cpp -lm
@@ -84,7 +82,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get install -y libssl-dev libeigen3-dev
+        run: sudo apt-get update -y && sudo apt-get install -y --no-install-recommends libssl-dev
 
       - name: Build benchmark_nist_ir8356
         run: g++ -std=c++17 -Wall -Wextra -O2 -o benchmark_nist_ir8356 benchmark_nist_ir8356.cpp -lm
@@ -106,7 +104,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install dependencies
-        run: sudo apt-get install -y lcov
+        run: sudo apt-get update -y && sudo apt-get install -y --no-install-recommends lcov
 
       - name: Build tests with coverage instrumentation
         run: |

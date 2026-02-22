@@ -43,6 +43,7 @@ as any formatting deviation is detected without modifying files in CI.
 clang-format -i quantum_kernel_v2.cpp qudit_kernel.cpp \
     test_pipeline_theorems.cpp test_ipc.cpp test_qudit_kernel.cpp \
     test_interrupt_nist.cpp benchmark_nist_ir8356.cpp \
+    benchmark_pow_nonce_search.cpp \
     ChiralNonlinearGate.hpp LadderChiralSearch.hpp LadderSearchBenchmark.hpp
 ```
 
@@ -96,8 +97,7 @@ All jobs run on `ubuntu-latest`.  External packages installed at job start:
 | Package          | Used by                         |
 |------------------|---------------------------------|
 | `clang-format`   | `lint` job                      |
-| `libssl-dev`     | `build-and-test`, `benchmarks`  |
-| `libeigen3-dev`  | `build-and-test`, `benchmarks`  |
+| `libssl-dev`     | `benchmarks` (PoW nonce search) |
 | `lcov`           | `coverage` job                  |
 
 ## Extending the Pipeline

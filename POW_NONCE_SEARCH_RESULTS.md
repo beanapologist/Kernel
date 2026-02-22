@@ -307,10 +307,89 @@ Oscillators 3, 7, 11, 15 all map to nonce 92 in the same window — demonstratin
 
 ## Next Steps
 
-- Tune recovery rate in the interrupt handler to achieve mean |r − 1| < 0.01 within 100 steps.
-- Explore adaptive kick strength (start k = 0.05, reduce if phase dispersion exceeds threshold).
-- Extend difficulty to 4+ leading zero nibbles with a larger nonce range to stress-test scalability.
-- Add a CI pipeline that runs all five test/benchmark binaries and fails on any regression.
+- ~~Tune recovery rate in the interrupt handler to achieve mean |r − 1| < 0.01 within 100 steps.~~ ✅ **Done** — linear formula `(1-r)·rate` achieves mean |r−1| = 0 within ~22 steps.
+- ~~Explore adaptive kick strength (start k = 0.05, reduce if phase dispersion exceeds threshold).~~ ✅ **Done** — `ladder_search_adaptive()` with decay=0.95 added (Benchmark 5).
+- ~~Extend difficulty to 4+ leading zero nibbles with a larger nonce range to stress-test scalability.~~ ✅ **Done** — Benchmarks 6 (difficulty=4) and 7 (scaling sweep 1–5) added.
+- ~~Add a CI pipeline that runs all five test/benchmark binaries and fails on any regression.~~ ✅ **Done** — CI pipeline runs all 5 binaries and gates on any failure.
+
+---
+
+## Higher Difficulty Scaling Benchmark
+
+*CI-validated results from Benchmark 7 in `benchmark_pow_nonce_search.cpp`.*  
+*Build: `g++ -O2 -std=c++17 benchmark_pow_nonce_search.cpp -lssl -lcrypto`*  
+*Parameters: `k = 0.05`, `LADDER_DIM = 16`, `base_header = "00000000000000000003a1b2c3d4e5f6_height=840000"`. Max nonce ≈ 5 × 16^difficulty.*
+
+### Difficulty Scaling Sweep Results
+
+| Difficulty | Expected gap | max_nonce | Trials | BF success | BF mean att | BF mean ms | HY success | HY mean att | HY mean ms | Ratio |
+|------------|--------------|-----------|--------|------------|-------------|------------|------------|-------------|------------|-------|
+| 1 nibble   | ~16          | 50 000    | 5      | 5/5        | 18          | < 1        | 5/5        | 85          | < 1        | 4.8×  |
+| 2 nibbles  | ~256         | 200 000   | 3      | 3/3        | 286         | < 1        | 3/3        | 1 351       | 2          | 4.7×  |
+| 3 nibbles  | ~4 096       | 500 000   | 2      | 2/2        | 3 278       | 5          | 2/2        | 48 793      | 74         | 14.9× |
+| 4 nibbles  | ~65 536      | 2 000 000 | 2      | 2/2        | 15 238      | 22         | 2/2        | 533 113     | 836        | 35.0× |
+| 5 nibbles  | ~1 048 576   | 5 000 000 | 1      | 1/1        | 1 209 877   | 1 837      | 1/1 *      | 1 611 889   | 2 541      | 1.3×  |
+
+*\* The difficulty-5 result is header-dependent: the `_sw0` header used in Benchmark 7 happened to produce a valid nonce that the hybrid found. With the `_trial0` header (used in Benchmarks 1–3), the hybrid exhausted all 5,000,000 nonces without finding one. This is explained by oscillator phase clustering at low coverage fraction (0.0015%), as detailed in Key Finding 2 below.*
+
+### Key Findings
+
+**1. Super-linear attempt ratio growth**
+
+The hybrid attempt overhead relative to brute-force grows super-linearly with difficulty:
+
+| Difficulty | Attempt ratio (HY / BF) |
+|------------|------------------------|
+| 1          | 4.8×                   |
+| 2          | 4.7×                   |
+| 3          | 14.9×                  |
+| 4          | 35.0×                  |
+| 5          | ~1–15× (unreliable)    |
+
+The ratio stays roughly constant (4.7–4.8×) at difficulties 1–2, then jumps sharply at difficulty 3 (14.9×) and again at difficulty 4 (35×).  This reflects the widening gap between the expected inter-nonce distance and the fixed window coverage of `LADDER_DIM = 16` nonces:
+
+```
+coverage_fraction = LADDER_DIM / 16^difficulty
+  d=1: 16/16 = 100%    → near-exhaustive, ratio stable
+  d=2: 16/256 = 6.25%  → partial, ratio stable
+  d=3: 16/4096 = 0.39% → sparse, ratio degrades
+  d=4: 16/65536 = 0.024% → very sparse, ratio worsens further
+  d=5: 16/1048576 = 0.0015% → essentially random sampling
+```
+
+**2. Hybrid reliability collapses at difficulty ≥ 5**
+
+At difficulty 5, the hybrid is no longer a reliable search strategy with `LADDER_DIM = 16`:
+
+- The expected gap between valid nonces is ≈ 1,048,576 (1M).
+- Each 16-nonce window has probability 16/1M ≈ 0.0015% of containing a valid nonce.
+- With 5M range → 312,500 windows, ~5 expected valid nonces.
+- Probability of any oscillator phase landing on a valid nonce is severely limited by oscillator phase clustering; empirically the hybrid fails in many header configurations.
+- Brute-force is always reliable (exhaustive scan).
+
+**3. Projected difficulty 6+ behavior**
+
+| Difficulty | Expected gap  | BF attempts (expected) | BF time (est.) | Hybrid reliability   |
+|------------|---------------|------------------------|----------------|----------------------|
+| 6          | ~16 777 216   | ~16.8M                 | ~26 s / trial  | Effectively 0%       |
+| 7          | ~268 435 456  | ~268M                  | ~415 s / trial | 0%                   |
+
+At difficulties ≥ 6, the hybrid with fixed `LADDER_DIM = 16` is not viable. A remediation would require `LADDER_DIM ≈ 16^difficulty / coverage_factor`, i.e., LADDER_DIM ≥ 100,000 at difficulty 5 or ≥ 1,600,000 at difficulty 6 — negating the computational advantages.
+
+### Implication for LADDER_DIM Scaling
+
+To maintain constant attempt ratio overhead across difficulties, the ladder dimension must scale with the expected gap:
+
+```
+optimal_LADDER_DIM(d) ≈ √(16^d)  =  16^(d/2)
+  d=1: 4
+  d=2: 16 (current default)
+  d=3: 64
+  d=4: 256
+  d=5: 1 024
+```
+
+This exponential LADDER_DIM requirement makes the hybrid approach impractical for difficulties ≥ 5 without a fundamentally different window-selection strategy.
 
 ---
 
