@@ -50,6 +50,7 @@ if(KERNEL_BUILD_TESTS)
     enable_testing()
 
     set(_kernel_tests
+        test_chiral_nonlinear_gate
         test_coherent_search
         test_kernel_pipeline
         test_interrupt_nist
