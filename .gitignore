@@ -9,6 +9,7 @@ test_ipc_bin
 test_pipeline_bin
 test_chiral_gate
 test_qudit_kernel
+test_ohm_coherence
 *.o
 *.out
 *.exe
