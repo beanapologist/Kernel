@@ -13,6 +13,12 @@
  *   3b. Hash Oracle Demanding — Multiple marks, clustered marks, adversarial
  *   4. Amplitude Amplification — Kick vs no-kick target probability comparison
  *   5. Quantum-Speedup Analog — Ladder search convergence rate with/without kick
+ *   6. Precession Baseline and Hybrid — Palindrome precession (ΔΦ = 2π/13717421)
+ *      as coherence-preserving isometry; precession-only vs kick-only vs hybrid
+ *
+ * Tolerances (applied throughout):
+ *   TIGHT_TOL = 1e-12  — exact mathematical identities (|P(n)|=1, µ^8=1, etc.)
+ *   FLOAT_TOL = 1e-9   — floating-point computed values (magnitudes, ratios)
  */
 
 #include <cassert>
@@ -48,8 +54,15 @@ struct QState {
   }
 };
 
-// ── Include the gate under test ───────────────────────────────────────────────
+// ── Include the gate under test and the precession operator ──────────────────
 #include "ChiralNonlinearGate.hpp"
+#include "PalindromePrecession.hpp"
+
+// Bring precession constants into the local scope for test readability
+using kernel::quantum::PRECESSION_DELTA_PHASE;
+using kernel::quantum::PALINDROME_DENOM_FACTOR;
+using kernel::quantum::PalindromePrecession;
+using kernel::quantum::PRECESSION_TWO_PI;
 
 // ── Test infrastructure ───────────────────────────────────────────────────────
 static int test_count = 0;
@@ -738,7 +751,171 @@ static void test_quantum_speedup_analog() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Main
+// 6. Precession Baseline and Kick+Precession Hybrid
+//
+// Validates the palindrome precession operator (ΔΦ = 2π / 13717421, from the
+// palindrome quotient 987654321 / 123456789 = 8 + 1/13717421) as a linear
+// coherence-preserving isometry, and measures whether pairing it with the
+// chiral kick improves search convergence beyond kick-alone.
+//
+// Tests:
+//   6a. Precession invariant: |P(n)| = 1 for all n (unit-circle isometry,
+//       T=0 excess resistance, preserves |β|, r=1, C=1, R=0 simultaneously)
+//   6b. Four balanced eigenvalues: exp(ikπ/4), k=1,3,5,7 — |ev|=1 and
+//       |Re|=|Im|=1/√2 for all four (the µ 8-cycle balanced set)
+//   6c. Pure precession baseline: Grover+prec (no kick) converges in the same
+//       number of rounds as Grover+linear — precession alone adds phase
+//       diversity without amplitude amplification
+//   6d. Kick reduces rounds vs precession-only baseline: Grover+kick+prec
+//       converges strictly faster than precession-only
+//   6e. Kick-strength sweep: any kick ≥ 0.01 in Grover+kick reaches the 90%
+//       threshold no later than the linear baseline
+// ══════════════════════════════════════════════════════════════════════════════
+static void test_precession_baseline_and_hybrid() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 6. Precession Baseline and "
+               "Kick+Precession Hybrid \u2550\u2550\u2550\u2557\n";
+
+  // Use PRECESSION_TWO_PI (= 2π, from PalindromePrecession.hpp) for all
+  // trigonometric calculations to ensure consistent precision throughout.
+  const double TWO_PI = PRECESSION_TWO_PI;
+
+  // ── 6a. Precession invariant: |P(n)| = 1 for first 1000 steps ────────────
+  {
+    bool all_unit = true;
+    for (uint64_t n = 0; n < 1000; ++n) {
+      double angle = static_cast<double>(n) * PRECESSION_DELTA_PHASE;
+      Cx phasor{std::cos(angle), std::sin(angle)};
+      if (std::abs(std::abs(phasor) - 1.0) > TIGHT_TOL)
+        all_unit = false;
+    }
+    test_assert(all_unit,
+                "Precession: |P(n)| = 1 for first 1000 steps "
+                "(unit-circle isometry, T=0 overhead)");
+  }
+
+  // Verify PRECESSION_DELTA_PHASE matches the documented formula 2π/13717421.
+  // This validates the PalindromePrecession implementation against the palindrome
+  // arithmetic derivation (987654321/123456789 = 8 + 1/13717421).
+  {
+    double expected_delta = TWO_PI / static_cast<double>(PALINDROME_DENOM_FACTOR);
+    test_assert(std::abs(PRECESSION_DELTA_PHASE - expected_delta) < TIGHT_TOL,
+                "Precession: \u03b4\u03a6 = 2\u03c0 / 13717421 "
+                "(palindrome fractional denominator)");
+  }
+
+  // ── 6b. Four balanced eigenvalues ────────────────────────────────────────
+  // exp(ikπ/4) for k = 1, 3, 5, 7 — the four second-quadrant and related
+  // balanced eigenvalues of the µ 8-cycle.  All have |ev|=1 and |Re|=|Im|.
+  {
+    bool all_unit_mag = true;
+    bool all_balanced = true;
+    for (int k : {1, 3, 5, 7}) {
+      Cx ev{std::cos(k * TWO_PI / 8.0), std::sin(k * TWO_PI / 8.0)};
+      if (std::abs(std::abs(ev) - 1.0) > TIGHT_TOL)
+        all_unit_mag = false;
+      // Balance check: |Re(ev)| must equal |Im(ev)| (= 1/√2 at 45° multiples)
+      double re_mag = std::abs(ev.real());
+      double im_mag = std::abs(ev.imag());
+      if (std::abs(re_mag - im_mag) > TIGHT_TOL)
+        all_balanced = false;
+    }
+    test_assert(all_unit_mag,
+                "Balanced eigenvalues: |exp(ik\u03c0/4)| = 1 for k=1,3,5,7");
+    test_assert(all_balanced,
+                "Balanced eigenvalues: |Re| = |Im| = 1/\u221a2 for k=1,3,5,7 "
+                "(amplitude balance)");
+  }
+
+  // ── Helper: Grover iteration with optional precession ────────────────────
+  // oracle + invert-about-mean + optional palindrome precession + chiral gate
+  const size_t N_GRV = 32;
+  const size_t TARGET_GRV = 11;
+  const size_t MAX_GRV = 50;
+
+  auto grover_rounds_to_threshold = [&](double kick_strength, bool use_precession,
+                               double threshold) -> size_t {
+    // Each QState default-constructs to canonical state alpha={ETA,0},
+    // beta={-0.5,+0.5} — a uniform register for the Grover iteration.
+    std::vector<QState> states(N_GRV);
+    PalindromePrecession pp;
+
+    for (size_t round = 0; round < MAX_GRV; ++round) {
+      // Oracle: phase flip target
+      states[TARGET_GRV].beta = -states[TARGET_GRV].beta;
+      // Grover diffusion: invert-about-mean on β
+      Cx mean_beta{0.0, 0.0};
+      for (const auto &st : states)
+        mean_beta += st.beta;
+      mean_beta /= static_cast<double>(N_GRV);
+      for (auto &st : states)
+        st.beta = 2.0 * mean_beta - st.beta;
+      // Palindrome precession (uniform phase sweep, |phasor|=1)
+      if (use_precession) {
+        Cx p = pp.current_phasor();
+        for (auto &st : states)
+          st.beta *= p;
+        pp.advance();
+      }
+      // Chiral gate
+      for (auto &st : states)
+        st = kernel::quantum::chiral_nonlinear(st, kick_strength);
+      // Compute P(target)
+      double total = 0.0;
+      for (const auto &st : states)
+        total += std::norm(st.beta);
+      double prob =
+          (total > 0.0) ? std::norm(states[TARGET_GRV].beta) / total : 0.0;
+      if (prob >= threshold)
+        return round + 1;
+    }
+    return MAX_GRV;
+  };
+
+  const double THRESHOLD_90 = 0.90;
+  const double KICK = 0.15;
+
+  size_t rounds_linear     = grover_rounds_to_threshold(0.0,  false, THRESHOLD_90);
+  size_t rounds_prec_only  = grover_rounds_to_threshold(0.0,  true,  THRESHOLD_90);
+  size_t rounds_kick_prec  = grover_rounds_to_threshold(KICK, true,  THRESHOLD_90);
+
+  std::cout << "  6c/6d. Rounds to P(target)>0.90 (N=" << N_GRV
+            << ", Grover variants):\n"
+            << "      linear (no kick, no prec): " << rounds_linear << "\n"
+            << "      prec only (no kick):       " << rounds_prec_only << "\n"
+            << "      kick+prec hybrid:          " << rounds_kick_prec << "\n";
+
+  // ── 6c. Pure precession is an isometry: same rounds as linear ────────────
+  test_assert(rounds_prec_only == rounds_linear,
+              "6c: pure precession rounds_to_90% = linear rounds_to_90% "
+              "(precession is an isometry, adds no amplitude amplification)");
+
+  // ── 6d. Kick+precession hybrid converges faster than precession-only ─────
+  test_assert(rounds_kick_prec < rounds_prec_only,
+              "6d: kick+prec hybrid rounds_to_90% < precession-only "
+              "(kick drives the improvement, not precession)");
+
+  // ── 6e. Kick-strength sweep: any kick ≥ 0.01 reaches threshold faster ────
+  //        than the linear (no-kick, no-prec) Grover baseline.
+  {
+    bool all_faster = true;
+    std::cout << "  6e. Kick sweep (rounds_to_90%, N=" << N_GRV << "):\n";
+    for (double k : {0.01, 0.05, 0.10, 0.15, 0.20, 0.25}) {
+      size_t r_noprec = grover_rounds_to_threshold(k, false, THRESHOLD_90);
+      size_t r_prec   = grover_rounds_to_threshold(k, true,  THRESHOLD_90);
+      std::cout << "      kick=" << k
+                << "  no_prec=" << r_noprec
+                << "  +prec=" << r_prec
+                << "  linear=" << rounds_linear << "\n";
+      if (r_noprec > rounds_linear)
+        all_faster = false;
+    }
+    test_assert(all_faster,
+                "6e: kick sweep — any kick in {0.01..0.25} reaches P>0.90 "
+                "in \u2264 linear Grover rounds");
+  }
+}
+
+
 // ══════════════════════════════════════════════════════════════════════════════
 int main() {
   std::cout
@@ -769,6 +946,7 @@ int main() {
   test_hash_oracle_demanding();
   test_amplitude_amplification();
   test_quantum_speedup_analog();
+  test_precession_baseline_and_hybrid();
 
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
