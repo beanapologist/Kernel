@@ -292,6 +292,69 @@ double avg_G = OUProcess::average_conductance(path); // ⟨G⟩ ≤ sech(⟨λ�
 
 ### Building and Running
 
+#### CMake (recommended)
+
+```bash
+# Configure and build everything (tests + benchmarks)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+
+# Run all tests via CTest
+cd build && ctest --output-on-failure
+
+# Build without benchmarks
+cmake -B build -DKERNEL_BUILD_BENCHMARKS=OFF
+cmake --build build --parallel
+
+# Build without tests
+cmake -B build -DKERNEL_BUILD_TESTS=OFF
+cmake --build build --parallel
+```
+
+##### Installing the library
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr/local
+cmake --build build --parallel
+cmake --install build
+```
+
+After installation the library can be consumed with `find_package`:
+
+```cmake
+find_package(Kernel 2.0.0 REQUIRED)
+target_link_libraries(my_app PRIVATE Kernel::Kernel)
+```
+
+Or via CMake `FetchContent`:
+
+```cmake
+include(FetchContent)
+FetchContent_Declare(
+    Kernel
+    GIT_REPOSITORY https://github.com/beanapologist/Kernel.git
+    GIT_TAG        main
+)
+FetchContent_MakeAvailable(Kernel)
+
+target_link_libraries(my_app PRIVATE Kernel::Kernel)
+```
+
+##### Running individual benchmarks
+
+```bash
+./build/benchmark_nist_ir8356
+./build/benchmark_pow_nonce_search
+
+# Run specific NIST IR 8356 benchmark categories
+./build/benchmark_nist_ir8356 --test=process_spawn
+./build/benchmark_nist_ir8356 --test=scheduling
+./build/benchmark_nist_ir8356 --test=memory
+./build/benchmark_nist_ir8356 --test=coherence
+```
+
+#### Direct compilation (without CMake)
+
 ```bash
 # Compile the kernel
 g++ -std=c++17 -Wall -Wextra -O2 -o quantum_kernel_v2 quantum_kernel_v2.cpp -lm
