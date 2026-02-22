@@ -38,6 +38,12 @@ constexpr double COHERENCE_TOLERANCE = 1e-9; // Coherence bound validation
 constexpr double RADIUS_TOLERANCE = 1e-9;    // Radius r=1 detection
 constexpr double CONSERVATION_TOL = 1e-12;   // Silver conservation check
 
+// ── Arithmetic Zero-Overhead Periodicity: palindrome-derived period
+// ─────────── Palindrome quotient 987654321 / 123456789 = 8 + 9/123456789 = 8 +
+// 1/13717421 (since 9 × 13717421 = 123456789).  The integer part 8 matches the
+// µ 8-cycle; the fractional denominator 13717421 is the slow-precession period.
+constexpr double PALINDROME_DENOM = 13717421.0;
+
 // ── Interrupt Handling: Decoherence thresholds ───────────────────────────────
 // Decoherence is detected when r deviates from 1 beyond acceptable tolerances
 constexpr double DECOHERENCE_MINOR =
@@ -98,6 +104,57 @@ struct QState {
 
   // Theorem 9: balanced ↔ |α|=|β|=1/√2 ↔ C_ℓ1=1
   bool balanced() const { return std::abs(radius() - 1.0) < RADIUS_TOLERANCE; }
+};
+
+// ── Arithmetic Zero-Overhead Periodicity
+// ─────────────────────────────────────
+/*
+ * ArithmeticPeriodicity: multi-scale periodic structure grounded in the
+ * arithmetic palindrome quotient 987654321 / 123456789.
+ *
+ * Two-scale structure:
+ *   Fast period  — 8 steps: the µ = e^{i3π/4} 8-cycle (Theorem 10)
+ *   Slow period  — PALINDROME_DENOM windows: one full 2π precession cycle
+ *
+ * Zero-overhead property (Theorem 12 / Corollary 13):
+ *   apply_precession() multiplies β by a unit-magnitude phasor, so |β| is
+ *   unchanged.  If the state enters with r = 1, it leaves with r = 1 and
+ *   R(r) = 0 — the palindrome residual remains zero with no coherence cost.
+ *
+ * Usage:
+ *   ArithmeticPeriodicity ap;
+ *   ap.apply_precession(state);   // call once per tick after the µ-rotation
+ */
+struct ArithmeticPeriodicity {
+  uint64_t window = 0; // cumulative precession-window counter
+
+  // Apply one palindrome-precession step: multiply β by e^{i·phase}.
+  // Phase accumulates at rate 2π / PALINDROME_DENOM per window.
+  // |β| is invariant, so r and R(r) are preserved.
+  void apply_precession(QState &state) {
+    double phase =
+        static_cast<double>(window % static_cast<uint64_t>(PALINDROME_DENOM)) *
+        (2.0 * M_PI / PALINDROME_DENOM);
+    Cx phasor{std::cos(phase), std::sin(phase)};
+    state.beta *= phasor;
+    ++window;
+  }
+
+  // Fast period: 8 steps from µ = e^{i3π/4} (Theorem 10)
+  static constexpr uint8_t fast_period() { return 8; }
+
+  // Slow period: windows for one complete 2π precession cycle
+  static constexpr uint64_t slow_period() {
+    return static_cast<uint64_t>(PALINDROME_DENOM);
+  }
+
+  // Zero-overhead check: true iff R(r) = 0 (i.e. r = 1, balanced state)
+  static bool is_zero_overhead(double r) {
+    return std::abs(palindrome_residual(r)) < RADIUS_TOLERANCE;
+  }
+
+  // Reset precession counter
+  void reset() { window = 0; }
 };
 
 // ── Chiral Non-Linear Gate
@@ -1285,6 +1342,10 @@ public:
 
   void disable_ipc() { ipc_enabled_ = false; }
 
+  // ── Arithmetic Zero-Overhead Periodicity configuration ────────────────────
+  void enable_periodicity() { periodicity_enabled_ = true; }
+  void disable_periodicity() { periodicity_enabled_ = false; }
+
   uint32_t spawn(const std::string &name,
                  std::function<void(Process &)> task = nullptr) {
     uint32_t pid = next_pid_++;
@@ -1319,6 +1380,11 @@ public:
 
       // Execute normal process tick
       p.tick();
+
+      // Apply arithmetic zero-overhead precession after µ-rotation
+      if (periodicity_enabled_) {
+        periodicity_.apply_precession(p.state);
+      }
     }
   }
 
@@ -1397,6 +1463,8 @@ private:
   DecoherenceHandler interrupt_handler_;
   bool ipc_enabled_ = false;
   QuantumIPC ipc_;
+  bool periodicity_enabled_ = false;
+  ArithmeticPeriodicity periodicity_; // arithmetic zero-overhead periodicity
   std::shared_ptr<RotationalMemory> memory_; // Rotational memory system
 };
 

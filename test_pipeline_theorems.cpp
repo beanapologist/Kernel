@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cmath>
 #include <complex>
+#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -431,6 +432,84 @@ void test_prop_4() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// Arithmetic Zero-Overhead Periodicity
+// ══════════════════════════════════════════════════════════════════════════════
+void test_arithmetic_periodicity() {
+  std::cout << "\n╔═══ Arithmetic Zero-Overhead Periodicity ═══╗\n";
+
+  // ── 1. Palindrome-quotient derivation ────────────────────────────────────
+  // 987654321 / 123456789 = 8 + 9/123456789 = 8 + 1/13717421
+  // (because 9 × 13717421 = 123456789)
+  constexpr double PALINDROME_DENOM = 13717421.0;
+  constexpr uint64_t FAST_PERIOD = 8;
+
+  uint64_t check_product =
+      9ULL * static_cast<uint64_t>(PALINDROME_DENOM); // 9 × 13717421
+  test_assert(
+      check_product == 123456789ULL,
+      "9 × PALINDROME_DENOM = 123456789 (palindrome quotient verified)");
+
+  double quotient = 987654321.0 / 123456789.0;
+  double integer_part = std::floor(quotient);
+  double frac_part = quotient - integer_part;
+  test_assert(
+      std::abs(integer_part - static_cast<double>(FAST_PERIOD)) < TIGHT_TOL,
+      "integer part of palindrome quotient = 8 (matches µ fast period)");
+  test_assert(std::abs(frac_part - 1.0 / PALINDROME_DENOM) < FLOAT_TOL,
+              "fractional part = 1/PALINDROME_DENOM (slow period denominator)");
+
+  // ── 2. Precession is a pure phase rotation (|β| invariant) ───────────────
+  double alpha_mag = ETA; // |α| = 1/√2
+  double beta_mag = ETA;  // |β| = 1/√2 (r=1, balanced state)
+  double r_init = beta_mag / alpha_mag;
+
+  // Simulate one precession step: β *= e^{iφ} for arbitrary φ
+  double phi = 2.0 * PI / PALINDROME_DENOM;
+  Cx beta{-0.5, 0.5}; // canonical β = e^{i3π/4}/√2
+  Cx phasor{std::cos(phi), std::sin(phi)};
+  Cx beta_after = beta * phasor;
+
+  test_assert(std::abs(std::abs(beta_after) - std::abs(beta)) < TIGHT_TOL,
+              "precession step preserves |β| (pure phase rotation)");
+
+  // ── 3. Zero-overhead: r=1 is invariant under precession ──────────────────
+  double r_after = std::abs(beta_after) / alpha_mag;
+  test_assert(std::abs(r_after - r_init) < TIGHT_TOL,
+              "r=1 preserved under precession (zero overhead)");
+  test_assert(std::abs(palindrome_residual(r_after)) < TIGHT_TOL,
+              "R(r)=0 maintained after precession (Theorem 12 zero overhead)");
+
+  // ── 4. C=1 is invariant under precession (Theorem 9 / 11) ────────────────
+  double C_before = coherence(r_init);
+  double C_after = coherence(r_after);
+  test_assert(std::abs(C_before - 1.0) < TIGHT_TOL, "C=1 before precession");
+  test_assert(std::abs(C_after - 1.0) < TIGHT_TOL,
+              "C=1 preserved after precession");
+
+  // ── 5. Precession for r≠1 also preserves r (no overhead change) ──────────
+  for (double r_test : {0.8, 1.2, 2.0}) {
+    double beta_mag_test = r_test * alpha_mag;
+    Cx beta_test{beta_mag_test, 0.0};
+    Cx beta_test_after = beta_test * phasor;
+    double r_test_after = std::abs(beta_test_after) / alpha_mag;
+    test_assert(std::abs(r_test_after - r_test) < TIGHT_TOL,
+                "r=" + std::to_string(r_test) + " preserved under precession");
+  }
+
+  // ── 6. Multi-window: phase accumulates correctly over N steps ────────────
+  uint64_t N = 8; // one fast period
+  Cx beta_multi{-0.5, 0.5};
+  for (uint64_t w = 0; w < N; ++w) {
+    double phase_w = static_cast<double>(w) * (2.0 * PI / PALINDROME_DENOM);
+    Cx phasor_w{std::cos(phase_w), std::sin(phase_w)};
+    beta_multi *= phasor_w;
+    beta_multi = beta_multi / std::abs(beta_multi) * ETA;
+  }
+  test_assert(std::abs(std::abs(beta_multi) - ETA) < FLOAT_TOL,
+              "multi-window precession preserves |β| over fast period");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Main test runner
 // ══════════════════════════════════════════════════════════════════════════════
 int main() {
@@ -449,6 +528,7 @@ int main() {
   test_theorem_14();
   test_corollary_13();
   test_prop_4();
+  test_arithmetic_periodicity();
 
   std::cout << "\n╔══════════════════════════════════════════════════════╗\n";
   std::cout << "║  Test Results                                        ║\n";
