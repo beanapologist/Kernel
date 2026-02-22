@@ -47,3 +47,13 @@ CMakeFiles/
 cmake_install.cmake
 CTestTestfile.cmake
 _CPack_Packages/
+
+# CodeQL build directory
+_codeql_build_dir/
+
+# LaTeX build artifacts
+docs/*.aux
+docs/*.log
+docs/*.toc
+docs/*.out
+docs/*.pdf

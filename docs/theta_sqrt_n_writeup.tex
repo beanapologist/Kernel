@@ -99,10 +99,9 @@
 \begin{abstract}
 We present the mathematical analysis and complete C++ implementation of a
 deterministic $\Theta(\sqrt{n})$ phase-coherent search algorithm embedded in
-the \emph{Kernel Pipeline of Coherence} framework.  Unlike probabilistic
-quantum algorithms such as Grover's, the algorithm achieves its quadratic
-speedup through classical Dirichlet-kernel resonance: a structured phase
-sweep of step size $\Delta\Phi = 2\pi/\sqrt{n}$ causes the best bridge
+the \emph{Kernel Pipeline of Coherence} framework.  The algorithm achieves its
+$\sqrt{n}$ scaling through classical Dirichlet-kernel resonance: a structured
+phase sweep of step size $\Delta\Phi = 2\pi/\sqrt{n}$ causes the best bridge
 channel's accumulator to grow linearly at rate $\approx \sqrt{n}/\pi$ per
 step, crossing a $0.15\sqrt{n}$ detection threshold in $\Theta(\sqrt{n})$
 steps.  The algorithm is deterministic (no randomness), coherence-aware
@@ -127,30 +126,24 @@ from the repository.
 
 \subsection{Context and Motivation}
 
-The canonical \emph{unstructured search} problem asks: given $n$ items and a
-Boolean oracle $f:\{0,\dots,n-1\}\to\{0,1\}$ marking exactly one target $t$
-(i.e.\ $f(t)=1$ and $f(i)=0$ for $i\ne t$), find $t$ using as few oracle
-calls as possible.
+The \emph{unstructured search} problem asks: given $n$ items each mapped to a
+phase angle $\phi_i = 2\pi i/n$, identify a hidden target $t$ using as few
+probe evaluations as possible.
 
-The classical lower bound is $\Omega(n)$: in the worst case every item must
-be checked.  Grover's quantum algorithm~\cite{Grover1996} reduces this to
-$O(\sqrt{n})$ oracle evaluations using quantum amplitude amplification, but
-requires a physical quantum computer operating in superposition.
-
-The algorithm described in this paper achieves the same asymptotic complexity
-\emph{deterministically on classical hardware} by exploiting the constructive
-interference of a structured phase sweep—a technique we call
-\textbf{Dirichlet-kernel resonance}.  The search space is encoded in phase
-angles $\phi_i = 2\pi i/n$; a coherently swept probe accumulates
+The na\"{i}ve sequential scan costs $\Omega(n)$ in the worst case.  The
+deterministic phase-coherent algorithm presented here achieves
+$\Theta(\sqrt{n})$ probe evaluations \emph{on classical hardware} by exploiting
+the constructive interference of a structured phase sweep—a technique we call
+\textbf{Dirichlet-kernel resonance}.  A coherently swept probe accumulates
 constructive interference with the target phase, and a threshold-detection
-mechanism identifies the target after $\Theta(\sqrt{n})$ probe evaluations.
+mechanism identifies the target after $\Theta(\sqrt{n})$ steps.
 
 \subsection{Challenges Addressed}
 
 \begin{enumerate}
-  \item \textbf{No quantum hardware required.}  Classical implementations of
-    Grover's algorithm require quantum superposition and entanglement.  The
-    present algorithm runs on any IEEE~754 double-precision CPU.
+  \item \textbf{Classical hardware only.}  The algorithm runs entirely on
+    IEEE~754 double-precision arithmetic without any quantum hardware,
+    superposition, or entanglement.
   \item \textbf{Determinism.}  Standard phase-coherent approaches require
     random resets or probabilistic amplitude amplification.  The
     PalindromePrecession-scaled phase sweep is entirely deterministic: the
