@@ -430,6 +430,64 @@ Fixed `kick_strength=0.05` ladder search with per-window phase dispersion and me
 
 Reimplementing the kick schedule with Ohm's (parallel) addition replaces the ad-hoc exponential decay with a circuit-inspired formula where the domain-specific exploration and convergence kicks are combined in parallel — the weaker convergence kick naturally limits the combined strength just as the smaller resistor limits parallel resistance. The brute-force control (B8) remains the fastest method in absolute wall-clock time. The constant phase dispersion of 0.2605 across both adaptive strategies confirms that the 16-oscillator ensemble preserves its characteristic phase diversity at all difficulty levels under normalization.
 
+---
+
+### 11 · Benchmark 10 — Zero-Kick / Pure Unitary Evolution Baseline
+
+Pure µ-rotation only — no Euler kick anywhere (`kick=0.0` on every oscillator at every step). `|β|` is still normalized to 1/√2 per step (identical to B7/B9). This isolates the cost of **kick computation** from **oscillator state management** by removing all conditional Im/Re branching.
+
+#### Low Difficulty (difficulty=1, max_nonce=50 000, trials=3, header suffix `_zk`)
+
+| Trial | Nonce | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|-------|-------|----------|-----------|--------|--------|-------------|
+| 0     | 11    | 1        | 0.005     | 0.2605 | 0.7071 | 214         |
+| 1     | 0     | 3        | 0.008     | 0.2605 | 0.7071 | 374         |
+| 2     | 27    | 20       | 0.046     | 0.2605 | 0.7071 | 434         |
+
+#### Medium Difficulty (difficulty=2, max_nonce=200 000, trials=3)
+
+| Trial | Nonce  | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|-------|--------|----------|-----------|--------|--------|-------------|
+| 0     | 11     | 1        | 0.003     | 0.2605 | 0.7071 | 355         |
+| 1     | 1 168  | 1 170    | 1.791     | 0.2605 | 0.7071 | 653         |
+| 2     | 27     | 20       | 0.031     | 0.2605 | 0.7071 | 655         |
+
+#### High Difficulty — Stress Test (difficulty=4, max_nonce=2 000 000, trials=1)
+
+| Trial | Nonce   | Attempts | Time (ms) | Disp   | \|β\|  | Rate (kH/s) |
+|-------|---------|----------|-----------|--------|--------|-------------|
+| 0     | 101 056 | 101 059  | 151.9     | 0.2605 | 0.7071 | 665         |
+
+#### B10 vs B7/B9 Side-by-Side (difficulty=4, same header `_adv0`)
+
+| Strategy          | Nonce  | Attempts | Time (ms) | Rate (kH/s) |
+|-------------------|--------|----------|-----------|-------------|
+| explr-conv (B7)   | 150555 | 150 548  | 236.4     | 637         |
+| brute-force (B8)  | 150555 | 150 556  | 231.0     | 652         |
+| static-adapt (B9) | 150555 | 150 548  | 235.5     | 639         |
+| zero-kick (B10)   | 150555 | 150 548  | 234.4     | 642         |
+
+#### Analysis and Takeaway
+
+**Attempts are identical**: B7, B9, and B10 all find the same nonce (150 555) with the same attempt count (150 548) using the same header. This definitively confirms that after per-step `|β|` normalization, the phase walk is governed entirely by the µ-rotation — kick strength and branching logic have zero effect on *which* nonces are proposed.
+
+**Wall-time ordering at difficulty=4**:
+
+```
+B8 (brute-force) ≈ 231 ms  < B10 (zero-kick) ≈ 234 ms  < B9 ≈ 235 ms  < B7 ≈ 236 ms
+```
+
+B10 is faster than B9 and B7, confirming that kick branching (`if exploring... if converging...`) adds a small measurable drag on top of pure oscillator state management. The overhead hierarchy is:
+
+```
+overhead = oscillator mgmt (B10 vs B8)  +  kick branching (B9 vs B10)  +  Ohm's logic (B7 vs B9)
+         ≈ 3.4 ms                        ≈ 1.1 ms                        ≈ 1.0 ms
+```
+
+**"Time as excess resistance"**: Kicks introduce mismatch (λ ≠ 0) from perfect coherence. After normalization forces r=1 (unit circle), all kick schedules collapse to the same trajectory — the only observable difference is the computational cost of evaluating the kick formula, which manifests as drag. The circuit analogy holds: the kick schedule acts as a parasitic resistance (excess load) on the oscillator update loop.
+
+**Next step**: Since all oscillator-based strategies reduce to the same phase walk post-normalization, the promising direction is algebraic invariant extraction — computing a deterministic property of the 16-oscillator β ensemble per window (e.g., argument product, centroid angle, winding number) to jump directly to high-probability nonce offsets, bypassing the per-step µ-rotation entirely.
+
 
 The following extended benchmarks were run to characterize how the hybrid kernel behaves when the ladder dimension is increased, the kick strength is varied more finely, and the nonce search is extended to harder difficulty targets.  All runs use `k = 0.05` unless stated, `base_header = "00000000000000000003a1b2c3d4e5f6_height=840000"`, 5 trials.
 
