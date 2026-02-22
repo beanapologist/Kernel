@@ -44,7 +44,12 @@ jobs:
             ohm_coherence_duality.hpp \
             test_ohm_coherence.cpp \
             PalindromePrecession.hpp \
-            test_palindrome_precession.cpp
+            test_palindrome_precession.cpp \
+            KernelState.hpp \
+            SpectralBridge.hpp \
+            KernelPipeline.hpp \
+            test_kernel_pipeline.cpp \
+            test_coherent_search.cpp
 
   # ── Build & Test ─────────────────────────────────────────────────────────
   build-and-test:
@@ -92,6 +97,18 @@ jobs:
       - name: Run test_palindrome_precession
         run: ./test_palindrome_precession
 
+      - name: Build test_kernel_pipeline
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o test_kernel_pipeline test_kernel_pipeline.cpp -lm
+
+      - name: Run test_kernel_pipeline
+        run: ./test_kernel_pipeline
+
+      - name: Build test_coherent_search
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o test_coherent_search test_coherent_search.cpp -lm
+
+      - name: Run test_coherent_search
+        run: ./test_coherent_search
+
   # ── Benchmarks ───────────────────────────────────────────────────────────
   benchmarks:
     name: Run benchmarks
@@ -132,6 +149,8 @@ jobs:
           g++ -std=c++17 -O0 --coverage -o test_interrupt_nist      test_interrupt_nist.cpp  -lm
           g++ -std=c++17 -O0 --coverage -o test_ohm_coherence       test_ohm_coherence.cpp   -lm
           g++ -std=c++17 -O0 --coverage -o test_palindrome_precession test_palindrome_precession.cpp -lm
+          g++ -std=c++17 -O0 --coverage -o test_kernel_pipeline     test_kernel_pipeline.cpp -lm
+          g++ -std=c++17 -O0 --coverage -o test_coherent_search    test_coherent_search.cpp -lm
 
       - name: Run tests to collect coverage data
         run: |
@@ -141,6 +160,8 @@ jobs:
           ./test_interrupt_nist
           ./test_ohm_coherence
           ./test_palindrome_precession
+          ./test_kernel_pipeline
+          ./test_coherent_search
 
       - name: Generate lcov report
         run: |
