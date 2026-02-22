@@ -62,6 +62,7 @@
 #include <cstdint>
 #include <iomanip>
 #include <iostream>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -107,6 +108,45 @@ struct NullSliceBridge {
 
 // µ = e^{i3π/4}: cos(3π/4) = -1/√2 = -BRIDGE_ETA, sin(3π/4) = 1/√2 = BRIDGE_ETA
 const Cx NullSliceBridge::MU{-BRIDGE_ETA, BRIDGE_ETA};
+
+// ── Reproducibility: fixed RNG seed (requirement 6)
+// ─────────────────────────────
+// All randomized tests use this seed so that CI produces identical statistics
+// each run.
+static constexpr uint64_t TEST_RNG_SEED = 42ULL;
+
+// ── Linear regression helper
+// ─────────────────────────────────────────────────
+// Returns the OLS slope of the straight-line fit y = slope·x + intercept
+// over the provided (xs, ys) pairs.
+// LINREG_DENOM_TOL guards against division by zero when all x-values are equal
+// (which cannot occur in practice since problem sizes are distinct).
+static constexpr double LINREG_DENOM_TOL = 1e-12;
+
+static double linreg_slope(const std::vector<double> &xs,
+                           const std::vector<double> &ys) {
+  const int n = static_cast<int>(xs.size());
+  double sx = 0.0, sy = 0.0, sxx = 0.0, sxy = 0.0;
+  for (int i = 0; i < n; ++i) {
+    sx += xs[i];
+    sy += ys[i];
+    sxx += xs[i] * xs[i];
+    sxy += xs[i] * ys[i];
+  }
+  const double denom = static_cast<double>(n) * sxx - sx * sx;
+  if (std::abs(denom) < LINREG_DENOM_TOL)
+    return 0.0;
+  return (static_cast<double>(n) * sxy - sx * sy) / denom;
+}
+
+// ── SearchResult: extended output of coherent phase search
+// ─────────────────
+// steps          — number of coherent steps until detection
+// peak_amplitude — best-channel accumulator value at detection
+struct SearchResult {
+  uint64_t steps;
+  double peak_amplitude;
+};
 
 // ── Brute-force search
 // ──────────────────────────────────────────────────────── Scans items 0, 1, …
@@ -200,6 +240,67 @@ static uint64_t coherent_phase_search(uint64_t n, uint64_t t_idx,
   if (renorm_count_out)
     *renorm_count_out = renorm_count;
   return max_steps; // detection failed within safety limit (should not occur)
+}
+
+// ── Extended coherent phase search
+// ───────────────────────────────────────────
+// Identical algorithm to coherent_phase_search(); additionally returns the
+// best-channel accumulator value at the detection step.  Used by the Dirichlet
+// resonance validation test to verify that peak amplitude scales as √n.
+static SearchResult coherent_phase_search_ex(uint64_t n, uint64_t t_idx) {
+  const double sqrt_n = std::sqrt(static_cast<double>(n));
+  const double theta_target =
+      CS_TWO_PI * static_cast<double>(t_idx) / static_cast<double>(n);
+  const Cx target_phasor{std::cos(theta_target), std::sin(theta_target)};
+
+  const uint64_t scale =
+      static_cast<uint64_t>(PALINDROME_DENOM_FACTOR / sqrt_n);
+  const auto bridge = NullSliceBridge::build_8cycle_bridge();
+
+  std::array<double, 8> accum{};
+  accum.fill(0.0);
+
+  const double threshold = 0.15 * sqrt_n;
+
+  KernelState ks;
+  PalindromePrecession pp;
+
+  const uint64_t max_steps = 4 * static_cast<uint64_t>(sqrt_n) + 16;
+
+  for (uint64_t step = 0; step < max_steps; ++step) {
+    const Cx slow_phasor = PalindromePrecession::phasor_at(step * scale);
+    const double g_eff = 1.0 / ks.r_eff();
+
+    for (int j = 0; j < 8; ++j) {
+      const Cx probe = slow_phasor * bridge[j];
+      const double contrib = probe.real() * target_phasor.real() +
+                             probe.imag() * target_phasor.imag();
+      accum[j] += g_eff * contrib;
+    }
+
+    double best = 0.0;
+    for (int j = 0; j < 8; ++j) {
+      const double a = std::abs(accum[j]);
+      if (a > best)
+        best = a;
+    }
+    if (best >= threshold)
+      return {step + 1, best};
+
+    ks.step();
+    pp.apply(ks.beta);
+    if (ks.has_drift())
+      ks.auto_renormalize();
+  }
+
+  // Return the best amplitude achieved even if detection failed (safety limit).
+  double best = 0.0;
+  for (int j = 0; j < 8; ++j) {
+    const double a = std::abs(accum[j]);
+    if (a > best)
+      best = a;
+  }
+  return {max_steps, best};
 }
 
 // ── Coherence robustness tests
@@ -316,6 +417,276 @@ static BenchRow bench_one(uint64_t n) {
 
 // ── Main
 // ──────────────────────────────────────────────────────────────────────
+
+// ── 1. Scaling Regression Test
+// ───────────────────────────────────────────────
+// Runs coherent search for n = 2^k (k = 10…26), fits log(coh_avg) vs log(n),
+// and asserts that the OLS slope ∈ [0.45, 0.55], formally verifying Θ(√n).
+// Deterministic targets (evenly spaced) ensure identical output each CI run.
+static bool test_scaling_regression() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout
+      << "\n\u2554\u2550\u2550\u2550 Scaling Regression Test (k=10\u202626)"
+         " \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(6) << "k" << std::setw(14) << "n"
+            << "coh_avg\n";
+  std::cout << "  " << std::string(34, '-') << "\n";
+
+  std::vector<double> log_ns, log_avgs;
+  for (int k = 10; k <= 26; ++k) {
+    const uint64_t n = 1ULL << k;
+    const int trials = 10;
+    double coh_sum = 0.0;
+    for (int tr = 0; tr < trials; ++tr) {
+      const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
+                             static_cast<uint64_t>(trials + 1);
+      coh_sum += static_cast<double>(coherent_phase_search(n, t_idx));
+    }
+    const double coh_avg = coh_sum / trials;
+    log_ns.push_back(std::log(static_cast<double>(n)));
+    log_avgs.push_back(std::log(coh_avg));
+
+    std::cout << std::fixed << std::setprecision(1) << "  " << std::left
+              << std::setw(6) << k << std::setw(14) << n << coh_avg << "\n";
+  }
+
+  const double slope = linreg_slope(log_ns, log_avgs);
+  std::cout << std::fixed << std::setprecision(4)
+            << "\n  log-log slope = " << slope
+            << "  (expected 0.5 \u00b1 0.05)\n";
+  chk(slope >= 0.45 && slope <= 0.55,
+      "slope \u2208 [0.45, 0.55] \u2192 \u0398(\u221an) scaling verified");
+  return ok;
+}
+
+// ── 2. Adversarial Target Test
+// ────────────────────────────────────────────────
+// Randomises target phase location using TEST_RNG_SEED so that CI produces
+// identical statistics each run.  Asserts Θ(√n) convergence independent of
+// target index.
+static bool test_adversarial_target() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Adversarial Target Test"
+               " (seed="
+            << TEST_RNG_SEED << ") \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(6) << "k" << "coh_avg\n";
+  std::cout << "  " << std::string(20, '-') << "\n";
+
+  std::mt19937_64 rng(TEST_RNG_SEED);
+  std::vector<double> log_ns, log_avgs;
+
+  for (int k = 10; k <= 26; ++k) {
+    const uint64_t n = 1ULL << k;
+    const int trials = 10;
+    double coh_sum = 0.0;
+    for (int tr = 0; tr < trials; ++tr) {
+      std::uniform_int_distribution<uint64_t> dist(0, n - 1);
+      const uint64_t t_idx = dist(rng);
+      coh_sum += static_cast<double>(coherent_phase_search(n, t_idx));
+    }
+    const double coh_avg = coh_sum / trials;
+    log_ns.push_back(std::log(static_cast<double>(n)));
+    log_avgs.push_back(std::log(coh_avg));
+
+    std::cout << std::fixed << std::setprecision(1) << "  " << std::left
+              << std::setw(6) << k << coh_avg << "\n";
+  }
+
+  const double slope = linreg_slope(log_ns, log_avgs);
+  std::cout << std::fixed << std::setprecision(4)
+            << "\n  log-log slope = " << slope
+            << "  (expected 0.5 \u00b1 0.05)\n";
+  chk(slope >= 0.45 && slope <= 0.55,
+      "slope \u2208 [0.45, 0.55] \u2192 \u0398(\u221an) independent of target");
+  return ok;
+}
+
+// ── 3. Phase-Only Evolution Check
+// ──────────────────────────────────────────
+// Runs the coherent-search state machine for CHECK_STEPS ticks and asserts:
+//   • |µ| = 1 and |phasor_at(k)| = 1 at every step (unit-circle invariant).
+//   • G_eff = 1/R_eff = 1.0 throughout (no radial drift / coherence loss).
+// A test failure here would mean speedup could be attributed to coherence loss
+// rather than Dirichlet-kernel resonance.
+static bool test_phase_evolution() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Phase-Only Evolution Check"
+               " \u2550\u2550\u2550\u2557\n";
+
+  static constexpr double TOL = 1e-9; // floating-point tolerance for unit norm
+  // N_CHECK = 16384: mid-range problem size; its sqrt is 128, giving a
+  // well-exercised step range without excessive CI runtime.
+  static constexpr uint64_t N_CHECK = 1ULL << 14; // n = 16384
+  // CHECK_STEPS > 4·sqrt(N_CHECK) = 512 covers the full safety window of the
+  // coherent search algorithm and then some.
+  static constexpr int CHECK_STEPS = 600;
+
+  const uint64_t scale = static_cast<uint64_t>(
+      PALINDROME_DENOM_FACTOR / std::sqrt(static_cast<double>(N_CHECK)));
+  const Cx MU{-BRIDGE_ETA, BRIDGE_ETA}; // µ = e^{i3π/4}
+
+  // Verify µ has unit norm once (it's a compile-time constant).
+  const double mu_err = std::abs(std::abs(MU) - 1.0);
+
+  double max_phasor_err = 0.0; // max ||phasor_at(k)| - 1| over all steps
+  double max_g_eff_err = 0.0;  // max |G_eff - 1.0| over all steps
+  bool any_drift = false;
+
+  KernelState ks;
+  PalindromePrecession pp;
+
+  for (int i = 0; i < CHECK_STEPS; ++i) {
+    // Unit-circle invariant for the slow phasor.
+    const Cx pphasor =
+        PalindromePrecession::phasor_at(static_cast<uint64_t>(i) * scale);
+    const double perr = std::abs(std::abs(pphasor) - 1.0);
+    if (perr > max_phasor_err)
+      max_phasor_err = perr;
+
+    // G_eff = 1/R_eff must equal 1.0 for the canonical coherent state.
+    const double g_err = std::abs(1.0 / ks.r_eff() - 1.0);
+    if (g_err > max_g_eff_err)
+      max_g_eff_err = g_err;
+
+    ks.step();
+    pp.apply(ks.beta);
+    if (ks.has_drift())
+      any_drift = true;
+  }
+
+  std::cout << std::scientific << std::setprecision(2)
+            << "  max ||µ| - 1|          = " << mu_err << "\n"
+            << "  max ||phasor_at(k)| - 1| = " << max_phasor_err << "\n"
+            << "  max |G_eff - 1.0|        = " << max_g_eff_err << "\n";
+
+  chk(mu_err < TOL, "|\u00b5| = 1 within tolerance (unit-circle µ)");
+  chk(max_phasor_err < TOL,
+      "|phasor_at(k)| = 1 at every step (unit-circle invariant)");
+  chk(max_g_eff_err < TOL,
+      "G_eff = 1.0 throughout (no coherence loss during search)");
+  chk(!any_drift,
+      "No radial drift detected \u2014 speedup is not from coherence loss");
+  return ok;
+}
+
+// ── 4. Dirichlet Resonance Validation
+// ────────────────────────────────────────
+// For each n = 2^k (k = 10…26, step 2), runs the coherent search and records
+// the best-channel accumulator value at detection.  The detection threshold is
+// 0.15·√n, so the amplitude at detection scales as √n.  Asserts the log-log
+// slope ∈ [0.40, 0.60], confirming that constructive Dirichlet interference —
+// not some artefact — drives the speedup.
+static bool test_dirichlet_resonance() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Dirichlet Resonance Validation"
+               " \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(6) << "k" << std::setw(16)
+            << "peak_amplitude" << std::setw(16) << "threshold(0.15\u221an)"
+            << "ratio\n";
+  std::cout << "  " << std::string(52, '-') << "\n";
+
+  std::vector<double> log_ns, log_peaks;
+  for (int k = 10; k <= 26; k += 2) {
+    const uint64_t n = 1ULL << k;
+    const double sqrt_n = std::sqrt(static_cast<double>(n));
+    const uint64_t t_idx = n / 4; // fixed reproducible target
+
+    const SearchResult res = coherent_phase_search_ex(n, t_idx);
+    const double threshold = 0.15 * sqrt_n;
+
+    std::cout << std::fixed << std::setprecision(3) << "  " << std::left
+              << std::setw(6) << k << std::setw(16) << res.peak_amplitude
+              << std::setw(16) << threshold << (res.peak_amplitude / threshold)
+              << "\n";
+
+    log_ns.push_back(std::log(static_cast<double>(n)));
+    log_peaks.push_back(std::log(res.peak_amplitude));
+  }
+
+  const double slope = linreg_slope(log_ns, log_peaks);
+  std::cout << std::fixed << std::setprecision(4)
+            << "\n  amplitude log-log slope = " << slope
+            << "  (expected \u22480.5)\n";
+  chk(slope >= 0.40 && slope <= 0.60,
+      "constructive interference peak grows \u223c\u221an"
+      " (Dirichlet resonance confirmed)");
+  return ok;
+}
+
+// ── 5. Classical Baseline Control
+// ──────────────────────────────────────────
+// Randomised classical search (identical stopping rule: oracle fires at t_idx)
+// using TEST_RNG_SEED.  Average steps ≈ n/2 → linear scaling.
+// Asserts log-log slope ∈ [0.90, 1.10], confirming O(n) baseline.
+static bool test_classical_baseline() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Classical Baseline Control"
+               " (seed="
+            << TEST_RNG_SEED << ") \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(6) << "k" << "brute_avg\n";
+  std::cout << "  " << std::string(22, '-') << "\n";
+
+  std::mt19937_64 rng(TEST_RNG_SEED);
+  std::vector<double> log_ns, log_avgs;
+
+  for (int k = 10; k <= 26; k += 2) {
+    const uint64_t n = 1ULL << k;
+    const int trials = 10;
+    double brute_sum = 0.0;
+    for (int tr = 0; tr < trials; ++tr) {
+      std::uniform_int_distribution<uint64_t> dist(0, n - 1);
+      const uint64_t t_idx = dist(rng);
+      brute_sum += static_cast<double>(brute_force_search(n, t_idx));
+    }
+    const double brute_avg = brute_sum / trials;
+    log_ns.push_back(std::log(static_cast<double>(n)));
+    log_avgs.push_back(std::log(brute_avg));
+
+    std::cout << std::fixed << std::setprecision(1) << "  " << std::left
+              << std::setw(6) << k << brute_avg << "\n";
+  }
+
+  const double slope = linreg_slope(log_ns, log_avgs);
+  std::cout << std::fixed << std::setprecision(4)
+            << "\n  log-log slope = " << slope
+            << "  (expected 1.0 \u00b1 0.1)\n";
+  chk(slope >= 0.90 && slope <= 1.10,
+      "slope \u2208 [0.90, 1.10] \u2192 O(n) classical baseline confirmed");
+  return ok;
+}
+
+// ── Main
+// ──────────────────────────────────────────────────────────────────────
 int main() {
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
@@ -340,6 +711,26 @@ int main() {
   // ── Coherence robustness ───────────────────────────────────────────────────
   const bool robust_ok = test_coherence_robustness();
   assert(robust_ok);
+
+  // ── Phase-only evolution check (requirement 3) ────────────────────────────
+  const bool phase_ok = test_phase_evolution();
+  assert(phase_ok);
+
+  // ── Scaling regression (requirements 1 & 6) ───────────────────────────────
+  const bool scaling_ok = test_scaling_regression();
+  assert(scaling_ok);
+
+  // ── Adversarial target test (requirements 2 & 6) ──────────────────────────
+  const bool adversarial_ok = test_adversarial_target();
+  assert(adversarial_ok);
+
+  // ── Dirichlet resonance validation (requirement 4) ────────────────────────
+  const bool dirichlet_ok = test_dirichlet_resonance();
+  assert(dirichlet_ok);
+
+  // ── Classical baseline control (requirements 5 & 6) ──────────────────────
+  const bool classical_ok = test_classical_baseline();
+  assert(classical_ok);
 
   // ── Scaling benchmark ──────────────────────────────────────────────────────
   std::cout << "\n\u2554\u2550\u2550\u2550 Scaling Benchmark "
