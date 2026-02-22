@@ -42,7 +42,9 @@ jobs:
             LadderChiralSearch.hpp \
             LadderSearchBenchmark.hpp \
             ohm_coherence_duality.hpp \
-            test_ohm_coherence.cpp
+            test_ohm_coherence.cpp \
+            PalindromePrecession.hpp \
+            test_palindrome_precession.cpp
 
   # ── Build & Test ─────────────────────────────────────────────────────────
   build-and-test:
@@ -84,6 +86,12 @@ jobs:
       - name: Run test_ohm_coherence
         run: ./test_ohm_coherence
 
+      - name: Build test_palindrome_precession
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o test_palindrome_precession test_palindrome_precession.cpp -lm
+
+      - name: Run test_palindrome_precession
+        run: ./test_palindrome_precession
+
   # ── Benchmarks ───────────────────────────────────────────────────────────
   benchmarks:
     name: Run benchmarks
@@ -123,6 +131,7 @@ jobs:
           g++ -std=c++17 -O0 --coverage -o test_qudit_kernel        test_qudit_kernel.cpp    -lm
           g++ -std=c++17 -O0 --coverage -o test_interrupt_nist      test_interrupt_nist.cpp  -lm
           g++ -std=c++17 -O0 --coverage -o test_ohm_coherence       test_ohm_coherence.cpp   -lm
+          g++ -std=c++17 -O0 --coverage -o test_palindrome_precession test_palindrome_precession.cpp -lm
 
       - name: Run tests to collect coverage data
         run: |
@@ -131,6 +140,7 @@ jobs:
           ./test_qudit_kernel
           ./test_interrupt_nist
           ./test_ohm_coherence
+          ./test_palindrome_precession
 
       - name: Generate lcov report
         run: |
