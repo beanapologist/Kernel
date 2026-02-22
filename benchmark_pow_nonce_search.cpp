@@ -632,6 +632,148 @@ static BenchmarkRun run_benchmark(size_t   difficulty,
     return run;
 }
 
+// ── Formula & output validation ──────────────────────────────────────────────
+// Explicitly validates key formulas and output invariants.
+// Prints ✓/✗ for each check and a final pass/fail summary.
+// Must be called before benchmarks so any formula regression is caught early.
+static bool validate_formulas_and_outputs() {
+    std::cout << "\n╔═══ Formula & Output Validation ═══╗\n";
+
+    int total = 0, passed = 0;
+    auto check = [&](bool ok, const std::string& label) {
+        ++total;
+        if (ok) { ++passed; std::cout << "  ✓ " << label << "\n"; }
+        else    {           std::cout << "  ✗ FAILED: " << label << "\n"; }
+    };
+
+    // ── 1. Ohm's (parallel) addition formula value ────────────────────────────
+    // Expected: (0.30 × 0.01) / (0.30 + 0.01) = 0.003 / 0.31 ≈ 0.009677419...
+    constexpr double V_EXPLORE  = 0.30;
+    constexpr double V_CONVERGE = 0.01;
+    constexpr double V_OHM      = (V_EXPLORE * V_CONVERGE) / (V_EXPLORE + V_CONVERGE);
+    check(std::abs(V_OHM - 0.009677419354838710) < 1e-12,
+          "Ohm's addition: k_ohm = (0.30×0.01)/(0.30+0.01) ≈ 0.009677419");
+
+    // ── 2. Ohm's result is smaller than either component (resistor analogy) ───
+    check(V_OHM < V_CONVERGE && V_CONVERGE < V_EXPLORE,
+          "Ohm's addition: k_ohm < KICK_CONVERGE < KICK_EXPLORE");
+
+    // ── 3. check_hash: known passing cases ───────────────────────────────────
+    const std::string ZERO64(64, '0');
+    check( check_hash(ZERO64, 1),    "check_hash: 64-zero digest passes difficulty=1");
+    check( check_hash(ZERO64, 4),    "check_hash: 64-zero digest passes difficulty=4");
+    check( check_hash(ZERO64, 64),   "check_hash: 64-zero digest passes difficulty=64");
+
+    // ── 4. check_hash: known rejecting cases ─────────────────────────────────
+    check(!check_hash("1" + std::string(63, '0'), 1),
+          "check_hash: non-zero leading nibble rejected at difficulty=1");
+    check(!check_hash("0f" + std::string(62, '0'), 2),
+          "check_hash: exactly 1 leading zero ('0f...') rejected at difficulty=2");
+    check(!check_hash("", 1),
+          "check_hash: empty digest rejected");
+
+    // ── 5. sha256_hex: output length = 64 hex characters ─────────────────────
+    const std::string h_empty = sha256_hex("");
+    const std::string h_abc   = sha256_hex("abc");
+    check(h_empty.size() == 64, "sha256_hex: output length = 64 for empty input");
+    check(h_abc.size()   == 64, "sha256_hex: output length = 64 for \"abc\"");
+
+    // ── 6. sha256_hex: RFC 6234 / FIPS 180-4 test vectors ────────────────────
+    // SHA-256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    check(h_empty == "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "sha256_hex: SHA-256(\"\") matches FIPS 180-4 test vector");
+    // SHA-256("abc") = ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad
+    check(h_abc == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+          "sha256_hex: SHA-256(\"abc\") matches FIPS 180-4 test vector");
+
+    // ── 7. sha256_hex: deterministic (same input → same output) ──────────────
+    check(sha256_hex("benchmark_test") == sha256_hex("benchmark_test"),
+          "sha256_hex: deterministic — same input produces same digest");
+
+    // ── 8. compute_phase_dispersion: uniform |Im(β)| → dispersion = 0 ────────
+    {
+        std::vector<QState> uniform(4);
+        for (auto& s : uniform) s.beta = Cx{0.3, 0.5};  // all same |Im| = 0.5
+        check(std::abs(compute_phase_dispersion(uniform)) < 1e-12,
+              "compute_phase_dispersion: uniform |Im(β)| = 0.5 → dispersion = 0");
+    }
+
+    // ── 9. compute_phase_dispersion: {0, 1} → std-dev = 0.5 ─────────────────
+    // mean = 0.5, variance = (0² + 1²)/2 − 0.5² = 0.5 − 0.25 = 0.25, σ = 0.5
+    {
+        std::vector<QState> two(2);
+        two[0].beta = Cx{0.0, 0.0};  // |Im| = 0
+        two[1].beta = Cx{0.0, 1.0};  // |Im| = 1
+        check(std::abs(compute_phase_dispersion(two) - 0.5) < 1e-12,
+              "compute_phase_dispersion: |Im|∈{0,1} → std-dev = 0.5");
+    }
+
+    // ── 10. Normalization invariant: after normalize, |β| = ETA ──────────────
+    {
+        QState s;
+        s = chiral_nonlinear_local(s, 0.30);  // kick causes |β| > ETA
+        const double mag_before = std::abs(s.beta);
+        if (mag_before > 0.0) s.beta *= (ETA / mag_before);
+        check(std::abs(std::abs(s.beta) - ETA) < 1e-12,
+              "Normalization: |β| = η = 1/√2 after applying ETA/|β| scale");
+    }
+
+    // ── 11. brute_force_search: found nonce re-hashes to valid PoW digest ─────
+    {
+        const std::string hdr = "00000000000000000003a1b2c3d4e5f6_height=840000";
+        const SearchResult r = brute_force_search(hdr, 50000, 1);
+        check(r.found, "brute_force_search: nonce found within max_nonce=50000 at difficulty=1");
+        if (r.found) {
+            const std::string digest = sha256_hex(hdr + std::to_string(r.nonce));
+            check(check_hash(digest, 1),
+                  "brute_force_search: found nonce produces a valid PoW digest");
+        }
+    }
+
+    // ── 12. exploration_convergence_search: found nonce valid + metrics ≥ 0 ──
+    {
+        const std::string hdr = "00000000000000000003a1b2c3d4e5f6_height=840000";
+        AdaptiveMetrics m{};
+        const SearchResult r = exploration_convergence_search(hdr, 50000, 1, &m);
+        check(r.found, "exploration_convergence_search: nonce found at difficulty=1");
+        if (r.found) {
+            const std::string digest = sha256_hex(hdr + std::to_string(r.nonce));
+            check(check_hash(digest, 1),
+                  "exploration_convergence_search: found nonce produces valid PoW digest");
+        }
+        check(m.mean_phase_dispersion >= 0.0,
+              "AdaptiveMetrics (explr-conv): mean_phase_dispersion >= 0");
+        check(m.mean_beta_magnitude   >= 0.0,
+              "AdaptiveMetrics (explr-conv): mean_beta_magnitude >= 0");
+        check(m.hash_rate_khps        >= 0.0,
+              "AdaptiveMetrics (explr-conv): hash_rate_khps >= 0");
+    }
+
+    // ── 13. ladder_search_with_metrics: found nonce valid + metrics ≥ 0 ───────
+    {
+        const std::string hdr = "00000000000000000003a1b2c3d4e5f6_height=840000";
+        AdaptiveMetrics m{};
+        const SearchResult r = ladder_search_with_metrics(hdr, 50000, 1, 0.05, &m);
+        check(r.found, "ladder_search_with_metrics: nonce found at difficulty=1");
+        if (r.found) {
+            const std::string digest = sha256_hex(hdr + std::to_string(r.nonce));
+            check(check_hash(digest, 1),
+                  "ladder_search_with_metrics: found nonce produces valid PoW digest");
+        }
+        check(m.mean_phase_dispersion >= 0.0,
+              "AdaptiveMetrics (static-adapt): mean_phase_dispersion >= 0");
+        check(m.mean_beta_magnitude   >= 0.0,
+              "AdaptiveMetrics (static-adapt): mean_beta_magnitude >= 0");
+        check(m.hash_rate_khps        >= 0.0,
+              "AdaptiveMetrics (static-adapt): hash_rate_khps >= 0");
+    }
+
+    std::cout << "\n  Validation: " << passed << " / " << total
+              << (passed == total ? "  ✓ ALL PASS\n" : "  ✗ FAILURES DETECTED\n");
+    std::cout << "╚═══════════════════════════════════════════════════════════════╝\n";
+    return passed == total;
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 int main() {
@@ -642,6 +784,12 @@ int main() {
     std::cout << "kernel-enhanced search (chiral non-linear gate / Euler kicks).\n";
     std::cout << "\nDifficulty is expressed in leading zero nibbles of the hex digest.\n";
     std::cout << "LADDER_DIM = " << LADDER_DIM << " oscillators per step.\n";
+
+    // ── Formula & output validation (runs before benchmarks) ─────────────────
+    if (!validate_formulas_and_outputs()) {
+        std::cerr << "\nAborting: formula/output validation failed.\n";
+        return 1;
+    }
 
     // Representative block-header prefix (simulates Bitcoin block data)
     const std::string BLOCK_HEADER = "00000000000000000003a1b2c3d4e5f6_height=840000";
