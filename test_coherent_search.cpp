@@ -1,6 +1,5 @@
 /*
- * test_coherent_search.cpp — Deterministic Grover-Proxy: √n Phase-Coherent
- * Search
+ * test_coherent_search.cpp — Deterministic √n Phase-Coherent Search
  *
  * Demonstrates √n-like speedup over brute-force via phase alignment / resonance
  * using PalindromePrecession + NullSliceBridge 8-cycle modulation.
@@ -46,13 +45,14 @@
  *   by has_drift() and corrected by auto_renormalize(), which logs the event.
  *   G_eff = sech(λ) = 1/R_eff naturally downweights incoherent contributions.
  *
- * Relation to Grover's algorithm:
- *   This is a fully deterministic, classical phase-resonance search, not
- *   probabilistic quantum amplitude amplification.  The √n speedup arises
- *   from coherent accumulation (Dirichlet-kernel resonance) rather than
- *   superposition.  The KernelState coherence weight provides a natural
- *   "decoherence sentinel" that mirrors the role of the oracle in Grover's
- *   algorithm.
+ * Classical phase-resonance mechanism:
+ *   This is a fully deterministic, classical phase-resonance search.  The
+ *   √n speedup arises from coherent accumulation (Dirichlet-kernel resonance):
+ *   the structured phase sweep drives constructive interference with the target
+ *   phasor, causing the best-channel accumulator to grow at rate ≈ √n/π per
+ *   step until the detection threshold is crossed.  The KernelState coherence
+ *   weight G_eff = sech(λ) provides a natural decoherence sentinel that
+ *   down-weights incoherent contributions without any randomness or restarts.
  */
 
 #include <array>
