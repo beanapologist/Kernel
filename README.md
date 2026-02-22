@@ -14,6 +14,7 @@ A C++ kernel implementation based on validated mathematical theorems from the Pi
 6. **Rotational Memory Addressing**: Z/8Z-based memory model with coherence preservation
 7. **Interrupt Handling**: Decoherence detection and automatic coherence recovery
 8. **Inter-Process Communication (IPC)**: Coherence-preserving message passing between quantum processes
+9. **Ohm–Coherence Duality**: Computational framework for C = sech(λ) = G_eff = 1/R_eff
 
 ### Rotational Memory Addressing
 
@@ -224,6 +225,71 @@ size_t pending = p.pending_from(sender_pid); // Check queue
 - **Silver Conservation**: δ_S·(√2-1)=1 maintained during IPC
 - **Bounded Resources**: Queue size limits prevent resource exhaustion
 
+### Ohm–Coherence Duality
+
+The `ohm_coherence_duality.hpp` header implements the computational framework for the duality between quantum coherence and electrical conductance/resistance (Theorem 14):
+
+```
+C = sech(λ) = G_eff = 1 / R_eff
+```
+
+where λ is the Lyapunov exponent measuring decoherence.
+
+#### Core Equations
+
+| Quantity | Formula | Meaning |
+|---|---|---|
+| Conductance | G_eff(λ) = sech(λ) | Effective conductance = coherence |
+| Resistance | R_eff(λ) = cosh(λ) | Effective resistance = 1/coherence |
+| λ from C | λ = arccosh(1/C) | Degradation from coherence level |
+
+At λ = 0 (ideal): G_eff = C = 1, R_eff = 1. Increasing λ degrades coherence.
+
+#### Components
+
+- **`CoherentChannel`**: Single channel with Lyapunov exponent λ, exposing `G_eff()`, `R_eff()`, and `coherence()`.
+
+- **`MultiChannelSystem`**: N parallel channels. Parallel conductances add:
+  `G_tot = Σ G_i`. Supports homogeneous (N identical channels) and heterogeneous configurations. Includes `weakest_channel()` for bottleneck detection.
+
+- **`PipelineSystem`**: Series pipeline stages. Series resistances add:
+  `R_tot = Σ R_stage`. Identifies the bottleneck stage via `bottleneck_stage()`.
+
+- **`FourChannelModel`**: 4-channel redundancy system for error tolerance. Validates the 4-eigenvalue structure: tolerance passes when ≥ 3 of 4 channels have G_eff ≥ threshold.
+
+- **`OUProcess`**: Ornstein–Uhlenbeck noise on λ: `dλ = −θ(λ − μ)dt + σ dW`. Simulates coherence degradation over time via `simulate()`. Provides `average_conductance()` to compute ⟨G⟩ and verify Jensen's inequality: ⟨sech(λ)⟩ ≤ sech(⟨λ⟩) (holds when sech is locally concave near |λ| small).
+
+- **`QuTritDegradation`**: 3-level qutrit degradation. Each level-pair transition has its own λ. Provides `coherence_avg()` and `coherence_min()` for degradation pattern analysis.
+
+#### Usage Example
+
+```cpp
+#include "ohm_coherence_duality.hpp"
+using namespace kernel::ohm;
+
+// Single channel: λ=0.5
+CoherentChannel ch(0.5);
+double G = ch.G_eff();      // sech(0.5) ≈ 0.887
+double R = ch.R_eff();      // cosh(0.5) ≈ 1.128
+
+// 4-channel parallel redundancy
+MultiChannelSystem sys(4, 0.5);
+double G_tot = sys.G_total(); // 4 * sech(0.5) ≈ 3.548
+
+// Series pipeline
+PipelineSystem pipe({0.2, 0.5, 1.0});
+int bottleneck = pipe.bottleneck_stage(); // 2 (highest λ)
+
+// Error tolerance validation
+FourChannelModel model(0.0, 0.0, 0.0, 2.0); // one bad channel
+bool ok = model.validate_error_tolerance(); // true (3/4 coherent)
+
+// Ornstein–Uhlenbeck noise simulation
+OUProcess ou(2.0, 0.0, 0.3); // θ=2, μ=0, σ=0.3
+auto path = ou.simulate(0.0, 10000, 0.005);
+double avg_G = OUProcess::average_conductance(path); // ⟨G⟩ ≤ sech(⟨λ⟩)
+```
+
 ### Building and Running
 
 ```bash
@@ -241,6 +307,10 @@ g++ -std=c++17 -Wall -Wextra -O2 -o test_pipeline_theorems test_pipeline_theorem
 g++ -std=c++17 -Wall -Wextra -O2 -o test_ipc test_ipc.cpp -lm
 ./test_ipc
 
+# Run Ohm–Coherence Duality tests
+g++ -std=c++17 -Wall -Wextra -O2 -o test_ohm_coherence test_ohm_coherence.cpp -lm
+./test_ohm_coherence
+
 # Run NIST IR 8356 scalability benchmarks
 g++ -std=c++17 -Wall -Wextra -O2 -o benchmark_nist_ir8356 benchmark_nist_ir8356.cpp -lm
 ./benchmark_nist_ir8356
@@ -257,7 +327,7 @@ The implementation is grounded in formally verified theorems:
 - **Theorem 10**: Trichotomy (r=1: closed 8-cycle; r≠1: spiral)
 - **Theorem 11**: Coherence function C(r) = 2r/(1+r²)
 - **Theorem 12**: Palindrome residual R(r) = (1/δ_S)(r - 1/r)
-- **Theorem 14**: Lyapunov duality C = sech(λ), λ = ln r
+- **Theorem 14**: Lyapunov duality C = sech(λ), λ = ln r ← **Ohm–Coherence Duality**
 - **Prop 4**: Silver conservation δ_S·(√2-1) = 1
 
 ### Output
