@@ -348,11 +348,7 @@ private:
       return false;
     }
 
-    // Measure current coherence using Theorem 11
-    double C_current = coherence(r);
-    double coherence_defect = 1.0 - C_current;
-
-    // Compute correction strength based on coherence defect and severity
+    // Compute correction strength based on severity
     double base_strength = config_.recovery_rate;
     double level_multiplier = 1.0;
 
@@ -370,9 +366,8 @@ private:
       return false;
     }
 
-    // Correction strength combines coherence defect with severity scaling
-    double correction_strength =
-        base_strength * level_multiplier * coherence_defect;
+    // Correction strength combines severity scaling with recovery rate
+    double correction_strength = base_strength * level_multiplier;
 
     // Compute target radius: interpolate toward r=1
     double target_r = 1.0;
