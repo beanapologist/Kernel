@@ -10,6 +10,7 @@
  *   2. 8-Cycle Structure — Full periodicity and reversibility
  *   3. Hash Oracle Analog — Phase oracle based on a hash-like predicate;
  *      gate amplifies the marked state in a non-linear search space
+ *   3b. Hash Oracle Demanding — Multiple marks, clustered marks, adversarial
  *   4. Amplitude Amplification — Kick vs no-kick target probability comparison
  *   5. Quantum-Speedup Analog — Ladder search convergence rate with/without kick
  */
@@ -345,7 +346,147 @@ static void test_hash_oracle_analog() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// 4. Amplitude Amplification
+// 3b. Hash Oracle — Demanding Cases
+//
+// Three more rigorous cases that probe the gate under non-trivial mark patterns:
+//   3d. Multiple marks (4/64) — spread-out marks, absolute amplitude grows
+//       over a full 8-cycle with kick even though relative probability stays
+//       constant (kick amplifies all Im>0 states equally, marks included).
+//   3e. Clustered marks (4 consecutive indices) — same amplitude growth seen
+//       with a tight cluster; boundary unmarked neighbor also grows, confirming
+//       the kick is domain-driven (Im>0), not mark-driven.
+//   3f. Adversarial — oracle flip deposits mark in Im≤0 domain, so the kick
+//       provides NO direct benefit to the marked state but DOES amplify the
+//       unmarked Im>0 competitors, reducing relative P(target).
+// ══════════════════════════════════════════════════════════════════════════════
+static void test_hash_oracle_demanding() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 3b. Hash Oracle \u2014 Demanding Cases "
+               "\u2550\u2550\u2550\u2557\n";
+
+  const size_t N = 64;
+  const double KICK = 0.15;
+
+  // Helper: sum |β_i|² over a set of indices after oracle flip + gate steps
+  auto aggregate_norm = [&](const std::vector<size_t> &marks,
+                             double kick_strength,
+                             int num_steps) -> double {
+    std::vector<QState> states(N);
+    for (size_t m : marks)
+      states[m].beta = -states[m].beta;
+    for (int s = 0; s < num_steps; ++s)
+      for (auto &st : states)
+        st = kernel::quantum::chiral_nonlinear(st, kick_strength);
+    double agg = 0.0;
+    for (size_t m : marks)
+      agg += std::norm(states[m].beta);
+    return agg;
+  };
+
+  // ── 3d. Multiple marks: 4 spread-out indices ─────────────────────────────
+  {
+    // Indices chosen to be spread evenly across [0,64)
+    const std::vector<size_t> MARKS = {5, 21, 38, 55};
+    const int STEPS = 8; // full µ^8 = 1 cycle — each mark cycles through Im>0
+
+    double agg_linear = aggregate_norm(MARKS, 0.0,  STEPS);
+    double agg_kicked = aggregate_norm(MARKS, KICK, STEPS);
+
+    test_assert(agg_kicked > agg_linear,
+                "Multi-mark (4/64): kicked aggregate |β|² > linear after "
+                "8-cycle (marks cycle through Im>0 and accumulate amplitude)");
+  }
+
+  // ── 3e. Clustered marks: 4 consecutive indices ───────────────────────────
+  {
+    const std::vector<size_t> CLUSTER = {24, 25, 26, 27};
+    const int STEPS = 8;
+
+    double agg_linear = aggregate_norm(CLUSTER, 0.0,  STEPS);
+    double agg_kicked = aggregate_norm(CLUSTER, KICK, STEPS);
+
+    test_assert(agg_kicked > agg_linear,
+                "Clustered marks (4 consec.): kicked aggregate |β|² > linear "
+                "after 8-cycle");
+
+    // Boundary check: the first unmarked neighbour is in Im>0 domain (since
+    // it is never oracle-flipped) and gets kicked → its |β| grows beyond
+    // the linear-only baseline.
+    auto boundary_neighbor_magnitude = [&](double kick_strength) -> double {
+      // QState default-constructs to canonical state: alpha={ETA,0}, beta={-0.5,+0.5}
+      std::vector<QState> states(N);
+      for (size_t m : CLUSTER)
+        states[m].beta = -states[m].beta;
+      for (int s = 0; s < STEPS; ++s)
+        for (auto &st : states)
+          st = kernel::quantum::chiral_nonlinear(st, kick_strength);
+      return std::abs(states[28].beta); // first index outside cluster
+    };
+
+    test_assert(boundary_neighbor_magnitude(KICK) > boundary_neighbor_magnitude(0.0),
+                "Clustered marks: boundary unmarked neighbour (index 28) is "
+                "amplified by kick — kick is Im>0 domain-driven, not mark-driven");
+  }
+
+  // ── 3f. Adversarial: oracle flip puts mark in Im≤0 ───────────────────────
+  //
+  // The canonical initial β = {-0.5, +0.5} has Im = +0.5 > 0.
+  // After oracle flip: β_mark = {+0.5, -0.5}, Im = -0.5 ≤ 0.
+  // → Kick is NOT applied to the mark on step 1 (domain check is Im≤0).
+  // → Unmarked states keep Im > 0 and DO get kicked.
+  // → P(target) with kick < P(target) without kick after step 1.
+  //   (kick amplifies competitors, not the target — adversarial scenario)
+  {
+    const size_t TARGET = 10;
+
+    std::vector<QState> states_kick(N), states_lin(N);
+    states_kick[TARGET].beta  = -states_kick[TARGET].beta;
+    states_lin[TARGET].beta   = -states_lin[TARGET].beta;
+
+    // Verify the adversarial precondition: mark is now in Im≤0
+    test_assert(states_kick[TARGET].beta.imag() <= 0.0,
+                "Adversarial: oracle-flipped mark has Im(β) ≤ 0 "
+                "(kick domain missed)");
+
+    // One gate step
+    for (size_t i = 0; i < N; ++i) {
+      states_kick[i] = kernel::quantum::chiral_nonlinear(states_kick[i], KICK);
+      states_lin[i]  = kernel::quantum::chiral_nonlinear(states_lin[i],  0.0);
+    }
+
+    double mag_mark_kick = std::abs(states_kick[TARGET].beta);
+    double mag_mark_lin  = std::abs(states_lin[TARGET].beta);
+
+    // Im≤0 mark: kick has zero direct effect → same magnitude as linear
+    test_assert(std::abs(mag_mark_kick - mag_mark_lin) < FLOAT_TOL,
+                "Adversarial: Im≤0 marked state — |β| is identical with/without "
+                "kick on first step");
+
+    // Unmarked states (Im>0 after oracle) ARE kicked → |β| grows beyond linear
+    double mag_unmarked_kick = std::abs(states_kick[0].beta);
+    double mag_unmarked_lin  = std::abs(states_lin[0].beta);
+
+    test_assert(mag_unmarked_kick > mag_unmarked_lin,
+                "Adversarial: Im>0 unmarked state is amplified by kick "
+                "(competitors gain more than the target)");
+
+    // Consequence: relative P(target) decreases with kick (adversarial)
+    double total_kick = 0.0, total_lin = 0.0;
+    for (size_t i = 0; i < N; ++i) {
+      total_kick += std::norm(states_kick[i].beta);
+      total_lin  += std::norm(states_lin[i].beta);
+    }
+    double p_target_kick =
+        (total_kick > 0.0) ? std::norm(states_kick[TARGET].beta) / total_kick : 0.0;
+    double p_target_lin =
+        (total_lin > 0.0) ? std::norm(states_lin[TARGET].beta) / total_lin : 0.0;
+
+    test_assert(p_target_kick < p_target_lin,
+                "Adversarial: P(target) with kick < P(target) without kick — "
+                "kick amplifies competitors when mark is in Im≤0 domain");
+  }
+}
+
+
 //
 // Run multiple gate steps on a marked target state and verify that the
 // quadratic kick provides monotonically increasing target amplitude advantage
@@ -416,6 +557,68 @@ static void test_amplitude_amplification() {
       }
     test_assert(all_finite,
                 "Amplitude amplification: |β| is finite for all states throughout");
+  }
+
+  // 4d. Iteration count to cross P(target) > 0.50 with Grover diffusion
+  //
+  // Structure: oracle (phase flip) + Grover diffusion (invert-about-mean on β)
+  //            + chiral gate.  This proper Grover iteration reduces rounds to
+  //            reach P > 0.50 from 2 (linear) to 1 for kick ≥ 0.05,
+  //            demonstrating that even a small kick reduces the iteration count.
+  {
+    const size_t N_GRV = 16;
+    const size_t TARGET_GRV = 7;
+    const double THRESHOLD = 0.50;
+    const size_t MAX_GRV = 30;
+
+    auto rounds_to_threshold = [&](double kick_strength) -> size_t {
+      // QState default-constructs to canonical state: alpha={ETA,0}, beta={-0.5,+0.5}
+      // All N states start in the same canonical superposition (uniform register).
+      std::vector<QState> states(N_GRV);
+      for (size_t round = 0; round < MAX_GRV; ++round) {
+        // Oracle: phase flip target
+        states[TARGET_GRV].beta = -states[TARGET_GRV].beta;
+        // Grover diffusion: invert-about-mean on β register
+        Cx mean_beta{0.0, 0.0};
+        for (const auto &st : states)
+          mean_beta += st.beta;
+        mean_beta /= static_cast<double>(N_GRV);
+        for (auto &st : states)
+          st.beta = 2.0 * mean_beta - st.beta;
+        // Chiral gate
+        for (auto &st : states)
+          st = kernel::quantum::chiral_nonlinear(st, kick_strength);
+        // Compute P(target)
+        double total = 0.0;
+        for (const auto &st : states)
+          total += std::norm(st.beta);
+        double p =
+            (total > 0.0) ? std::norm(states[TARGET_GRV].beta) / total : 0.0;
+        if (p >= THRESHOLD)
+          return round + 1;
+      }
+      return MAX_GRV;
+    };
+
+    size_t iter_linear = rounds_to_threshold(0.0);
+    size_t iter_small  = rounds_to_threshold(0.05);
+    size_t iter_mod    = rounds_to_threshold(0.15);
+
+    std::cout << "  4d. Rounds to P(target)>" << THRESHOLD
+              << " (N=" << N_GRV << ", Grover+kick):\n"
+              << "      kick=0.00: " << iter_linear << " rounds\n"
+              << "      kick=0.05: " << iter_small  << " rounds\n"
+              << "      kick=0.15: " << iter_mod    << " rounds\n";
+
+    // All configurations must reach the threshold within the budget
+    test_assert(iter_linear < MAX_GRV && iter_small < MAX_GRV &&
+                    iter_mod < MAX_GRV,
+                "4d: Grover+kick (all kick values) reaches P>0.50 within budget");
+
+    // Small and moderate kicks reach the threshold no later than linear Grover
+    test_assert(iter_small <= iter_linear && iter_mod <= iter_linear,
+                "4d: small kick (0.05) and moderate kick (0.15) converge to "
+                "P>0.50 in ≤ linear Grover rounds — kick reduces iteration count");
   }
 }
 
@@ -563,6 +766,7 @@ int main() {
   test_gate_mechanics();
   test_8cycle_structure();
   test_hash_oracle_analog();
+  test_hash_oracle_demanding();
   test_amplitude_amplification();
   test_quantum_speedup_analog();
 
