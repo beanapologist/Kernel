@@ -40,7 +40,9 @@ jobs:
             benchmark_nist_ir8356.cpp \
             ChiralNonlinearGate.hpp \
             LadderChiralSearch.hpp \
-            LadderSearchBenchmark.hpp
+            LadderSearchBenchmark.hpp \
+            ohm_coherence_duality.hpp \
+            test_ohm_coherence.cpp
 
   # ── Build & Test ─────────────────────────────────────────────────────────
   build-and-test:
@@ -75,6 +77,12 @@ jobs:
 
       - name: Run test_interrupt_nist
         run: ./test_interrupt_nist
+
+      - name: Build test_ohm_coherence
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o test_ohm_coherence test_ohm_coherence.cpp -lm
+
+      - name: Run test_ohm_coherence
+        run: ./test_ohm_coherence
 
   # ── Benchmarks ───────────────────────────────────────────────────────────
   benchmarks:
@@ -114,6 +122,7 @@ jobs:
           g++ -std=c++17 -O0 --coverage -o test_ipc_bin             test_ipc.cpp             -lm
           g++ -std=c++17 -O0 --coverage -o test_qudit_kernel        test_qudit_kernel.cpp    -lm
           g++ -std=c++17 -O0 --coverage -o test_interrupt_nist      test_interrupt_nist.cpp  -lm
+          g++ -std=c++17 -O0 --coverage -o test_ohm_coherence       test_ohm_coherence.cpp   -lm
 
       - name: Run tests to collect coverage data
         run: |
@@ -121,6 +130,7 @@ jobs:
           ./test_ipc_bin
           ./test_qudit_kernel
           ./test_interrupt_nist
+          ./test_ohm_coherence
 
       - name: Generate lcov report
         run: |
