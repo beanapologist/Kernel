@@ -38,3 +38,4 @@ coverage/
 .DS_Store
 test_palindrome_precession
 test_kernel_pipeline
+test_coherent_search
