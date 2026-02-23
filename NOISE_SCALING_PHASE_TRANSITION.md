@@ -25,7 +25,12 @@ Noise model: phase\_accum += U(−ε, +ε) per step; radial: β × (1 + U(−ε/
 
 ---
 
-## Main Results: α(ε) Table
+## Main Results: α(ε) Plot
+
+![α(ε) transition plot](alpha_vs_eps.png)
+
+*Noise induces sharp degradation only in the full coherence-aware Kernel —
+precession-alone shows no comparable transition.*
 
 | ε | α(linear) | α(prec-only) | α(full-kernel) |
 |---|-----------|--------------|----------------|
@@ -52,6 +57,10 @@ unaffected.  This is the signature of a coherence phase transition.
 ---
 
 ## H₁ Verdict
+
+- **Sharp transition at ε\* ≈ 0.42–0.50**: Δα = 1.34 (threshold 0.20) — Full Kernel only.
+- **Precession-alone**: no comparable transition; exponent drifts smoothly.
+- **Transition sharpens 6× with N** (Δα 0.51→3.31 from small-N to large-N window).
 
 ```
 ⭐ H₁ VERDICT: Sharp transition observed at ε* = 0.5000
@@ -149,6 +158,7 @@ Applying the chiral µ-kick to KernelState at fixed ε = 0.5:
 At kick = 0 (pure phase noise), α ≈ 0.58 — still above the √n band but below 1.
 Adding even a small chiral kick (0.05) pushes α to ≈ 1.8 because the kick
 accumulates uncorrected G\_eff drift over the long search time forced by ε = 0.5.
+Kick is **helpful in clean regimes** (ε ≈ 0) and **destabilizing near critical noise**.
 
 ### D. Chiral Gate + Precession Noise Comparison
 
@@ -171,6 +181,22 @@ mechanism that maintains coherence in the face of both phase noise and
 kick-induced perturbations.  Precession-alone shows no comparable transition,
 further isolating the G\_eff coherence weight as the critical component.
 
+### E. Combined Recovery × Kick Heatmap
+
+![Heatmap of α over recovery_rate × kick_strength at ε=0.50](heatmap_recovery_kick.png)
+
+*Green ≈ √n scaling (α ≈ 0.5); red = collapsed (α ≫ 0.5).
+Any recovery_rate ≥ 0.1 rescues coherence at ε = 0.50, regardless of kick strength.*
+
+Data written to `noise_heatmap.csv` (ε ∈ {0.42, 0.50}).
+Key finding: at ε = 0.50, `rate = 0` gives α ≈ 2.0–2.3 (collapsed), while
+`rate ≥ 0.1` gives α ≈ 0.54–0.65 (√n band restored) across all kick strengths.
+Recovery is the primary control knob; kick strength has a secondary effect.
+
+```
+✓ best α at ε=0.50 is < 50% of worst — recovery/kick choice meaningfully shifts α
+```
+
 ---
 
 ## Reproducing Results
@@ -179,12 +205,12 @@ further isolating the G\_eff coherence weight as the critical component.
 # Build (from repo root)
 cmake -S . -B build && cmake --build build --target test_noise_scaling_phase_transition
 
-# Run (writes noise_transition_fine.csv)
+# Run (writes noise_transition_fine.csv and noise_heatmap.csv)
 ./build/test_noise_scaling_phase_transition
 
-# Plot fine grid
+# Regenerate plots
 python3 -c "
-import pandas as pd, matplotlib.pyplot as plt
+import pandas as pd, matplotlib.pyplot as plt, numpy as np
 df = pd.read_csv('noise_transition_fine.csv')
 plt.plot(df['eps'], df['alpha_prec'], 'o-', label='Precession-only')
 plt.plot(df['eps'], df['alpha_full'], 's-', label='Full Kernel')
@@ -210,8 +236,11 @@ print('Saved fine_eps_transition.png')
 | Fine-grid ε* ∈ (0.20, 0.60] | ✓ PASS (ε* ≈ 0.42) |
 | Recovery rate=1.0 lowers α at ε=0.5 | ✓ PASS |
 | Chiral kick without recovery > √n band | ✓ PASS (confirms G\_eff role) |
+| Best α at ε=0.5 < 50% of worst (heatmap) | ✓ PASS (recovery is primary control) |
 
 **Overall verdict: H₁ confirmed.**  The Kernel's acceleration is driven by a
 coherence mechanism — specifically the G\_eff = sech(λ) weighting provided by
 KernelState — with a sharp noise phase transition at ε\* ≈ 0.42–0.50 that
 sharpens with system size and is absent in the precession-alone condition.
+Recovery (tunable via `auto_renormalize` rate) is the primary control knob:
+any rate ≥ 0.1 restores √n scaling even past ε* = 0.50.

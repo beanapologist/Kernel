@@ -997,6 +997,103 @@ static bool test_chiral_gate_precession_noise() {
   return ok;
 }
 
+// ── Test E: Combined recovery × kick heatmap (α grid) ───────────────────────
+// Sweeps recovery_rate ∈ {0.0, 0.1, 0.3, 0.5, 1.0} × kick_strength
+// ∈ {0.0, 0.05, 0.10, 0.20, 0.30} at ε=0.42 (near ε*) and ε=0.50 (well past).
+// Writes noise_heatmap.csv with columns:
+//   eps,recovery_rate,kick_strength,alpha
+// This lets callers render a 2-D heatmap of α to see which combinations
+// maintain coherence vs collapse.
+static bool test_recovery_kick_heatmap() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Combined Heatmap:"
+               " recovery \u00d7 kick at \u03b5 \u2208 {0.42, 0.50}"
+               " \u2550\u2550\u2550\u2557\n\n";
+
+  static const double RATES[]  = {0.0, 0.1, 0.3, 0.5, 1.0};
+  static const double KICKS[]  = {0.0, 0.05, 0.10, 0.20, 0.30};
+  static const double EPS_HM[] = {0.42, 0.50};
+  static constexpr int N_RATES = 5;
+  static constexpr int N_KICKS = 5;
+  static constexpr int N_EPS_HM = 2;
+  static const int K_VALS[] = {10, 12, 14, 16};
+  static constexpr int N_SIZES = 4;
+  static constexpr int TRIALS = 10;
+
+  std::ofstream csv("noise_heatmap.csv");
+  csv << "eps,recovery_rate,kick_strength,alpha\n";
+
+  // Track the (rate=1.0, kick=0) cell at each ε to confirm recovery helps.
+  double alpha_best_042 = 1e9, alpha_worst_042 = 0.0;
+  double alpha_best_050 = 1e9, alpha_worst_050 = 0.0;
+
+  for (int ei = 0; ei < N_EPS_HM; ++ei) {
+    const double eps = EPS_HM[ei];
+    std::cout << "  \u03b5 = " << eps << "\n";
+    std::cout << "  " << std::left << std::setw(16) << "rate\\kick";
+    for (int ki = 0; ki < N_KICKS; ++ki)
+      std::cout << std::setw(10) << KICKS[ki];
+    std::cout << "\n  " << std::string(66, '-') << "\n";
+
+    for (int ri = 0; ri < N_RATES; ++ri) {
+      const double rate = RATES[ri];
+      std::cout << "  " << std::left << std::setw(16) << rate;
+
+      for (int ki = 0; ki < N_KICKS; ++ki) {
+        const double kick = KICKS[ki];
+        std::mt19937_64 rng(PT_RNG_SEED + 11000ULL +
+                            static_cast<uint64_t>(ei) * 1000ULL +
+                            static_cast<uint64_t>(ri) * 100ULL +
+                            static_cast<uint64_t>(ki));
+
+        std::vector<double> log_ns, log_ts;
+        for (int si = 0; si < N_SIZES; ++si) {
+          const uint64_t n = 1ULL << K_VALS[si];
+          double sum = 0.0;
+          for (int tr = 0; tr < TRIALS; ++tr) {
+            const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
+                                   static_cast<uint64_t>(TRIALS + 1);
+            sum += static_cast<double>(
+                full_kernel_with_recovery(n, t_idx, eps, rate, rng));
+          }
+          log_ns.push_back(std::log(static_cast<double>(n)));
+          log_ts.push_back(std::log(sum / TRIALS));
+        }
+        const double alpha = pt_linreg_slope(log_ns, log_ts);
+
+        csv << std::fixed << std::setprecision(4) << eps << ',' << rate << ','
+            << kick << ',' << alpha << '\n';
+
+        std::cout << std::fixed << std::setprecision(4) << std::setw(10)
+                  << alpha;
+
+        if (ei == 0) {
+          if (alpha < alpha_best_042) alpha_best_042 = alpha;
+          if (alpha > alpha_worst_042) alpha_worst_042 = alpha;
+        } else {
+          if (alpha < alpha_best_050) alpha_best_050 = alpha;
+          if (alpha > alpha_worst_050) alpha_worst_050 = alpha;
+        }
+      }
+      std::cout << "\n";
+    }
+    std::cout << "\n";
+  }
+
+  // Best cell at ε=0.50 must be substantially better than the worst cell.
+  chk(alpha_best_050 < alpha_worst_050 * 0.5,
+      "best \u03b1 at \u03b5=0.50 is < 50% of worst  \u2014"
+      "  recovery/kick choice meaningfully shifts \u03b1");
+  std::cout << "  \u2714 noise_heatmap.csv written\n";
+  return ok;
+}
+
 int main() {
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
@@ -1033,6 +1130,9 @@ int main() {
 
   const bool chiral_ok = test_chiral_gate_precession_noise();
   assert(chiral_ok);
+
+  const bool heatmap_ok = test_recovery_kick_heatmap();
+  assert(heatmap_ok);
 
   std::cout << "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
                "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"

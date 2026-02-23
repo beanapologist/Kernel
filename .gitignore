@@ -52,7 +52,14 @@ norm_inspection.csv
 oracle_blindness.csv
 loglog_plot.csv
 noise_transition_fine.csv
-*.png
+noise_heatmap.csv
+# Generated plots (not committed — use plot_scaling.py / inline one-liners to regenerate)
+loglog_coh_vs_n.png
+speedup_vs_n.png
+adversarial.png
+multi_seed_ci.png
+norm_inspection.png
+fine_eps_transition.png
 
 # CMake build directories
 build/
