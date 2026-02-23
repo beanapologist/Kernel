@@ -641,8 +641,8 @@ static uint64_t full_kernel_with_recovery(uint64_t n, uint64_t t_idx,
 // deterministic kick structure is compared to the random radial noise used in
 // full_kernel_noisy: does it produce the same sharp transition, a softer one,
 // or a sharper one?
-static uint64_t full_kernel_chiral_kick(uint64_t n, uint64_t t_idx,
-                                        double eps, double kick_strength,
+static uint64_t full_kernel_chiral_kick(uint64_t n, uint64_t t_idx, double eps,
+                                        double kick_strength,
                                         std::mt19937_64 &rng) {
   const double sqrt_n = std::sqrt(static_cast<double>(n));
   const double theta_target =
@@ -745,8 +745,8 @@ static bool test_fine_epsilon_grid() {
       for (int tr = 0; tr < TRIALS; ++tr) {
         const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
                                static_cast<uint64_t>(TRIALS + 1);
-        sp += static_cast<double>(
-            precession_only_noisy(n, t_idx, eps, rng_prec));
+        sp +=
+            static_cast<double>(precession_only_noisy(n, t_idx, eps, rng_prec));
         sf += static_cast<double>(full_kernel_noisy(n, t_idx, eps, rng_full));
       }
       log_ns.push_back(std::log(static_cast<double>(n)));
@@ -787,7 +787,8 @@ static bool test_fine_epsilon_grid() {
             << "  (max \u0394\u03b1 = " << max_delta << ")\n";
 
   chk(eps_star_fine > 0.20 && eps_star_fine <= 0.60,
-      "\u03b5* falls in (0.20, 0.60]  \u2014  transition pinpointed in fine grid");
+      "\u03b5* falls in (0.20, 0.60]  \u2014  transition pinpointed in fine "
+      "grid");
   std::cout << "  \u2714 noise_transition_fine.csv written\n";
   return ok;
 }
@@ -861,7 +862,8 @@ static bool test_recovery_rate_sweep() {
 // A stronger kick changes |β| deterministically, perturbing G_eff differently
 // from the random radial noise in full_kernel_noisy.
 // Asserts: α at kick=0.0 matches full_kernel_noisy behavior (≥ 0.70 at ε=0.5).
-// Reports whether stronger kicks delay (lower α) or accelerate (higher α) collapse.
+// Reports whether stronger kicks delay (lower α) or accelerate (higher α)
+// collapse.
 static bool test_kick_strength_sweep() {
   bool ok = true;
   auto chk = [&](bool cond, const char *msg) {
@@ -883,11 +885,11 @@ static bool test_kick_strength_sweep() {
   static constexpr int N_SIZES = 4;
   static constexpr int TRIALS = 10;
 
-  double alpha_k0 = 0.0; // α at kick=0 (baseline, should match full_kernel_noisy)
+  double alpha_k0 =
+      0.0; // α at kick=0 (baseline, should match full_kernel_noisy)
   for (int ki_kick = 0; ki_kick < N_KICKS; ++ki_kick) {
     const double kick = KICKS[ki_kick];
-    std::mt19937_64 rng(PT_RNG_SEED + 7000ULL +
-                        static_cast<uint64_t>(ki_kick));
+    std::mt19937_64 rng(PT_RNG_SEED + 7000ULL + static_cast<uint64_t>(ki_kick));
     std::vector<double> log_ns, log_ts;
     for (int ki = 0; ki < N_SIZES; ++ki) {
       const uint64_t n = 1ULL << K_VALS[ki];
@@ -909,10 +911,10 @@ static bool test_kick_strength_sweep() {
               << std::setw(16) << kick << a << "\n";
   }
 
-  // At kick=0, ε=0.5 → pure phase noise only (no radial perturbation from kick).
-  // The phase noise alone at ε=0.5 shifts α above the √n band.
-  chk(alpha_k0 > ALPHA_SQRT_N_HIGH,
-      "\u03b1(kick=0, \u03b5=0.5) > 0.55  \u2014  phase noise alone exits \u221an band");
+  // At kick=0, ε=0.5 → pure phase noise only (no radial perturbation from
+  // kick). The phase noise alone at ε=0.5 shifts α above the √n band.
+  chk(alpha_k0 > ALPHA_SQRT_N_HIGH, "\u03b1(kick=0, \u03b5=0.5) > 0.55  \u2014 "
+                                    " phase noise alone exits \u221an band");
   return ok;
 }
 
@@ -940,7 +942,8 @@ static bool test_chiral_gate_precession_noise() {
 
   static const double EPS_LEVELS[] = {0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0};
   static constexpr int N_EPS = 8;
-  static constexpr double CHIRAL_KICK_STR = 0.1; // kick strength for chiral sweep
+  static constexpr double CHIRAL_KICK_STR =
+      0.1; // kick strength for chiral sweep
   static const int K_VALS[] = {10, 12, 14, 16};
   static constexpr int N_SIZES = 4;
   static constexpr int TRIALS = 10;
@@ -961,11 +964,11 @@ static bool test_chiral_gate_precession_noise() {
       for (int tr = 0; tr < TRIALS; ++tr) {
         const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
                                static_cast<uint64_t>(TRIALS + 1);
-        sp += static_cast<double>(
-            precession_only_noisy(n, t_idx, eps, rng_prec));
+        sp +=
+            static_cast<double>(precession_only_noisy(n, t_idx, eps, rng_prec));
         sf += static_cast<double>(full_kernel_noisy(n, t_idx, eps, rng_full));
-        sc += static_cast<double>(
-            full_kernel_chiral_kick(n, t_idx, eps, CHIRAL_KICK_STR, rng_chiral));
+        sc += static_cast<double>(full_kernel_chiral_kick(
+            n, t_idx, eps, CHIRAL_KICK_STR, rng_chiral));
       }
       log_ns.push_back(std::log(static_cast<double>(n)));
       log_prec.push_back(std::log(sp / TRIALS));
@@ -1016,8 +1019,8 @@ static bool test_recovery_kick_heatmap() {
                " recovery \u00d7 kick at \u03b5 \u2208 {0.42, 0.50}"
                " \u2550\u2550\u2550\u2557\n\n";
 
-  static const double RATES[]  = {0.0, 0.1, 0.3, 0.5, 1.0};
-  static const double KICKS[]  = {0.0, 0.05, 0.10, 0.20, 0.30};
+  static const double RATES[] = {0.0, 0.1, 0.3, 0.5, 1.0};
+  static const double KICKS[] = {0.0, 0.05, 0.10, 0.20, 0.30};
   static const double EPS_HM[] = {0.42, 0.50};
   static constexpr int N_RATES = 5;
   static constexpr int N_KICKS = 5;
@@ -1047,10 +1050,9 @@ static bool test_recovery_kick_heatmap() {
 
       for (int ki = 0; ki < N_KICKS; ++ki) {
         const double kick = KICKS[ki];
-        std::mt19937_64 rng(PT_RNG_SEED + 11000ULL +
-                            static_cast<uint64_t>(ei) * 1000ULL +
-                            static_cast<uint64_t>(ri) * 100ULL +
-                            static_cast<uint64_t>(ki));
+        std::mt19937_64 rng(
+            PT_RNG_SEED + 11000ULL + static_cast<uint64_t>(ei) * 1000ULL +
+            static_cast<uint64_t>(ri) * 100ULL + static_cast<uint64_t>(ki));
 
         std::vector<double> log_ns, log_ts;
         for (int si = 0; si < N_SIZES; ++si) {
@@ -1074,11 +1076,15 @@ static bool test_recovery_kick_heatmap() {
                   << alpha;
 
         if (ei == 0) {
-          if (alpha < alpha_best_042) alpha_best_042 = alpha;
-          if (alpha > alpha_worst_042) alpha_worst_042 = alpha;
+          if (alpha < alpha_best_042)
+            alpha_best_042 = alpha;
+          if (alpha > alpha_worst_042)
+            alpha_worst_042 = alpha;
         } else {
-          if (alpha < alpha_best_050) alpha_best_050 = alpha;
-          if (alpha > alpha_worst_050) alpha_worst_050 = alpha;
+          if (alpha < alpha_best_050)
+            alpha_best_050 = alpha;
+          if (alpha > alpha_worst_050)
+            alpha_worst_050 = alpha;
         }
       }
       std::cout << "\n";
