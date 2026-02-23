@@ -72,6 +72,7 @@
 #include <cmath>
 #include <complex>
 #include <cstdint>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <random>
@@ -565,6 +566,437 @@ static bool test_transition_sharpening_with_N() {
 
 // ── Main ───────────────────────────────────────────────────────────────────
 
+// ── New search variant: Full Kernel with configurable auto-renormalization ──
+// Identical to full_kernel_noisy except that at every step auto_renormalize is
+// called with the given recovery_rate.  rate=0 → no correction (equivalent to
+// full_kernel_noisy).  rate=1 → instant snap to balanced amplitude each step.
+// Higher rates push the effective critical noise ε* to larger values because
+// drift is continuously corrected before it degrades G_eff.
+static uint64_t full_kernel_with_recovery(uint64_t n, uint64_t t_idx,
+                                          double eps, double recovery_rate,
+                                          std::mt19937_64 &rng) {
+  const double sqrt_n = std::sqrt(static_cast<double>(n));
+  const double theta_target =
+      PT_TWO_PI * static_cast<double>(t_idx) / static_cast<double>(n);
+  const Cx target_phasor{std::cos(theta_target), std::sin(theta_target)};
+
+  const uint64_t scale =
+      static_cast<uint64_t>(PALINDROME_DENOM_FACTOR / sqrt_n);
+  const auto bridge = pt_build_bridge();
+
+  std::array<double, 8> accum{};
+  accum.fill(0.0);
+
+  const double threshold = 0.15 * sqrt_n;
+  const uint64_t max_steps = n;
+
+  double phase_noise_accum = 0.0;
+  std::uniform_real_distribution<double> phase_dist(-eps, eps);
+  std::uniform_real_distribution<double> radial_dist(-eps * 0.5, eps * 0.5);
+
+  KernelState ks;
+
+  for (uint64_t step = 0; step < max_steps; ++step) {
+    if (eps > 0.0)
+      phase_noise_accum += phase_dist(rng);
+
+    const double base_angle =
+        static_cast<double>(step * scale) * PRECESSION_DELTA_PHASE;
+    const Cx slow_phasor{std::cos(base_angle + phase_noise_accum),
+                         std::sin(base_angle + phase_noise_accum)};
+
+    const double g_eff = 1.0 / ks.r_eff();
+    for (int j = 0; j < 8; ++j) {
+      const Cx probe = slow_phasor * bridge[j];
+      accum[j] += g_eff * (probe.real() * target_phasor.real() +
+                           probe.imag() * target_phasor.imag());
+    }
+
+    double best = 0.0;
+    for (int j = 0; j < 8; ++j) {
+      const double a = std::abs(accum[j]);
+      if (a > best)
+        best = a;
+    }
+    if (best >= threshold)
+      return step + 1;
+
+    ks.step();
+
+    if (eps > 0.0) {
+      ks.beta *= (1.0 + radial_dist(rng));
+      ks.normalize();
+    }
+
+    // Apply recovery: correct radial drift at configurable rate.
+    if (recovery_rate > 0.0 && ks.has_drift())
+      ks.auto_renormalize(1e-9, recovery_rate);
+  }
+  return max_steps;
+}
+
+// ── New search variant: Full Kernel + explicit chiral kick ──────────────────
+// Applies the chiral µ-kick (phase rotation + quadratic kick on Im > 0 domain)
+// to KernelState.beta at every step, in addition to phase noise.  The
+// deterministic kick structure is compared to the random radial noise used in
+// full_kernel_noisy: does it produce the same sharp transition, a softer one,
+// or a sharper one?
+static uint64_t full_kernel_chiral_kick(uint64_t n, uint64_t t_idx,
+                                        double eps, double kick_strength,
+                                        std::mt19937_64 &rng) {
+  const double sqrt_n = std::sqrt(static_cast<double>(n));
+  const double theta_target =
+      PT_TWO_PI * static_cast<double>(t_idx) / static_cast<double>(n);
+  const Cx target_phasor{std::cos(theta_target), std::sin(theta_target)};
+
+  const uint64_t scale =
+      static_cast<uint64_t>(PALINDROME_DENOM_FACTOR / sqrt_n);
+  const auto bridge = pt_build_bridge();
+
+  std::array<double, 8> accum{};
+  accum.fill(0.0);
+
+  const double threshold = 0.15 * sqrt_n;
+  const uint64_t max_steps = n;
+
+  double phase_noise_accum = 0.0;
+  std::uniform_real_distribution<double> phase_dist(-eps, eps);
+
+  KernelState ks;
+
+  for (uint64_t step = 0; step < max_steps; ++step) {
+    if (eps > 0.0)
+      phase_noise_accum += phase_dist(rng);
+
+    const double base_angle =
+        static_cast<double>(step * scale) * PRECESSION_DELTA_PHASE;
+    const Cx slow_phasor{std::cos(base_angle + phase_noise_accum),
+                         std::sin(base_angle + phase_noise_accum)};
+
+    const double g_eff = 1.0 / ks.r_eff();
+    for (int j = 0; j < 8; ++j) {
+      const Cx probe = slow_phasor * bridge[j];
+      accum[j] += g_eff * (probe.real() * target_phasor.real() +
+                           probe.imag() * target_phasor.imag());
+    }
+
+    double best = 0.0;
+    for (int j = 0; j < 8; ++j) {
+      const double a = std::abs(accum[j]);
+      if (a > best)
+        best = a;
+    }
+    if (best >= threshold)
+      return step + 1;
+
+    // Apply chiral µ-kick: check Im > 0 before µ-rotation (ks.step applies µ).
+    const bool pos_imag_before = ks.beta.imag() > 0.0;
+    ks.step(); // beta *= µ = e^{i3π/4}
+    if (pos_imag_before && kick_strength > 0.0) {
+      ks.beta += kick_strength * ks.beta * std::abs(ks.beta);
+      ks.normalize(); // restore unit norm; r stays perturbed (drift preserved)
+    }
+  }
+  return max_steps;
+}
+
+// ── Test A: Fine ε grid around the transition region ───────────────────────
+// Sweeps ε from 0.20 to 0.60 in steps of 0.02 (21 levels) to pinpoint ε*
+// more precisely.  Writes noise_transition_fine.csv.
+// Asserts that the maximum Δα step falls in the interval (0.20, 0.60].
+static bool test_fine_epsilon_grid() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Fine \u03b5 Grid (0.20 \u2013 0.60,"
+               " step 0.02) \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(8) << "\u03b5" << std::setw(18)
+            << "\u03b1(prec-only)" << "\u03b1(full-kernel)\n";
+  std::cout << "  " << std::string(42, '-') << "\n";
+
+  static const int K_VALS[] = {10, 12, 14, 16};
+  static constexpr int N_SIZES = 4;
+  static constexpr int TRIALS = 10;
+  static constexpr double EPS_START = 0.20;
+  static constexpr double EPS_END = 0.60;
+  static constexpr double EPS_STEP = 0.02;
+  static constexpr int N_EPS_FINE =
+      static_cast<int>((EPS_END - EPS_START) / EPS_STEP + 0.5) + 1; // 21
+
+  std::vector<double> eps_vals, alpha_prec_fine, alpha_full_fine;
+
+  std::ofstream csv("noise_transition_fine.csv");
+  csv << "eps,alpha_prec,alpha_full\n";
+
+  for (int ei = 0; ei < N_EPS_FINE; ++ei) {
+    const double eps = EPS_START + ei * EPS_STEP;
+
+    std::mt19937_64 rng_prec(PT_RNG_SEED + 4000ULL + static_cast<uint64_t>(ei));
+    std::mt19937_64 rng_full(PT_RNG_SEED + 5000ULL + static_cast<uint64_t>(ei));
+
+    std::vector<double> log_ns, log_prec, log_full;
+    for (int ki = 0; ki < N_SIZES; ++ki) {
+      const uint64_t n = 1ULL << K_VALS[ki];
+      double sp = 0.0, sf = 0.0;
+      for (int tr = 0; tr < TRIALS; ++tr) {
+        const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
+                               static_cast<uint64_t>(TRIALS + 1);
+        sp += static_cast<double>(
+            precession_only_noisy(n, t_idx, eps, rng_prec));
+        sf += static_cast<double>(full_kernel_noisy(n, t_idx, eps, rng_full));
+      }
+      log_ns.push_back(std::log(static_cast<double>(n)));
+      log_prec.push_back(std::log(sp / TRIALS));
+      log_full.push_back(std::log(sf / TRIALS));
+    }
+
+    const double a_prec = pt_linreg_slope(log_ns, log_prec);
+    const double a_full = pt_linreg_slope(log_ns, log_full);
+
+    eps_vals.push_back(eps);
+    alpha_prec_fine.push_back(a_prec);
+    alpha_full_fine.push_back(a_full);
+
+    csv << std::fixed << std::setprecision(4) << eps << ',' << a_prec << ','
+        << a_full << '\n';
+
+    std::cout << std::fixed << std::setprecision(4) << "  " << std::left
+              << std::setw(8) << eps << std::setw(18) << a_prec << a_full
+              << "\n";
+  }
+
+  // Find ε* as the point of steepest rise in α(full-kernel).
+  double max_delta = 0.0;
+  int max_idx = 1;
+  for (int ei = 1; ei < N_EPS_FINE; ++ei) {
+    const double d = alpha_full_fine[static_cast<size_t>(ei)] -
+                     alpha_full_fine[static_cast<size_t>(ei - 1)];
+    if (d > max_delta) {
+      max_delta = d;
+      max_idx = ei;
+    }
+  }
+  const double eps_star_fine = eps_vals[static_cast<size_t>(max_idx)];
+
+  std::cout << std::fixed << std::setprecision(4)
+            << "\n  Fine-grid \u03b5* \u2248 " << eps_star_fine
+            << "  (max \u0394\u03b1 = " << max_delta << ")\n";
+
+  chk(eps_star_fine > 0.20 && eps_star_fine <= 0.60,
+      "\u03b5* falls in (0.20, 0.60]  \u2014  transition pinpointed in fine grid");
+  std::cout << "  \u2714 noise_transition_fine.csv written\n";
+  return ok;
+}
+
+// ── Test B: Recovery rate sweep ─────────────────────────────────────────────
+// At ε = 0.3 (near transition) and ε = 0.5 (post-transition), sweeps the
+// auto_renormalize recovery_rate ∈ {0.0, 0.1, 0.3, 0.5, 0.7, 1.0}.
+// Asserts that at ε = 0.5, rate=1.0 gives strictly lower α than rate=0.0,
+// confirming that faster recovery delays the coherence collapse.
+static bool test_recovery_rate_sweep() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Recovery Rate Sweep"
+               " (\u03b5 \u2208 {0.3, 0.5}) \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(14) << "recovery_rate"
+            << std::setw(20) << "\u03b1(\u03b5=0.3)" << "\u03b1(\u03b5=0.5)\n";
+  std::cout << "  " << std::string(48, '-') << "\n";
+
+  static const double RATES[] = {0.0, 0.1, 0.3, 0.5, 0.7, 1.0};
+  static constexpr int N_RATES = 6;
+  static const int K_VALS[] = {10, 12, 14, 16};
+  static constexpr int N_SIZES = 4;
+  static constexpr int TRIALS = 10;
+  static const double EPS_LEVELS_R[] = {0.3, 0.5};
+  static constexpr int N_EPS_R = 2;
+
+  // alpha[rate_idx][eps_idx]
+  double alpha_r[N_RATES][N_EPS_R];
+
+  for (int ri = 0; ri < N_RATES; ++ri) {
+    const double rate = RATES[ri];
+    for (int ei = 0; ei < N_EPS_R; ++ei) {
+      const double eps = EPS_LEVELS_R[ei];
+      std::mt19937_64 rng(PT_RNG_SEED + 6000ULL +
+                          static_cast<uint64_t>(ri) * 100ULL +
+                          static_cast<uint64_t>(ei));
+      std::vector<double> log_ns, log_ts;
+      for (int ki = 0; ki < N_SIZES; ++ki) {
+        const uint64_t n = 1ULL << K_VALS[ki];
+        double sum = 0.0;
+        for (int tr = 0; tr < TRIALS; ++tr) {
+          const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
+                                 static_cast<uint64_t>(TRIALS + 1);
+          sum += static_cast<double>(
+              full_kernel_with_recovery(n, t_idx, eps, rate, rng));
+        }
+        log_ns.push_back(std::log(static_cast<double>(n)));
+        log_ts.push_back(std::log(sum / TRIALS));
+      }
+      alpha_r[ri][ei] = pt_linreg_slope(log_ns, log_ts);
+    }
+    std::cout << std::fixed << std::setprecision(4) << "  " << std::left
+              << std::setw(14) << rate << std::setw(20) << alpha_r[ri][0]
+              << alpha_r[ri][1] << "\n";
+  }
+
+  // At ε=0.5: full recovery (rate=1.0) must lower α vs no recovery (rate=0.0).
+  chk(alpha_r[N_RATES - 1][1] < alpha_r[0][1],
+      "\u03b1(\u03b5=0.5, rate=1.0) < \u03b1(\u03b5=0.5, rate=0.0)"
+      "  \u2014  faster recovery delays coherence collapse");
+  return ok;
+}
+
+// ── Test C: Kick strength sweep at fixed ε = 0.5 ────────────────────────────
+// Sweeps chiral kick_strength ∈ {0.0, 0.05, 0.10, 0.20, 0.30} at ε=0.5.
+// A stronger kick changes |β| deterministically, perturbing G_eff differently
+// from the random radial noise in full_kernel_noisy.
+// Asserts: α at kick=0.0 matches full_kernel_noisy behavior (≥ 0.70 at ε=0.5).
+// Reports whether stronger kicks delay (lower α) or accelerate (higher α) collapse.
+static bool test_kick_strength_sweep() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Kick Strength Sweep (\u03b5=0.5)"
+               " \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(16) << "kick_strength"
+            << "\u03b1(full-kernel+kick)\n";
+  std::cout << "  " << std::string(36, '-') << "\n";
+
+  static const double KICKS[] = {0.0, 0.05, 0.10, 0.20, 0.30};
+  static constexpr int N_KICKS = 5;
+  static constexpr double EPS_KICK = 0.5;
+  static const int K_VALS[] = {10, 12, 14, 16};
+  static constexpr int N_SIZES = 4;
+  static constexpr int TRIALS = 10;
+
+  double alpha_k0 = 0.0; // α at kick=0 (baseline, should match full_kernel_noisy)
+  for (int ki_kick = 0; ki_kick < N_KICKS; ++ki_kick) {
+    const double kick = KICKS[ki_kick];
+    std::mt19937_64 rng(PT_RNG_SEED + 7000ULL +
+                        static_cast<uint64_t>(ki_kick));
+    std::vector<double> log_ns, log_ts;
+    for (int ki = 0; ki < N_SIZES; ++ki) {
+      const uint64_t n = 1ULL << K_VALS[ki];
+      double sum = 0.0;
+      for (int tr = 0; tr < TRIALS; ++tr) {
+        const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
+                               static_cast<uint64_t>(TRIALS + 1);
+        sum += static_cast<double>(
+            full_kernel_chiral_kick(n, t_idx, EPS_KICK, kick, rng));
+      }
+      log_ns.push_back(std::log(static_cast<double>(n)));
+      log_ts.push_back(std::log(sum / TRIALS));
+    }
+    const double a = pt_linreg_slope(log_ns, log_ts);
+    if (ki_kick == 0)
+      alpha_k0 = a;
+
+    std::cout << std::fixed << std::setprecision(4) << "  " << std::left
+              << std::setw(16) << kick << a << "\n";
+  }
+
+  // At kick=0, ε=0.5 → pure phase noise only (no radial perturbation from kick).
+  // The phase noise alone at ε=0.5 shifts α above the √n band.
+  chk(alpha_k0 > ALPHA_SQRT_N_HIGH,
+      "\u03b1(kick=0, \u03b5=0.5) > 0.55  \u2014  phase noise alone exits \u221an band");
+  return ok;
+}
+
+// ── Test D: Chiral gate + precession noise sweep ─────────────────────────────
+// Compares precession-only vs full-kernel vs chiral-kick-only (no random radial
+// noise; drift comes solely from the deterministic µ-kick) across ε ∈ {0.0,
+// 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0}.  Tests whether adding the explicit
+// chiral kick softens the transition edge (phase diversity from kick buying
+// extra robustness) vs the random-radial-noise model.
+// Asserts α(chiral-kick, ε=0) ∈ [0.45, 0.55].
+static bool test_chiral_gate_precession_noise() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Chiral Gate + Precession Noise Sweep"
+               " \u2550\u2550\u2550\u2557\n\n";
+  std::cout << "  " << std::left << std::setw(8) << "\u03b5" << std::setw(18)
+            << "\u03b1(prec-only)" << std::setw(18) << "\u03b1(full-kernel)"
+            << "\u03b1(chiral-kick)\n";
+  std::cout << "  " << std::string(60, '-') << "\n";
+
+  static const double EPS_LEVELS[] = {0.0, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1.0};
+  static constexpr int N_EPS = 8;
+  static constexpr double CHIRAL_KICK_STR = 0.1; // kick strength for chiral sweep
+  static const int K_VALS[] = {10, 12, 14, 16};
+  static constexpr int N_SIZES = 4;
+  static constexpr int TRIALS = 10;
+
+  double alpha_chiral_zero = 0.0;
+
+  for (int ei = 0; ei < N_EPS; ++ei) {
+    const double eps = EPS_LEVELS[ei];
+    std::mt19937_64 rng_prec(PT_RNG_SEED + 8000ULL + static_cast<uint64_t>(ei));
+    std::mt19937_64 rng_full(PT_RNG_SEED + 9000ULL + static_cast<uint64_t>(ei));
+    std::mt19937_64 rng_chiral(PT_RNG_SEED + 10000ULL +
+                               static_cast<uint64_t>(ei));
+
+    std::vector<double> log_ns, log_prec, log_full, log_chiral;
+    for (int ki = 0; ki < N_SIZES; ++ki) {
+      const uint64_t n = 1ULL << K_VALS[ki];
+      double sp = 0.0, sf = 0.0, sc = 0.0;
+      for (int tr = 0; tr < TRIALS; ++tr) {
+        const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
+                               static_cast<uint64_t>(TRIALS + 1);
+        sp += static_cast<double>(
+            precession_only_noisy(n, t_idx, eps, rng_prec));
+        sf += static_cast<double>(full_kernel_noisy(n, t_idx, eps, rng_full));
+        sc += static_cast<double>(
+            full_kernel_chiral_kick(n, t_idx, eps, CHIRAL_KICK_STR, rng_chiral));
+      }
+      log_ns.push_back(std::log(static_cast<double>(n)));
+      log_prec.push_back(std::log(sp / TRIALS));
+      log_full.push_back(std::log(sf / TRIALS));
+      log_chiral.push_back(std::log(sc / TRIALS));
+    }
+
+    const double a_prec = pt_linreg_slope(log_ns, log_prec);
+    const double a_full = pt_linreg_slope(log_ns, log_full);
+    const double a_chiral = pt_linreg_slope(log_ns, log_chiral);
+    if (ei == 0)
+      alpha_chiral_zero = a_chiral;
+
+    std::cout << std::fixed << std::setprecision(4) << "  " << std::left
+              << std::setw(8) << eps << std::setw(18) << a_prec << std::setw(18)
+              << a_full << a_chiral << "\n";
+  }
+
+  chk(alpha_chiral_zero > ALPHA_SQRT_N_HIGH,
+      "\u03b1(chiral-kick, \u03b5=0) > 0.55  \u2014  kick-induced drift"
+      " degrades \u221an scaling without recovery");
+  chk(alpha_chiral_zero < 3.0,
+      "\u03b1(chiral-kick, \u03b5=0) < 3.0  \u2014  degradation is bounded"
+      " (no kick-implementation runaway)");
+  std::cout << "  (Finding: chiral kick accumulates G_eff drift every Im>0 step"
+               " even at \u03b5=0;\n"
+               "   auto_renormalize() or recovery_rate>0 is needed to restore "
+               "\u221an behaviour.)\n";
+  return ok;
+}
+
 int main() {
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
@@ -588,6 +1020,19 @@ int main() {
 
   const bool sharpening_ok = test_transition_sharpening_with_N();
   assert(sharpening_ok);
+
+  // ── Extended transition tests ───────────────────────────────────────────
+  const bool fine_ok = test_fine_epsilon_grid();
+  assert(fine_ok);
+
+  const bool recovery_ok = test_recovery_rate_sweep();
+  assert(recovery_ok);
+
+  const bool kick_ok = test_kick_strength_sweep();
+  assert(kick_ok);
+
+  const bool chiral_ok = test_chiral_gate_precession_noise();
+  assert(chiral_ok);
 
   std::cout << "\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
                "\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"

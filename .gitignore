@@ -51,6 +51,7 @@ multi_seed_ci.csv
 norm_inspection.csv
 oracle_blindness.csv
 loglog_plot.csv
+noise_transition_fine.csv
 *.png
 
 # CMake build directories
