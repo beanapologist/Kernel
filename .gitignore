@@ -5,6 +5,7 @@ test_interrupt_nist
 test_debug
 benchmark_nist_ir8356
 benchmark_pow_nonce_search
+benchmark_scaling_falsification
 test_ipc_bin
 test_pipeline_bin
 test_chiral_gate
@@ -40,6 +41,25 @@ test_palindrome_precession
 test_kernel_pipeline
 test_coherent_search
 test_noise_scaling_phase_transition
+
+# Falsification benchmark outputs
+scaling_extended.csv
+random_init.csv
+random_oracle.csv
+adversarial.csv
+multi_seed_ci.csv
+norm_inspection.csv
+oracle_blindness.csv
+loglog_plot.csv
+noise_transition_fine.csv
+noise_heatmap.csv
+# Generated plots (not committed — use plot_scaling.py / inline one-liners to regenerate)
+loglog_coh_vs_n.png
+speedup_vs_n.png
+adversarial.png
+multi_seed_ci.png
+norm_inspection.png
+fine_eps_transition.png
 
 # CMake build directories
 build/

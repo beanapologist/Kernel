@@ -462,3 +462,45 @@ g++ -std=c++17 -Wall -Wextra -O2 -o benchmark_nist_ir8356 benchmark_nist_ir8356.
 g++ -std=c++17 -Wall -Wextra -O2 -o test_interrupt_nist test_interrupt_nist.cpp -lm
 ./test_interrupt_nist
 ```
+
+### Noise Robustness & Phase Transitions
+
+The Kernel's √n acceleration has been subjected to adversarial noise testing to
+distinguish a genuine coherence mechanism (H₁) from a heuristic strategy (H₀).
+
+See [NOISE_SCALING_PHASE_TRANSITION.md](NOISE_SCALING_PHASE_TRANSITION.md) for
+the full analysis. Key findings:
+
+- **Sharp transition at ε\* ≈ 0.42**: the Full Kernel (G\_eff = sech(λ)) maintains
+  √n scaling for phase noise ε < ε* and collapses abruptly above it, with
+  Δα = 1.34 at ε* = 0.50.
+- **Precession-alone shows no comparable transition** — confirming the G\_eff
+  coherence weight (not just phase precession) is the essential mechanism.
+- **Recovery is tunable**: `auto_renormalize` rate ≥ 0.1 restores √n scaling
+  even past ε* = 0.50.
+- **Kick helpful in clean regimes, destabilizing near critical noise**: chiral
+  kick without recovery degrades scaling even at ε = 0; with recovery it is
+  benign.
+- **Transition sharpens 6× with N** — a classical signature of a genuine phase
+  transition.
+
+**Verdict: H₁ confirmed.**
+
+```bash
+# Build and run the noise phase-transition test suite
+cmake --build build --target test_noise_scaling_phase_transition
+./build/test_noise_scaling_phase_transition
+```
+
+### Scaling Falsification Benchmark
+
+An adversarial benchmark suite attempts to falsify the Θ(√n) scaling claim from
+eight independent angles (extended problem sizes up to 2²⁶, randomised
+initialisations, adversarial target placements, multi-seed confidence intervals,
+normalisation inspection, and oracle blindness). All claims survive.
+
+```bash
+cmake --build build --target benchmark_scaling_falsification
+./build/benchmark_scaling_falsification   # writes *.csv
+python3 plot_scaling.py                   # writes *.png plots
+```
