@@ -123,6 +123,11 @@ static constexpr double SLOPE_LOWER = 0.45;
 static constexpr double SLOPE_UPPER = 0.55;
 static constexpr double CERT_MIN_R2 = 0.999;
 
+// ORACLE_BINARY_TOL: tolerance for detecting whether a cosine-overlap value
+// equals exactly ±1.  Used by test_oracle_model_assumptions to confirm the
+// oracle is continuous rather than binary.
+static constexpr double ORACLE_BINARY_TOL = 1e-6;
+
 // ── Linear regression helper
 // ─────────────────────────────────────────────────
 // Returns the OLS slope of the straight-line fit y = slope·x + intercept
@@ -1283,6 +1288,155 @@ static bool test_constant_factor() {
   return ok;
 }
 
+// ── 12. Oracle Model Assumptions
+// ─────────────────────────────────────────
+// The coherent phase search is driven by the per-step oracle signal
+//   contrib_j = Re(probe_j · conj(target_phasor))
+//             = cos(φ_probe_j − θ_target) ∈ [−1, +1].
+//
+// This is a CONTINUOUS real-valued signal that encodes the angular distance
+// between the probe phasor and the target phasor.  It is richer than the
+// binary (yes/no) oracle f(i) ∈ {0, 1} that defines classical unstructured
+// search.  The Dirichlet-kernel accumulation works precisely because each
+// step's contribution is proportional to that distance, not merely its sign.
+//
+// Under a strict binary oracle (true unstructured search), the algorithm
+// reduces to a sequential scan: without continuous phase-overlap feedback,
+// the only way to confirm the target is to probe each item individually,
+// yielding Θ(n) expected evaluations — matching brute_force_search().
+//
+// This test validates three aspects of the oracle model:
+//   (a) Per-step contributions are continuous: |contrib| strictly between
+//       0 and 1 for a generic non-axis-aligned target.
+//   (b) Contributions encode angular distance: a nearer probe gives a larger
+//       contribution than a farther probe.
+//   (c) Scaling comparison: rich oracle (coherent, Θ(√n)) vs binary oracle
+//       (brute force, Θ(n)) over a range of problem sizes.
+static bool test_oracle_model_assumptions() {
+  bool ok = true;
+  auto chk = [&](bool cond, const char *msg) {
+    std::cout << (cond ? "  \u2713 " : "  \u2717 FAILED: ") << msg << "\n";
+    if (!cond)
+      ok = false;
+  };
+
+  std::cout << "\n\u2554\u2550\u2550\u2550 Oracle Model Assumptions"
+               " \u2550\u2550\u2550\u2557\n";
+  std::cout
+      << "  Oracle used: continuous cosine overlap\n"
+         "    contrib = Re(probe \u00b7 conj(target_phasor)) \u2208 [\u22121, "
+         "+1]\n"
+         "  Binary oracle (true unstructured): f(i) \u2208 {0,1} \u2192 "
+         "\u0398(n)\n\n";
+
+  // ── (a) Per-step contributions are continuous ─────────────────────────────
+  // For a non-axis-aligned target (t = N/3) none of the 8 bridge-channel
+  // contributions at any of the first 20 steps should equal exactly ±1.
+  {
+    constexpr uint64_t N = 4096;
+    const uint64_t T = N / 3; // non-trivial target angle
+    const double theta_target =
+        CS_TWO_PI * static_cast<double>(T) / static_cast<double>(N);
+    const Cx target_phasor{std::cos(theta_target), std::sin(theta_target)};
+    const uint64_t scale = static_cast<uint64_t>(
+        PALINDROME_DENOM_FACTOR / std::sqrt(static_cast<double>(N)));
+    const auto bridge = NullSliceBridge::build_8cycle_bridge();
+
+    bool all_continuous = true;
+    for (int step = 0; step < 20; ++step) {
+      const Cx slow_phasor = PalindromePrecession::phasor_at(
+          static_cast<uint64_t>(step) * scale);
+      for (int j = 0; j < 8; ++j) {
+        const Cx probe = slow_phasor * bridge[j];
+        const double contrib = probe.real() * target_phasor.real() +
+                               probe.imag() * target_phasor.imag();
+        // A binary oracle would produce exactly ±1; the continuous oracle
+        // produces a value strictly inside (−1, +1) for a generic target.
+        if (std::abs(std::abs(contrib) - 1.0) < ORACLE_BINARY_TOL)
+          all_continuous = false;
+      }
+    }
+    chk(all_continuous,
+        "Per-step contrib \u2208 (\u22121,+1) \u2014 "
+        "continuous, not binary \u00b11");
+  }
+
+  // ── (b) Contributions encode angular distance ─────────────────────────────
+  // A probe 5° from the target should give a larger contribution than one
+  // 80° away, confirming that the oracle signal carries distance information.
+  {
+    const double theta_target = CS_TWO_PI * 0.25; // target at 90°
+    const Cx target_phasor{std::cos(theta_target), std::sin(theta_target)};
+
+    const double near_angle = theta_target + CS_TWO_PI * (5.0 / 360.0);
+    const double far_angle = theta_target + CS_TWO_PI * (80.0 / 360.0);
+    const Cx near_probe{std::cos(near_angle), std::sin(near_angle)};
+    const Cx far_probe{std::cos(far_angle), std::sin(far_angle)};
+
+    const double contrib_near = near_probe.real() * target_phasor.real() +
+                                near_probe.imag() * target_phasor.imag();
+    const double contrib_far = far_probe.real() * target_phasor.real() +
+                               far_probe.imag() * target_phasor.imag();
+
+    chk(contrib_near > contrib_far,
+        "Oracle encodes distance: near-target probe gives larger contrib");
+    chk(contrib_near > 0.99,
+        "Near-target contrib \u2248 1 (probe within 5\u00b0)");
+    chk(contrib_far > 0.0 && contrib_far < 0.25,
+        "Far-target contrib \u2248 cos(80\u00b0) \u2248 0.17 (not binary)");
+  }
+
+  // ── (c) Scaling: rich oracle Θ(√n) vs binary oracle Θ(n) ─────────────────
+  // The coherent search (rich oracle) achieves slope ≈ 0.5 while brute-force
+  // (binary oracle) achieves slope ≈ 1.0 — a clear demonstration that the
+  // Θ(√n) speedup depends on the richer oracle model.
+  std::cout << "\n  Rich oracle vs binary oracle scaling (k=10,14,18,22,26):\n";
+  std::cout << "  " << std::left << std::setw(6) << "k" << std::setw(14)
+            << "coherent_avg" << "brute_avg\n";
+  std::cout << "  " << std::string(34, '-') << "\n";
+
+  std::vector<double> log_ns_c, log_coh, log_brute;
+  for (int k = 10; k <= 26; k += 4) {
+    const uint64_t n = 1ULL << k;
+    const int trials = 5;
+    double coh_sum = 0.0, brute_sum = 0.0;
+    for (int tr = 0; tr < trials; ++tr) {
+      const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
+                             static_cast<uint64_t>(trials + 1);
+      coh_sum += static_cast<double>(coherent_phase_search(n, t_idx));
+      brute_sum += static_cast<double>(brute_force_search(n, t_idx));
+    }
+    const double coh_avg = coh_sum / trials;
+    const double brute_avg = brute_sum / trials;
+    log_ns_c.push_back(std::log(static_cast<double>(n)));
+    log_coh.push_back(std::log(coh_avg));
+    log_brute.push_back(std::log(brute_avg));
+    std::cout << std::fixed << std::setprecision(1) << "  " << std::left
+              << std::setw(6) << k << std::setw(14) << coh_avg << brute_avg
+              << "\n";
+  }
+
+  const double coh_slope = linreg_slope(log_ns_c, log_coh);
+  const double brute_slope = linreg_slope(log_ns_c, log_brute);
+  std::cout << std::fixed << std::setprecision(4)
+            << "\n  coherent (rich oracle) slope = " << coh_slope
+            << "  (expected \u22480.5)\n"
+            << "  brute-force (binary oracle) slope = " << brute_slope
+            << "  (expected \u22481.0)\n";
+
+  chk(coh_slope >= SLOPE_LOWER && coh_slope <= SLOPE_UPPER,
+      "Rich oracle: slope \u2208 [0.45,0.55] \u2192 \u0398(\u221an)");
+  chk(brute_slope >= 0.90 && brute_slope <= 1.10,
+      "Binary oracle: slope \u2208 [0.90,1.10] \u2192 \u0398(n)");
+
+  std::cout << "\n  Implication: the \u0398(\u221an) speedup requires the "
+               "continuous\n"
+               "  phase-overlap oracle (target_phasor).  Under a strict\n"
+               "  binary oracle (classical unstructured search), only \u0398(n)\n"
+               "  is achievable on classical hardware.\n";
+  return ok;
+}
+
 // ── 10. Complexity Certificate Output
 // ────────────────────────────────────────
 // Computes a final OLS regression over k = 10…26 and prints the formal
@@ -1407,6 +1561,10 @@ int main() {
   // ── Constant-factor analysis ──────────────────────────────────────────────
   const bool factor_ok = test_constant_factor();
   assert(factor_ok);
+
+  // ── Oracle model assumptions (continuous vs binary oracle) ────────────────
+  const bool oracle_ok = test_oracle_model_assumptions();
+  assert(oracle_ok);
 
   // ── Scaling benchmark ──────────────────────────────────────────────────────
   std::cout << "\n\u2554\u2550\u2550\u2550 Scaling Benchmark "

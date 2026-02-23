@@ -504,3 +504,36 @@ cmake --build build --target benchmark_scaling_falsification
 ./build/benchmark_scaling_falsification   # writes *.csv
 python3 plot_scaling.py                   # writes *.png plots
 ```
+
+### Oracle Model and Relation to Classical Unstructured Search
+
+The coherent phase search operates with a **continuous oracle** — not the binary
+yes/no oracle used in classical unstructured search (Grover's setting).
+
+At each step the algorithm evaluates the cosine overlap between a probe phasor
+and the target phasor `e^{i·2πt/n}`:
+
+```
+contrib = Re(probe · conj(target_phasor)) = cos(φ_probe − θ_target) ∈ [−1, +1]
+```
+
+This encodes **how close in angle** the probe is to the target, not just whether
+it equals the target. The Dirichlet-kernel accumulation that drives the Θ(√n)
+speedup depends on this continuously-valued signal.
+
+Under a strict **binary oracle** (true unstructured search), where each query
+only reveals `f(i) ∈ {0, 1}`, any classical algorithm requires Θ(n) queries
+in the worst case — as confirmed by the `brute_force_search` baseline in the
+test suite. The algorithm's Θ(√n) result is therefore a speedup over sequential
+scan in the **continuous-oracle (phase-overlap) model**, not over binary-oracle
+unstructured search.
+
+Test 11 (`test_oracle_model_assumptions`) in `test_coherent_search.cpp` validates
+this explicitly:
+- Per-step contributions are continuous values in (−1, +1), not binary ±1.
+- Contributions encode angular distance to the target (nearer → larger value).
+- Coherent search (continuous oracle): log-log slope ≈ 0.5 → Θ(√n).
+- Brute-force (binary oracle): log-log slope ≈ 1.0 → Θ(n).
+
+See `docs/theta_sqrt_n_writeup.tex` §4.2 for the full theoretical discussion.
+
