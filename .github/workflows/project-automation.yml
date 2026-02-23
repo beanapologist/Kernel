@@ -1,0 +1,119 @@
+name: Project Automation — Issue & Experiment Tracking
+
+on:
+  issues:
+    types: [opened, labeled]
+  pull_request:
+    types: [opened, labeled]
+  push:
+    branches: [main]
+    paths:
+      - '**.cpp'
+      - '**.hpp'
+      - 'docs/scaling_laws.md'
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  # ── Auto-label issues by keyword ─────────────────────────────────────────
+  auto-label-issues:
+    name: Auto-label issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    steps:
+      - name: Label coherence sweep issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = context.payload.issue.title.toLowerCase();
+            const body  = (context.payload.issue.body || '').toLowerCase();
+            const text  = title + ' ' + body;
+            const labelsToAdd = [];
+
+            const rules = [
+              { keywords: ['coherence', 'sweep', 'epsilon', 'ladder'], label: 'coherence-sweep' },
+              { keywords: ['alpha', 'scaling', 'α limit', 'alpha limit'], label: 'alpha-scaling' },
+              { keywords: ['phase', 'asymmetry', 'chiral', 'precession'], label: 'phase-asymmetry' },
+              { keywords: ['nist', 'benchmark', 'ir8356'], label: 'benchmark' },
+              { keywords: ['pow', 'nonce', 'bitcoin', 'mining'], label: 'pow-experiment' },
+              { keywords: ['scaling law', 'universal', 'falsification'], label: 'scaling-laws' },
+            ];
+
+            for (const rule of rules) {
+              if (rule.keywords.some(kw => text.includes(kw))) {
+                labelsToAdd.push(rule.label);
+              }
+            }
+
+            if (labelsToAdd.length === 0) return;
+
+            // Ensure labels exist before applying them
+            for (const label of labelsToAdd) {
+              const colorMap = {
+                'coherence-sweep': '0075ca',
+                'alpha-scaling':   'e4e669',
+                'phase-asymmetry': 'd93f0b',
+                'benchmark':       '0e8a16',
+                'pow-experiment':  'f9d0c4',
+                'scaling-laws':    'c5def5',
+              };
+              try {
+                await github.rest.issues.getLabel({
+                  owner: context.repo.owner,
+                  repo:  context.repo.repo,
+                  name:  label,
+                });
+              } catch {
+                await github.rest.issues.createLabel({
+                  owner:       context.repo.owner,
+                  repo:        context.repo.repo,
+                  name:        label,
+                  color:       colorMap[label] || 'ededed',
+                  description: `Auto-label: ${label}`,
+                });
+              }
+            }
+
+            await github.rest.issues.addLabels({
+              owner:       context.repo.owner,
+              repo:        context.repo.repo,
+              issue_number: context.payload.issue.number,
+              labels:      labelsToAdd,
+            });
+
+  # ── Comment on sweep-related issues when CI pushes new results ───────────
+  notify-sweep-issues:
+    name: Notify sweep issues on new results
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    steps:
+      - name: Comment on open coherence-sweep issues
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const sha     = context.sha.substring(0, 7);
+            const runUrl  = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const pagesUrl = `https://${context.repo.owner}.github.io/${context.repo.repo}/`;
+
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner:  context.repo.owner,
+              repo:   context.repo.repo,
+              state:  'open',
+              labels: 'coherence-sweep',
+              per_page: 20,
+            });
+
+            for (const issue of issues) {
+              await github.rest.issues.createComment({
+                owner:        context.repo.owner,
+                repo:         context.repo.repo,
+                issue_number: issue.number,
+                body: `🔄 **New sweep results available** for commit \`${sha}\`.\n\n` +
+                      `- [Actions run](${runUrl})\n` +
+                      `- [GitHub Pages results](${pagesUrl})\n\n` +
+                      `_Automated message from project-automation workflow._`,
+              });
+            }

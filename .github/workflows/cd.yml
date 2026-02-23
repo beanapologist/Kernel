@@ -1,0 +1,86 @@
+name: CD — Sweep Experiments & Results
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.cpp'
+      - '**.hpp'
+      - 'plot_scaling.py'
+      - '.github/workflows/cd.yml'
+  workflow_dispatch:
+    inputs:
+      publish_pages:
+        description: 'Publish results to GitHub Pages'
+        required: false
+        default: 'true'
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Coherence sweep experiments ───────────────────────────────────────────
+  sweep-experiments:
+    name: Run sweep experiments
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get install -y libssl-dev libeigen3-dev python3-pip
+
+      - name: Install Python dependencies
+        run: pip3 install matplotlib numpy
+
+      - name: Build benchmark_scaling_falsification
+        run: g++ -std=c++17 -O2 -o benchmark_scaling_falsification benchmark_scaling_falsification.cpp -lm
+
+      - name: Run coherence sweep (benchmark_scaling_falsification)
+        run: ./benchmark_scaling_falsification
+
+      - name: Build benchmark_nist_ir8356
+        run: g++ -std=c++17 -O2 -o benchmark_nist_ir8356 benchmark_nist_ir8356.cpp -lm
+
+      - name: Run NIST IR 8356 sweep
+        run: ./benchmark_nist_ir8356
+
+      - name: Generate scaling plots
+        run: python3 plot_scaling.py
+
+      - name: List generated artifacts
+        run: ls -lh *.png *.csv 2>/dev/null || echo "No CSV/PNG files generated"
+
+      - name: Upload sweep results as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: sweep-results-${{ github.sha }}
+          path: |
+            *.png
+            *.csv
+          if-no-files-found: warn
+          retention-days: 90
+
+  # ── PoW nonce-search sweep ────────────────────────────────────────────────
+  pow-sweep:
+    name: Run PoW nonce-search sweep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: sudo apt-get install -y libssl-dev
+
+      - name: Build benchmark_pow_nonce_search
+        run: g++ -std=c++17 -O2 -o benchmark_pow_nonce_search benchmark_pow_nonce_search.cpp -lssl -lcrypto -lm
+
+      - name: Run PoW nonce-search benchmark
+        run: ./benchmark_pow_nonce_search
+
+      - name: Upload PoW results as artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pow-results-${{ github.sha }}
+          path: |
+            *.csv
+          if-no-files-found: warn
+          retention-days: 90
