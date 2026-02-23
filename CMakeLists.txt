@@ -46,6 +46,15 @@ if(KERNEL_BUILD_BENCHMARKS)
     target_link_libraries(benchmark_scaling_falsification PRIVATE Kernel::Kernel m)
 endif()
 
+# ── Demos ────────────────────────────────────────────────────────────────────
+option(KERNEL_BUILD_DEMOS "Build demo executables" ON)
+
+if(KERNEL_BUILD_DEMOS)
+    add_executable(sqrt_n_demo sqrt_n_demo.cpp)
+    target_link_libraries(sqrt_n_demo PRIVATE Kernel::Kernel m)
+    target_include_directories(sqrt_n_demo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+endif()
+
 # ── Tests ────────────────────────────────────────────────────────────────────
 option(KERNEL_BUILD_TESTS "Build test executables and register with CTest" ON)
 
@@ -81,6 +90,7 @@ set(_kernel_headers
     LadderSearchBenchmark.hpp
     PalindromePrecession.hpp
     SpectralBridge.hpp
+    SqrtNKernel.hpp
     ohm_coherence_duality.hpp
 )
 
