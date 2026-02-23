@@ -29,6 +29,9 @@ target_compile_features(Kernel INTERFACE cxx_std_17)
 option(KERNEL_BUILD_BENCHMARKS "Build benchmark executables" ON)
 
 if(KERNEL_BUILD_BENCHMARKS)
+    add_executable(sqrt_n_demo sqrt_n_demo.cpp)
+    target_link_libraries(sqrt_n_demo PRIVATE Kernel::Kernel m)
+
     add_executable(benchmark_nist_ir8356 benchmark_nist_ir8356.cpp)
     target_link_libraries(benchmark_nist_ir8356 PRIVATE Kernel::Kernel m)
 
@@ -81,6 +84,7 @@ set(_kernel_headers
     LadderSearchBenchmark.hpp
     PalindromePrecession.hpp
     SpectralBridge.hpp
+    SqrtNKernel.hpp
     ohm_coherence_duality.hpp
 )
 
