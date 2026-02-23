@@ -41,6 +41,9 @@ if(KERNEL_BUILD_BENCHMARKS)
         message(WARNING "OpenSSL not found via find_package; falling back to system 'crypto' library for benchmark_pow_nonce_search")
         target_link_libraries(benchmark_pow_nonce_search PRIVATE crypto)
     endif()
+
+    add_executable(benchmark_scaling_falsification benchmark_scaling_falsification.cpp)
+    target_link_libraries(benchmark_scaling_falsification PRIVATE Kernel::Kernel m)
 endif()
 
 # ── Tests ────────────────────────────────────────────────────────────────────
