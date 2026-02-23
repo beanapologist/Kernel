@@ -54,6 +54,7 @@ if(KERNEL_BUILD_TESTS)
         test_kernel_pipeline
         test_interrupt_nist
         test_ipc
+        test_noise_scaling_phase_transition
         test_ohm_coherence
         test_palindrome_precession
         test_pipeline_theorems
