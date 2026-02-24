@@ -591,7 +591,7 @@ numbers $(1/8,\, 1/D)$.
 \end{theorem}
 
 %% ════════════════════════════════════════════════════════════════════════════
-\section{The \texorpdfstring{$\Theta(\sqrt{n})$}{Theta(sqrt(n))} Coherent Search}
+\section{The \texorpdfstring{$\Theta(\sqrt{n})$}{Theta(sqrt(n))} Coherent Phase Detection}
 \label{sec:sqrt-n}
 %% ════════════════════════════════════════════════════════════════════════════
 
@@ -675,7 +675,7 @@ Denote
 
 \begin{theorem}[$\Theta(\sqrt{n})$ search time]\label{thm:main-sqrt}
   The coherent phase-search algorithm (Section~\ref{sec:sqrt-n}) detects
-  the target in at most
+  the reference phase in at most
   \begin{equation}
     K^* = \left\lceil \frac{\pi\cdot 0.15}{\cos(22.5^\circ)} \right\rceil
           \cdot \sqrt{n}
@@ -700,8 +700,15 @@ Denote
   Each step costs $O(1)$ operations, giving $\Theta(\sqrt{n})$ total. \qed
 \end{proof}
 
-\begin{corollary}[Speedup over brute-force]\label{cor:speedup}
-  The coherent speedup over brute-force ($\approx n/2$ evaluations) is
+\begin{remark}[Continuous-oracle model]
+  Theorem~\ref{thm:main-sqrt} is stated in the \emph{continuous-oracle model},
+  in which every step has full coherent access to the Dirichlet kernel
+  ($r=1$, $\Geff=1$).  Decoherence ($\varepsilon>0$) degrades the advantage
+  as analysed in the subsection below.
+\end{remark}
+
+\begin{corollary}[Speedup over all-bin evaluation]\label{cor:speedup}
+  The coherent speedup over all-bin evaluation ($\approx n/2$ evaluations) is
   \begin{equation}
     \mathrm{speedup}(n) = \frac{n/2}{0.19\sqrt{n}} \approx 2.6\sqrt{n}.
     \label{eq:speedup}
@@ -1119,7 +1126,7 @@ $\mu = e^{i3\pi/4}$.  The logical chain is:
   \item The palindrome quotient $987\,654\,321/123\,456\,789 = 8 + 1/D$
     extends the orbit to a torus $T^2$, with the integer part $8$ matching
     $\mu^8=1$ (Proposition~\ref{prop:palindrome-comp}).
-  \item The Dirichlet kernel on $T^2$ gives $\Theta(\sqrt{n})$ search
+  \item The Dirichlet kernel on $T^2$ gives $\Theta(\sqrt{n})$ phase detection in the continuous-oracle model
     (Lemma~\ref{lem:dk-growth}, Theorem~\ref{thm:main-sqrt}).
   \item Noise destroys the $\sqrt{n}$ advantage above $\varepsilon^*$, with
     the universal ceiling $\alpha_{\max}=1+1/e$
