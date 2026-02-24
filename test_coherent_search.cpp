@@ -1424,8 +1424,8 @@ static bool test_oracle_model_assumptions() {
 
     bool all_continuous = true;
     for (int step = 0; step < 20; ++step) {
-      const Cx slow_phasor = PalindromePrecession::phasor_at(
-          static_cast<uint64_t>(step) * scale);
+      const Cx slow_phasor =
+          PalindromePrecession::phasor_at(static_cast<uint64_t>(step) * scale);
       for (int j = 0; j < 8; ++j) {
         const Cx probe = slow_phasor * bridge[j];
         const double contrib = probe.real() * target_phasor.real() +
@@ -1436,9 +1436,8 @@ static bool test_oracle_model_assumptions() {
           all_continuous = false;
       }
     }
-    chk(all_continuous,
-        "Per-step contrib \u2208 (\u22121,+1) \u2014 "
-        "continuous, not binary \u00b11");
+    chk(all_continuous, "Per-step contrib \u2208 (\u22121,+1) \u2014 "
+                        "continuous, not binary \u00b11");
   }
 
   // ── (b) Contributions encode angular distance ─────────────────────────────
@@ -1509,11 +1508,12 @@ static bool test_oracle_model_assumptions() {
   chk(brute_slope >= 0.90 && brute_slope <= 1.10,
       "Binary oracle: slope \u2208 [0.90,1.10] \u2192 \u0398(n)");
 
-  std::cout << "\n  Implication: the \u0398(\u221an) speedup requires the "
-               "continuous\n"
-               "  phase-overlap oracle (target_phasor).  Under a strict\n"
-               "  binary oracle (classical unstructured search), only \u0398(n)\n"
-               "  is achievable on classical hardware.\n";
+  std::cout
+      << "\n  Implication: the \u0398(\u221an) speedup requires the "
+         "continuous\n"
+         "  phase-overlap oracle (target_phasor).  Under a strict\n"
+         "  binary oracle (classical unstructured search), only \u0398(n)\n"
+         "  is achievable on classical hardware.\n";
   return ok;
 }
 
@@ -1589,8 +1589,7 @@ static bool test_target_phasor_leakage() {
   // (C) Anti-target phasor: 180° offset
   const Cx anti_phasor{std::cos(theta_target + CS_PI),
                        std::sin(theta_target + CS_PI)};
-  const uint64_t steps_anti =
-      coherent_phase_search_with_phasor(N, anti_phasor);
+  const uint64_t steps_anti = coherent_phase_search_with_phasor(N, anti_phasor);
 
   std::cout << std::fixed << std::setprecision(1)
             << "  correct phasor   (0\u00b0) : " << steps_correct << " steps\n"
@@ -1607,9 +1606,9 @@ static bool test_target_phasor_leakage() {
       "Anti-target (+180\u00b0) ALSO detects \u2014 phase-independent");
 
   // (D/E) All 8 directions: measure step counts and compute CV.
-  std::cout << "  8-direction sweep (0\u00b0 through 315\u00b0, step 45\u00b0):\n";
-  std::cout << "  " << std::left << std::setw(12) << "angle"
-            << "steps\n";
+  std::cout
+      << "  8-direction sweep (0\u00b0 through 315\u00b0, step 45\u00b0):\n";
+  std::cout << "  " << std::left << std::setw(12) << "angle" << "steps\n";
   std::cout << "  " << std::string(22, '-') << "\n";
 
   double sum_steps = 0.0, sum_sq = 0.0;
@@ -1621,13 +1620,11 @@ static bool test_target_phasor_leakage() {
     const Cx phasor{std::cos(angle), std::sin(angle)};
     dir_steps[static_cast<size_t>(d)] =
         coherent_phase_search_with_phasor(N, phasor);
-    const double s =
-        static_cast<double>(dir_steps[static_cast<size_t>(d)]);
+    const double s = static_cast<double>(dir_steps[static_cast<size_t>(d)]);
     sum_steps += s;
     sum_sq += s * s;
     std::cout << std::fixed << std::setprecision(0) << "  " << std::left
-              << std::setw(12) << (static_cast<double>(d) * 45.0) << s
-              << "\n";
+              << std::setw(12) << (static_cast<double>(d) * 45.0) << s << "\n";
   }
 
   const double nd = static_cast<double>(N_DIR);
@@ -1635,8 +1632,8 @@ static bool test_target_phasor_leakage() {
   const double variance = sum_sq / nd - mean * mean;
   const double cv = (mean > 0.0) ? std::sqrt(variance) / mean : 1.0;
 
-  std::cout << std::fixed << std::setprecision(2)
-            << "\n  mean = " << mean << "  CV = " << cv
+  std::cout << std::fixed << std::setprecision(2) << "\n  mean = " << mean
+            << "  CV = " << cv
             << "  (expected CV < 0.30 \u2014 phase-independent)\n";
 
   // All 8 directions should detect within 4·√n steps.
@@ -1644,8 +1641,7 @@ static bool test_target_phasor_leakage() {
   for (int d = 0; d < N_DIR; ++d)
     if (dir_steps[static_cast<size_t>(d)] >= max_steps)
       all_detect = false;
-  chk(all_detect,
-      "All 8 phasor directions detect within 4\u00b7\u221an steps");
+  chk(all_detect, "All 8 phasor directions detect within 4\u00b7\u221an steps");
 
   chk(cv < 0.30,
       "CV < 0.30: step count is phase-independent (target not identified)");
@@ -1659,7 +1655,6 @@ static bool test_target_phasor_leakage() {
          "  evaluations under a binary oracle (trying every candidate).\n";
   return ok;
 }
-
 
 // ── 14. Parameter Scaling Tautology
 // ──────────────────────────────────────
@@ -1705,8 +1700,8 @@ static bool test_parameter_scaling_tautology() {
                "\u2014 a design choice, not a\n"
                "  complexity-theoretic result.\n\n";
 
-  std::cout << "  " << std::left << std::setw(8) << "\u03b1"
-            << std::setw(10) << "fitted \u03b1" << "result\n";
+  std::cout << "  " << std::left << std::setw(8) << "\u03b1" << std::setw(10)
+            << "fitted \u03b1" << "result\n";
   std::cout << "  " << std::string(32, '-') << "\n";
 
   // Use k = 12..20, 5 trials: fast but sufficient for regression.
@@ -1724,7 +1719,8 @@ static bool test_parameter_scaling_tautology() {
       for (int tr = 0; tr < trials; ++tr) {
         const uint64_t t_idx = (n * static_cast<uint64_t>(tr + 1)) /
                                static_cast<uint64_t>(trials + 1);
-        sum += static_cast<double>(coherent_phase_search_alpha(n, t_idx, alpha));
+        sum +=
+            static_cast<double>(coherent_phase_search_alpha(n, t_idx, alpha));
       }
       log_ns.push_back(std::log(static_cast<double>(n)));
       log_avgs.push_back(std::log(sum / trials));
@@ -1739,8 +1735,8 @@ static bool test_parameter_scaling_tautology() {
               << std::setw(8) << alpha << std::setprecision(4) << std::setw(10)
               << fitted << (pass ? "PASS" : "FAIL") << "\n";
 
-    chk(pass,
-        (std::string("slope \u2248 \u03b1 = ") + std::to_string(alpha)).c_str());
+    chk(pass, (std::string("slope \u2248 \u03b1 = ") + std::to_string(alpha))
+                  .c_str());
   }
 
   std::cout << "\n  Implication: the \u221an result (\u03b1=0.5) is one point\n"
