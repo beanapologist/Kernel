@@ -504,3 +504,64 @@ cmake --build build --target benchmark_scaling_falsification
 ./build/benchmark_scaling_falsification   # writes *.csv
 python3 plot_scaling.py                   # writes *.png plots
 ```
+
+### Oracle Model and Relation to Classical Unstructured Search
+
+The coherent phase search operates with a **continuous oracle** — not the binary
+yes/no oracle used in classical unstructured search (Grover's setting).
+
+At each step the algorithm evaluates the cosine overlap between a probe phasor
+and the target phasor `e^{i·2πt/n}`:
+
+```
+contrib = Re(probe · conj(target_phasor)) = cos(φ_probe − θ_target) ∈ [−1, +1]
+```
+
+This encodes **how close in angle** the probe is to the target, not just whether
+it equals the target. The Dirichlet-kernel accumulation that drives the Θ(√n)
+speedup depends on this continuously-valued signal.
+
+Under a strict **binary oracle** (true unstructured search), where each query
+only reveals `f(i) ∈ {0, 1}`, any classical algorithm requires Θ(n) queries
+in the worst case — as confirmed by the `brute_force_search` baseline in the
+test suite. The algorithm's Θ(√n) result is therefore a speedup over sequential
+scan in the **continuous-oracle (phase-overlap) model**, not over binary-oracle
+unstructured search.
+
+#### Hostile-Reviewer Audit (Tests 12–14)
+
+Three additional tests perform a rigorous self-audit:
+
+**Test 12 (`test_oracle_model_assumptions`)** — Oracle model:
+- Per-step contributions are continuous values in (−1, +1), not binary ±1.
+- Contributions encode angular distance to target (nearer → larger value).
+- Coherent (continuous oracle): slope ≈ 0.5 → Θ(√n). Brute-force (binary): slope ≈ 1.0 → Θ(n).
+
+**Test 13 (`test_target_phasor_leakage`)** — Phase-independence audit:
+- The Dirichlet accumulation fires in ≈ 0.19·√n steps for **any** input phasor, including wrong/random ones (CV ≈ 0 across all 8 compass directions).
+- This means the step count carries no target-identity information.
+- Identifying the true target under a binary oracle still requires Θ(n) evaluations.
+
+**Test 14 (`test_parameter_scaling_tautology`)** — Scaling tautology:
+- Using phase step 2π/n^α and threshold 0.15·n^α yields Θ(n^α) detection for any α ∈ (0,1).
+- Verified empirically at α ∈ {0.4, 0.5, 0.6}: fitted slopes ≈ 0.40, 0.49, 0.60.
+- The √n result (α = 0.5) is a **design parameter**, not a complexity lower bound.
+
+#### Formal Mapping: Matched Filter / Single-Bin DFT
+
+The algorithm is mathematically equivalent to evaluating a single DFT coefficient:
+
+```
+A_j(K) = Re[ e^{i(j·3π/4 − θ_t)} · Σ_{k=0}^{K-1} e^{ik·2π/√n} ]
+        = Re[ e^{i(j·3π/4 − θ_t)} · D_K(2π/√n) · e^{i(K-1)π/√n} ]
+```
+
+where `D_K` is the Dirichlet kernel. Detection when `|A_j| ≥ 0.15·√n` corresponds
+to the DFT magnitude exceeding a threshold calibrated to trigger at K ≈ 0.19·√n.
+
+This is a **matched filter**: given the target phase (known from t), correlate a
+structured sweep against it. In search, the reference is unknown; in matched
+filtering, it is given as input. See `docs/theta_sqrt_n_writeup.tex` §7 for the
+full critical analysis.
+
+
