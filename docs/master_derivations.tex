@@ -680,50 +680,6 @@ Denote
   $\sin(K\Delta\Phi/2) \approx K\pi/\sqrt{n}$. \qed
 \end{proof}
 
-\subsection{Main Complexity Theorem}
-
-\begin{theorem}[$\Theta(\sqrt{n})$ search time]\label{thm:main-sqrt}
-  The coherent phase-search algorithm (Section~\ref{sec:sqrt-n}) detects
-  the reference phase in at most
-  \begin{equation}
-    K^* = \left\lceil \frac{\pi\cdot 0.15}{\cos(22.5^\circ)} \right\rceil
-          \cdot \sqrt{n}
-        \approx 0.51\sqrt{n}
-    \label{eq:Kstar}
-  \end{equation}
-  steps, with expected detection step
-  \begin{equation}
-    \mathbb{E}[K] \approx 0.19\sqrt{n}.
-    \label{eq:EK}
-  \end{equation}
-  The overall complexity is $\Theta(\sqrt{n})$.
-\end{theorem}
-
-\begin{proof}
-  By Lemma~\ref{lem:dk-growth}, the best-channel accumulator grows as
-  $A_{j^*}(K) \approx (K\sqrt{n}/\pi)\cos(22.5^\circ)$.  Setting
-  $A_{j^*}(K^*) = \tau = 0.15\sqrt{n}$:
-  \[
-    K^* = \frac{0.15\pi}{\cos(22.5^\circ)} \approx 0.51.
-  \]
-  Each step costs $O(1)$ operations, giving $\Theta(\sqrt{n})$ total. \qed
-\end{proof}
-
-\begin{remark}[Continuous-oracle model]
-  Theorem~\ref{thm:main-sqrt} is stated in the \emph{continuous-oracle model},
-  in which every step has full coherent access to the Dirichlet kernel
-  ($r=1$, $\Geff=1$).  Decoherence ($\varepsilon>0$) degrades the advantage
-  as analysed in the subsection below.
-\end{remark}
-
-\begin{corollary}[Speedup over all-bin evaluation]\label{cor:speedup}
-  The coherent speedup over all-bin evaluation ($\approx n/2$ evaluations) is
-  \begin{equation}
-    \mathrm{speedup}(n) = \frac{n/2}{0.19\sqrt{n}} \approx 2.6\sqrt{n}.
-    \label{eq:speedup}
-  \end{equation}
-\end{corollary}
-
 \subsection{Effect of Decoherence on Scaling}
 
 If the KernelState drifts with per-step radial perturbation $\varepsilon$,
@@ -1047,6 +1003,54 @@ the coefficient in $T(n)\approx 0.19\sqrt{n}$, a separate quantity from the
 exponent.  The high $R^2=0.99994$ confirms clean power-law scaling across
 more than four decades.
 
+\subsection{Main Complexity Theorem (Continuous-Oracle Model)}
+
+\begin{remark}[Model-of-computation caveat]
+  The following theorem and its corollary hold exclusively in the
+  \emph{continuous-oracle model}, in which every step provides full coherent
+  access to the Dirichlet kernel ($r=1$, $\Geff=1$).  The result depends on
+  this model of computation being realizable; it does \textbf{not} extend to
+  the binary-oracle setting, where only a membership bit is returned and the
+  $\Omega(n)$ classical lower bound applies.  The theorem is therefore placed
+  here, in Part~\ref{part:empirical}, to reflect that its validity is
+  contingent on empirical realizability of the continuous-oracle assumption.
+\end{remark}
+
+\begin{theorem}[$\Theta(\sqrt{n})$ search time]\label{thm:main-sqrt}
+  The coherent phase-search algorithm (Section~\ref{sec:sqrt-n}) detects
+  the reference phase in at most
+  \begin{equation}
+    K^* = \left\lceil \frac{\pi\cdot 0.15}{\cos(22.5^\circ)} \right\rceil
+          \cdot \sqrt{n}
+        \approx 0.51\sqrt{n}
+    \label{eq:Kstar}
+  \end{equation}
+  steps, with expected detection step
+  \begin{equation}
+    \mathbb{E}[K] \approx 0.19\sqrt{n}.
+    \label{eq:EK}
+  \end{equation}
+  The overall complexity is $\Theta(\sqrt{n})$.
+\end{theorem}
+
+\begin{proof}
+  By Lemma~\ref{lem:dk-growth}, the best-channel accumulator grows as
+  $A_{j^*}(K) \approx (K\sqrt{n}/\pi)\cos(22.5^\circ)$.  Setting
+  $A_{j^*}(K^*) = \tau = 0.15\sqrt{n}$:
+  \[
+    K^* = \frac{0.15\pi}{\cos(22.5^\circ)} \approx 0.51.
+  \]
+  Each step costs $O(1)$ operations, giving $\Theta(\sqrt{n})$ total. \qed
+\end{proof}
+
+\begin{corollary}[Speedup over all-bin evaluation]\label{cor:speedup}
+  The coherent speedup over all-bin evaluation ($\approx n/2$ evaluations) is
+  \begin{equation}
+    \mathrm{speedup}(n) = \frac{n/2}{0.19\sqrt{n}} \approx 2.6\sqrt{n}.
+    \label{eq:speedup}
+  \end{equation}
+\end{corollary}
+
 \subsection{Empirical \texorpdfstring{$\Theta(\sqrt{n})$}{Theta(sqrt(n))} Scaling Plot}
 
 \begin{center}
@@ -1204,9 +1208,9 @@ Thm.\ 6.1
 Lemma (DK)
   & Dirichlet kernel growth
   & $D_K(2\pi/\sqrt n)\approx K\sqrt n/\pi$\\
-Main Thm.
-  & $\Theta(\sqrt n)$ complexity
-  & $T(n)=\Theta(\sqrt n)$, $c\approx 0.19$\\
+Main Thm.$^*$
+  & $\Theta(\sqrt n)$ complexity (continuous-oracle)
+  & $T(n)=\Theta(\sqrt n)$, $c\approx 0.19$ [$^*$Part~B]\\
 Thm.\ Jensen
   & Noise degrades $\langle G\rangle$
   & $\langle\operatorname{sech}(\lambda)\rangle\le\operatorname{sech}(\langle\lambda\rangle)$\\
