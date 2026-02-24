@@ -46,6 +46,7 @@
 
 \theoremstyle{remark}
 \newtheorem{remark}[theorem]{Remark}
+\newtheorem{conjecture}[theorem]{Conjecture}
 
 %% ── Highlighted box for the critical equilibrium ─────────────────────────────
 \tcbset{
@@ -74,6 +75,9 @@
 \newcommand{\Geff}{G_{\mathrm{eff}}}
 \newcommand{\Reff}{R_{\mathrm{eff}}}
 \newcommand{\mubal}{\mu}          % balanced eigenvalue e^{i3π/4}
+
+%% ── Part numbering (A, B, C …) ───────────────────────────────────────────────
+\renewcommand{\thepart}{\Alph{part}}
 
 %% ── Title ────────────────────────────────────────────────────────────────────
 \title{%
@@ -128,6 +132,11 @@ fundamental constants and eigenvalue structure, builds the coherence framework,
 derives the palindrome precession geometry, proves the $\Theta(\sqrt{n})$
 complexity bound, presents the Ohm--Coherence duality, and concludes by
 returning to the critical equilibrium $\mu$.
+
+%% ════════════════════════════════════════════════════════════════════════════
+\part{Proven Identities}
+\label{part:proven}
+%% ════════════════════════════════════════════════════════════════════════════
 
 %% ════════════════════════════════════════════════════════════════════════════
 \section{Fundamental Constants}
@@ -744,20 +753,9 @@ and the detection threshold $0.15\sqrt{n}$ requires $\Omega(n)$ steps —
 where $\langle\cos\delta\rangle \approx 0.97$ is the expected cosine of the
 best bridge channel's angular error $\delta\in[0,\,22.5^\circ]$.
 
-Empirical scaling regression over $k=10,\ldots,26$ ($n=2^{10}$ to $2^{26}$)
-gives:
-
-\begin{center}
-\framebox[0.7\linewidth]{%
-  \begin{minipage}{0.65\linewidth}
-    \textbf{Complexity Certificate}\\[4pt]
-    Log-log slope (exponent): $0.4998$\\
-    95\% CI: $[0.4971,\ 0.5025]$\\
-    $R^2$: $0.99994$\\
-    Verdict: \textbf{PASS} — $\Theta(\sqrt{n})$ deterministically verified
-  \end{minipage}
-}
-\end{center}
+Empirical verification of $c_{\mathrm{theory}}$ against measured scaling data,
+including the full Complexity Certificate and regression details, is presented
+in Part~\ref{part:empirical} (Section~\ref{sec:empirical}).
 
 %% ════════════════════════════════════════════════════════════════════════════
 \section{Ohm--Coherence Duality: Extended Framework}
@@ -937,7 +935,7 @@ Physical addresses decompose into $(\text{bank},\text{offset})$:
 
 The Z/8Z structure preserves the 8-cycle invariant: memory accesses remain
 cycle-aligned across all 8 banks.  Empirical bank-distribution uniformity
-is $\ge 0.9984$ at all tested scales.
+results are reported in Part~\ref{part:empirical} (Section~\ref{sec:empirical}).
 
 %% ════════════════════════════════════════════════════════════════════════════
 \section{Noise Phase Transition and Universal Scaling Limit}
@@ -975,41 +973,14 @@ is the essential mechanism.
 
 \subsection{Universal Scaling Ceiling}
 
-\begin{theorem}[Universal scaling limit]\label{thm:universal}
-  The maximum sustainable scaling exponent is bounded by
-  \begin{equation}
-    \alpha_{\max} = 1 + \frac{1}{e} \approx 1.3679,
-    \label{eq:alpha-max}
-  \end{equation}
-  where $1/e \approx 0.3679$ is the universal exponential decay constant.
-  \emph{No parameter tuning can exceed this bound.}
-\end{theorem}
-
-\noindent
-The bound arises from the interplay of three structures:
-\begin{enumerate}
-  \item The 8-cycle periodicity ($\mu^8=1$) constraining resonant modes to
-    $\omega_k = k\cdot 2\pi/8$.
-  \item The Ohm--Coherence tail $\Geff \sim e^{-\lambda}$ for large $\lambda$.
-  \item The palindrome structure $\dS = 1+\sqrt{2}$ providing the
-    energy-conservation envelope.
-\end{enumerate}
-Together they enforce:
-\begin{equation}
-  \alpha_{\mathrm{sustainable}} = 1 + (\text{exponential decay constant}) = 1 + 1/e.
-  \label{eq:alpha-derivation}
-\end{equation}
+The universal scaling ceiling conjecture ($\alpha_{\max}=1+1/e$) and its
+heuristic motivation are presented in
+Part~\ref{part:conjectures} (Section~\ref{sec:conjectures}).
 
 \subsection{Stochastic Resonance: Optimal Coherence}
 
-Empirically, peak performance occurs not at $C=1$ (pure coherent) but at
-moderate coherence $C\approx 0.83$:
-\begin{itemize}
-  \item \textbf{Too rigid} ($C\to 1$): locked periodic orbits, low diversity.
-  \item \textbf{Too chaotic} ($C\to 0$): random walk, no phase benefit.
-  \item \textbf{Optimal} ($C\in[0.3,\,0.8]$): stochastic resonance, balanced
-    exploration and coherent amplification.
-\end{itemize}
+Empirical observations on optimal coherence are presented in
+Part~\ref{part:empirical} (Section~\ref{sec:empirical}).
 
 %% ════════════════════════════════════════════════════════════════════════════
 \section{Arithmetic Zero-Overhead Periodicity}
@@ -1039,6 +1010,146 @@ moderate coherence $C\approx 0.83$:
 \begin{proof}
   Direct summation of $N$ constant increments $\Delta\Phi_0$. \qed
 \end{proof}
+
+%% ════════════════════════════════════════════════════════════════════════════
+\part{Empirical Observations}
+\label{part:empirical}
+%% ════════════════════════════════════════════════════════════════════════════
+
+\section{Empirical Scaling and Complexity Verification}
+\label{sec:empirical}
+
+This section collects the empirical observations that corroborate the
+theoretical results in Part~\ref{part:proven}.
+
+\subsection{Complexity Certificate and Regression}
+
+Empirical scaling regression over $k=10,\ldots,26$ ($n=2^{10}$ to $2^{26}$)
+gives:
+
+\begin{center}
+\framebox[0.7\linewidth]{%
+  \begin{minipage}{0.65\linewidth}
+    \textbf{Complexity Certificate}\\[4pt]
+    Log-log slope (exponent): $0.4998$\\
+    95\% CI: $[0.4971,\ 0.5025]$\\
+    $R^2$: $0.99994$\\
+    Verdict: \textbf{PASS} — $\Theta(\sqrt{n})$ deterministically verified
+  \end{minipage}
+}
+\end{center}
+
+\noindent
+The measured log-log slope $0.4998 \approx 0.5$ confirms the $\sqrt{n}$
+scaling exponent predicted by Theorem~\ref{thm:main-sqrt}.  The multiplicative
+constant $c_{\mathrm{theory}}\approx 0.19$ (see \eqref{eq:c-theory}) governs
+the coefficient in $T(n)\approx 0.19\sqrt{n}$, a separate quantity from the
+exponent.  The high $R^2=0.99994$ confirms clean power-law scaling across
+more than four decades.
+
+\subsection{Empirical \texorpdfstring{$\Theta(\sqrt{n})$}{Theta(sqrt(n))} Scaling Plot}
+
+\begin{center}
+\begin{tikzpicture}
+\begin{loglogaxis}[
+  xlabel={Problem size $n$},
+  ylabel={Detection steps $T(n)$},
+  title={Empirical $\Theta(\sqrt{n})$ Scaling (placeholder)},
+  legend pos=north west,
+  grid=major,
+  width=0.75\textwidth,
+  height=0.45\textwidth,
+]
+%% Placeholder: replace with actual benchmark data.
+%% Both curves below use the theoretical/fitted coefficients; update
+%% domain, samples, and coordinates with measured T(n) values.
+\addplot [mark=*, color=blue, domain=1024:67108864, samples=10]
+  {0.19*sqrt(x)};
+\addlegendentry{$0.19\sqrt{n}$ (theory)}
+\addplot [dashed, color=red, domain=1024:67108864, samples=10]
+  {0.5*sqrt(x)};
+\addlegendentry{$0.50\sqrt{n}$ (empirical fit)}
+\end{loglogaxis}
+\end{tikzpicture}
+\end{center}
+
+\subsection{Bank-Distribution Uniformity}
+
+The $\Z/8\Z$ memory model (Part~\ref{part:proven}, Section~\ref{sec:memory}) was validated
+empirically: bank-distribution uniformity is $\ge 0.9984$ at all tested
+scales, confirming cycle-aligned access patterns predicted by
+Proposition~\ref{prop:z8z}.
+
+\subsection{Stochastic Resonance: Optimal Coherence}
+
+Empirically, peak performance occurs not at $C=1$ (pure coherent) but at
+moderate coherence $C\approx 0.83$:
+\begin{itemize}
+  \item \textbf{Too rigid} ($C\to 1$): locked periodic orbits, low diversity.
+  \item \textbf{Too chaotic} ($C\to 0$): random walk, no phase benefit.
+  \item \textbf{Optimal} ($C\in[0.3,\,0.8]$): stochastic resonance, balanced
+    exploration and coherent amplification.
+\end{itemize}
+
+%% ════════════════════════════════════════════════════════════════════════════
+\part{Conjectures and Hypotheses}
+\label{part:conjectures}
+%% ════════════════════════════════════════════════════════════════════════════
+
+\section{Conjectures and Open Questions}
+\label{sec:conjectures}
+
+The results in this section are \emph{heuristically motivated} and remain
+open for rigorous proof.  They are labeled explicitly as conjectures to
+distinguish them from the proven identities of Part~\ref{part:proven}.
+
+\subsection{Universal Scaling Ceiling
+  (\texorpdfstring{$\alpha_{\max}$}{alpha\_max})}
+
+\begin{conjecture}[Universal scaling limit]\label{conj:universal}
+  The maximum sustainable scaling exponent is conjectured to be bounded by
+  \begin{equation}
+    \alpha_{\max} = 1 + \frac{1}{e} \approx 1.3679,
+    \label{eq:alpha-max}
+  \end{equation}
+  where $1/e \approx 0.3679$ is the universal exponential decay constant.
+  \emph{No parameter tuning is expected to exceed this bound.}
+\end{conjecture}
+
+\noindent
+The motivation arises from the interplay of three structures:
+\begin{enumerate}
+  \item The 8-cycle periodicity ($\mu^8=1$) constraining resonant modes to
+    $\omega_k = k\cdot 2\pi/8$.
+  \item The Ohm--Coherence tail $\Geff \sim e^{-\lambda}$ for large $\lambda$.
+  \item The palindrome structure $\dS = 1+\sqrt{2}$ providing the
+    energy-conservation envelope.
+\end{enumerate}
+Together they suggest:
+\begin{equation}
+  \alpha_{\mathrm{sustainable}} = 1 + (\text{exponential decay constant}) = 1 + 1/e.
+  \label{eq:alpha-derivation}
+\end{equation}
+A formal proof that no combination of the above structures can exceed this
+ceiling remains an open problem.
+
+\subsection{Residual-Based Heuristics}
+
+The palindrome residual $R(r) = \frac{1}{\dS}(r - 1/r)$ (Theorem~\ref{thm:12})
+provides a sensitive real-time indicator of decoherence.  The following
+heuristic observations motivate further investigation:
+\begin{itemize}
+  \item \textbf{Residual as a probe of $\alpha_{\max}$:} Near the phase
+    transition ($\varepsilon \approx \varepsilon^*$), $\abs{R(r)}$ is
+    conjectured to diverge logarithmically with $N$.
+  \item \textbf{Optimal residual threshold:} The value
+    $\varepsilon_{\mathrm{drift}} = \dS^{-1}$ is empirically effective as a
+    detection threshold but lacks a proof of optimality.
+  \item \textbf{$\alpha_{\max}$ and the silver ratio:} The appearance of
+    $1/e$ in Conjecture~\ref{conj:universal} may be linked to the
+    continued-fraction expansion of $\dS = [2;\overline{2}]$; this
+    connection is speculative and unproven.
+\end{itemize}
 
 %% ════════════════════════════════════════════════════════════════════════════
 \section{Summary Table of All Theorems}
@@ -1099,8 +1210,8 @@ Main Thm.
 Thm.\ Jensen
   & Noise degrades $\langle G\rangle$
   & $\langle\operatorname{sech}(\lambda)\rangle\le\operatorname{sech}(\langle\lambda\rangle)$\\
-Thm.\ $\alpha_{\max}$
-  & Universal scaling limit
+Conj.\ $\alpha_{\max}$
+  & Universal scaling limit (conjecture)
   & $\alpha_{\max}=1+1/e\approx 1.368$\\
 \bottomrule
 \end{tabular}
@@ -1129,8 +1240,8 @@ $\mu = e^{i3\pi/4}$.  The logical chain is:
   \item The Dirichlet kernel on $T^2$ gives $\Theta(\sqrt{n})$ phase detection in the continuous-oracle model
     (Lemma~\ref{lem:dk-growth}, Theorem~\ref{thm:main-sqrt}).
   \item Noise destroys the $\sqrt{n}$ advantage above $\varepsilon^*$, with
-    the universal ceiling $\alpha_{\max}=1+1/e$
-    (Theorems~\ref{thm:sharpening}, \ref{thm:universal}).
+    the conjectured universal ceiling $\alpha_{\max}=1+1/e$
+    (Theorem~\ref{thm:sharpening}, Conjecture~\ref{conj:universal}).
 \end{enumerate}
 
 %% ════════════════════════════════════════════════════════════════════════════
@@ -1181,10 +1292,10 @@ Starting from $\mu$, the coherence framework gives:
 \medskip
 \noindent
 The $\Theta(\sqrt{n})$ speedup, the silver conservation law, the palindrome
-torus, the Ohm--Coherence duality, and the universal ceiling $\alpha_{\max}=1+1/e$
-are all encoded in this single point in the second quadrant of the complex plane:
-the \textbf{critical complex equilibrium} of the negative real and positive
-imaginary eigenvalues, balanced on the unit circle.
+torus, the Ohm--Coherence duality, and the conjectured universal ceiling
+$\alpha_{\max}=1+1/e$ are all encoded in this single point in the second
+quadrant of the complex plane: the \textbf{critical complex equilibrium} of
+the negative real and positive imaginary eigenvalues, balanced on the unit circle.
 
 \end{tcolorbox}
 
