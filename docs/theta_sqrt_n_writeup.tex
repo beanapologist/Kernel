@@ -899,32 +899,203 @@ graduated coherence recovery, making it suitable for integration into
 fault-tolerant processing architectures.
 
 %% ════════════════════════════════════════════════════════════════════════════
+\section{Critical Analysis and Algorithmic Identity}
+\label{sec:critical-analysis}
+%% ════════════════════════════════════════════════════════════════════════════
+
+This section provides a rigorous self-audit addressing the six questions a
+hostile reviewer (targeting a venue such as Nature, PRX Quantum, or FOCS)
+would raise.
+
+%% ────────────────────────────────────────────────────────────────────────────
+\subsection{Oracle Query Complexity Under Unstructured Search}
+\label{sec:query-audit}
+%% ────────────────────────────────────────────────────────────────────────────
+
+\paragraph{Query count.}
+The algorithm makes exactly $K \approx 0.19\sqrt{n}$ evaluations of the
+continuous oracle $\mathrm{contrib}_{k,j} = \cos(\varphi_{k,j} - \theta_t)$
+per search (Section~\ref{sec:oracle-model}).
+
+\paragraph{Binary-oracle complexity.}
+Under a binary oracle $f(i) \in \{0,1\}$ (classical unstructured search),
+none of these evaluations can be performed: the angle $\theta_t = 2\pi t/n$
+is unknown and cannot be precomputed without knowledge of $t$.  In this
+setting, any deterministic classical algorithm requires $\Omega(n)$ queries
+in the worst case.  The algorithm degenerates to a sequential scan of all $n$
+candidate phases --- exactly $\mathtt{brute\_force\_search}$, confirmed by the
+test suite (Test~5, slope $\approx 1.0$).
+
+\paragraph{Conclusion.}
+The algorithm does \textbf{not} achieve better than $\Theta(n)$ oracle-query
+complexity under a standard binary unstructured oracle.
+
+%% ────────────────────────────────────────────────────────────────────────────
+\subsection{Phase-Independence: The Detection Is a Fixed-Duration Timer}
+\label{sec:phase-independence}
+%% ────────────────────────────────────────────────────────────────────────────
+
+Test~13 (\texttt{test\_target\_phasor\_leakage}) reveals the most
+counterintuitive property of the algorithm: the Dirichlet accumulator
+crosses its threshold in $\approx 0.19\sqrt{n}$ steps for \emph{any} unit
+phasor input, regardless of the angular direction.
+
+The reason is structural.  The 8-channel bridge covers all $45^\circ$
+slices, so any phasor $e^{i\theta}$ has a bridge channel within $22.5^\circ$
+of it.  The Dirichlet sum magnitude
+\begin{equation}
+  D_K(\Delta\Phi) = \frac{\sin(K\Delta\Phi/2)}{\sin(\Delta\Phi/2)}
+  \approx \frac{K\sqrt{n}}{\pi} \quad (K \ll \sqrt{n})
+\end{equation}
+depends only on $K$ and $\Delta\Phi = 2\pi/\sqrt{n}$, not on the phase offset.
+Setting $D_K \cdot \cos(22.5^\circ) = 0.15\sqrt{n}$ gives
+$K \approx 0.19\sqrt{n}$ for any $\theta$.
+
+\paragraph{Implication.}
+The step count at detection is not target-identifying: all $n$ candidate
+phases fire at approximately the same time.  Knowing only the detection step
+gives no information about $t$.  Identifying the true target among $n$
+candidates still requires $\Theta(n)$ evaluations under a binary oracle.
+
+%% ────────────────────────────────────────────────────────────────────────────
+\subsection{The $\sqrt{n}$ Scaling Tautology}
+\label{sec:tautology}
+%% ────────────────────────────────────────────────────────────────────────────
+
+Both the phase step and detection threshold are parameterised by the same
+exponent $\alpha$:
+\begin{equation}
+  \Delta\Phi = \frac{2\pi}{n^\alpha}, \qquad
+  \tau = 0.15\,n^\alpha.
+  \label{eq:alpha-params}
+\end{equation}
+The Dirichlet accumulation after $K$ steps is
+$A(K) \approx K n^\alpha / \pi$, and detection requires
+$A(K) \approx \tau$, giving
+\begin{equation}
+  K \approx 0.15\pi \cdot n^0 = O(1)
+  \quad\text{steps per unit of } n^\alpha.
+\end{equation}
+In absolute terms, $K = \Theta(n^\alpha)$.
+
+Test~14 (\texttt{test\_parameter\_scaling\_tautology}) verifies this
+empirically for $\alpha \in \{0.4, 0.5, 0.6\}$: the measured log-log slopes
+are $\approx 0.40$, $\approx 0.50$, and $\approx 0.60$ respectively.
+
+\paragraph{Verdict.}
+The $\sqrt{n}$ scaling (exponent $\alpha = 0.5$) is a \emph{design parameter},
+not a complexity-theoretic result.  Any exponent in $(0,1)$ is achievable by
+choosing $\Delta\Phi$ and $\tau$ proportionally.  No query-complexity lower
+bound is violated because the oracle is continuous, not binary.
+
+%% ────────────────────────────────────────────────────────────────────────────
+\subsection{Formal Mapping: Matched Filter / Single-Bin DFT Evaluator}
+\label{sec:formal-mapping}
+%% ────────────────────────────────────────────────────────────────────────────
+
+The algorithm is mathematically equivalent to evaluating a single term of
+the Discrete Fourier Transform.  Define the signal
+$x_k = 1$ (constant unit amplitude) for $k = 0,\ldots,K-1$.  The $K$-point
+DFT at frequency bin $m = 1$ (normalised to $\Delta\Phi = 2\pi/\sqrt{n}$) is
+\begin{equation}
+  \hat{x} = \sum_{k=0}^{K-1} e^{i k \Delta\Phi}
+           = D_K(\Delta\Phi)\, e^{i(K-1)\Delta\Phi/2}.
+\end{equation}
+The per-channel accumulator in the algorithm is
+\begin{equation}
+  A_j(K) = \operatorname{Re}\!\left[
+    e^{i(j\cdot 3\pi/4 - \theta_t)} \cdot \hat{x}
+  \right],
+\end{equation}
+which is the real part of the DFT output rotated by the (precomputed)
+target phase and bridge offset.  Detection when $|A_j(K)| \ge \tau$
+corresponds to the DFT magnitude exceeding a threshold calibrated to
+trigger at $K \approx 0.19\sqrt{n}$.
+
+\paragraph{Analogue: matched filter / frequency estimator.}
+In signal processing, a \emph{matched filter} detects a known reference
+signal by correlating an input with that reference.  Here:
+\begin{itemize}
+  \item Reference: $e^{i\theta_t}$ (the target phasor, known from $t$).
+  \item Input: $e^{ik\Delta\Phi}$ (the probe sweep, structure chosen by design).
+  \item Correlation: Dirichlet kernel $D_K(\Delta\Phi)$, which grows as
+        $K\sqrt{n}/\pi$ for $K \ll \sqrt{n}$.
+  \item Threshold: $0.15\sqrt{n}$, calibrated to cross at $K \approx 0.19\sqrt{n}$.
+\end{itemize}
+This is distinct from \emph{search}: in search, the reference (target phase) is
+\emph{unknown}; in matched filtering, it is \emph{given} as input.
+
+%% ────────────────────────────────────────────────────────────────────────────
+\subsection{Strongest Alternative Explanation for the Observed $\sqrt{n}$ Scaling}
+\label{sec:alternative}
+%% ────────────────────────────────────────────────────────────────────────────
+
+\textbf{The algorithm is a fixed-duration Dirichlet phase accumulator.}
+Given the target phase $\theta_t$ (encoded as $t$), the search loop is a
+structured sweep whose detection time is determined entirely by:
+\begin{equation}
+  K^* = \underbrace{0.15\pi}_{\text{threshold / accumulation-rate}}
+        \cdot \sqrt{n}
+      \approx 0.47\sqrt{n},
+\end{equation}
+where $0.15$ is the threshold coefficient and $\pi$ is the per-unit-$\sqrt{n}$
+accumulation rate of the Dirichlet kernel.  The factor $0.19$ (empirical) is
+slightly smaller due to the $\cos(22.5^\circ)$ bridge alignment factor.
+
+This explanation accounts for all observations:
+\begin{enumerate}
+  \item \textbf{$\sqrt{n}$ scaling}: tautologically from $\tau = 0.15\sqrt{n}$
+    and step $\Delta\Phi = 2\pi/\sqrt{n}$ (\S\ref{sec:tautology}).
+  \item \textbf{Phase-independence}: detection fires for any input phasor in
+    the same $\approx 0.19\sqrt{n}$ steps (\S\ref{sec:phase-independence}).
+  \item \textbf{Decoherence degrades speedup}: $G_\mathrm{eff} < 1$ reduces
+    per-step accumulation, increasing $K^*$ (\S\ref{sec:algorithm}).
+  \item \textbf{Randomised sweep → $\Theta(n)$}: without structured $\Delta\Phi$,
+    the Dirichlet accumulation becomes a random walk
+    ($|A| \sim \sqrt{K}$), requiring $K \approx 0.017n$ to reach threshold
+    (Test~7).
+  \item \textbf{No binary-oracle advantage}: the phase signal is required for
+    constructive accumulation; binary feedback cannot reproduce it.
+\end{enumerate}
+
+%% ════════════════════════════════════════════════════════════════════════════
 \section{Conclusion}
 \label{sec:conclusion}
 %% ════════════════════════════════════════════════════════════════════════════
 
 We have presented a complete mathematical analysis and production C++
 implementation of a deterministic $\Theta(\sqrt{n})$ algorithm for
-phase-coherent unstructured search.  The algorithm achieves its speedup
-through Dirichlet-kernel resonance: a structured phase sweep of step size
-$\Delta\Phi = 2\pi/\sqrt{n}$ produces a linearly growing accumulator that
-crosses a $\Theta(\sqrt{n})$ threshold in $\Theta(\sqrt{n})$ steps.  The
-constant factor is $c \approx 0.19$, theoretically predicted by the Dirichlet
-kernel analysis and confirmed empirically over 17 problem sizes spanning
-$n = 2^{10}$ to $n = 2^{26}$.
+phase-coherent continuous-oracle search.  The critical-analysis audit
+(Section~\ref{sec:critical-analysis}) establishes that:
 
-The algorithm is fully coherence-aware: the KernelState
-sech-weight $G_{\text{eff}} = \operatorname{sech}(\lambda)$ provides an
-automatic decoherence sentinel, and the palindrome precession preserves the
-unit-circle invariant ($|P(k)|=1$) at every step with zero overhead.  NIST
-IR~8356 benchmarks confirm perfect coherence preservation ($C(r) = 1.000\,000$)
-and near-peak throughput ($\approx 986\times10^6$ ops/s) at scales up to
-5\,000 simultaneous processes.
+\begin{enumerate}
+  \item \textbf{Oracle model.}  The algorithm uses a continuous cosine-overlap
+    oracle, not a binary yes/no oracle.  Under a true binary oracle the
+    algorithm provides no advantage over sequential scan ($\Theta(n)$).
+  \item \textbf{Phase-independence.}  The Dirichlet accumulation fires in
+    $\approx 0.19\sqrt{n}$ steps for \emph{any} input phasor direction,
+    so the step count alone does not identify the target.
+  \item \textbf{Parameter tautology.}  The $\sqrt{n}$ scaling is a direct
+    consequence of choosing $\Delta\Phi = 2\pi/\sqrt{n}$ and
+    $\tau = 0.15\sqrt{n}$; any exponent $\alpha \in (0,1)$ is achievable.
+  \item \textbf{Formal identity.}  The algorithm is a matched filter:
+    a single-bin DFT evaluation at a pre-specified frequency, correlating
+    a structured sweep against a known reference phase.
+\end{enumerate}
+
+Within these constraints, the algorithm is fully coherence-aware: the
+KernelState sech-weight $G_{\text{eff}} = \operatorname{sech}(\lambda)$
+monitors decoherence, and palindrome precession preserves the unit-circle
+invariant at every step with zero overhead.  The $\Theta(\sqrt{n})$ result
+is a genuine and reproducible property of the Dirichlet accumulation
+mechanism, but it is a speedup over sequential scan in the
+\emph{continuous-oracle} setting, not a violation of the classical
+$\Omega(n)$ binary-oracle lower bound.
 
 Future work includes extending the bridge to $m > 8$ channels (improving the
 coverage constant), exploring SIMD vectorisation of the accumulator loop, and
 applying the technique to multi-target search ($M$ marked items, achieving
-$\Theta(\sqrt{n/M})$ speedup).
+$\Theta(\sqrt{n/M})$ speedup in the continuous-oracle setting).
 
 %% ════════════════════════════════════════════════════════════════════════════
 \appendix

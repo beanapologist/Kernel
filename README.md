@@ -528,12 +528,40 @@ test suite. The algorithm's Θ(√n) result is therefore a speedup over sequenti
 scan in the **continuous-oracle (phase-overlap) model**, not over binary-oracle
 unstructured search.
 
-Test 11 (`test_oracle_model_assumptions`) in `test_coherent_search.cpp` validates
-this explicitly:
-- Per-step contributions are continuous values in (−1, +1), not binary ±1.
-- Contributions encode angular distance to the target (nearer → larger value).
-- Coherent search (continuous oracle): log-log slope ≈ 0.5 → Θ(√n).
-- Brute-force (binary oracle): log-log slope ≈ 1.0 → Θ(n).
+#### Hostile-Reviewer Audit (Tests 12–14)
 
-See `docs/theta_sqrt_n_writeup.tex` §4.2 for the full theoretical discussion.
+Three additional tests perform a rigorous self-audit:
+
+**Test 12 (`test_oracle_model_assumptions`)** — Oracle model:
+- Per-step contributions are continuous values in (−1, +1), not binary ±1.
+- Contributions encode angular distance to target (nearer → larger value).
+- Coherent (continuous oracle): slope ≈ 0.5 → Θ(√n). Brute-force (binary): slope ≈ 1.0 → Θ(n).
+
+**Test 13 (`test_target_phasor_leakage`)** — Phase-independence audit:
+- The Dirichlet accumulation fires in ≈ 0.19·√n steps for **any** input phasor, including wrong/random ones (CV ≈ 0 across all 8 compass directions).
+- This means the step count carries no target-identity information.
+- Identifying the true target under a binary oracle still requires Θ(n) evaluations.
+
+**Test 14 (`test_parameter_scaling_tautology`)** — Scaling tautology:
+- Using phase step 2π/n^α and threshold 0.15·n^α yields Θ(n^α) detection for any α ∈ (0,1).
+- Verified empirically at α ∈ {0.4, 0.5, 0.6}: fitted slopes ≈ 0.40, 0.49, 0.60.
+- The √n result (α = 0.5) is a **design parameter**, not a complexity lower bound.
+
+#### Formal Mapping: Matched Filter / Single-Bin DFT
+
+The algorithm is mathematically equivalent to evaluating a single DFT coefficient:
+
+```
+A_j(K) = Re[ e^{i(j·3π/4 − θ_t)} · Σ_{k=0}^{K-1} e^{ik·2π/√n} ]
+        = Re[ e^{i(j·3π/4 − θ_t)} · D_K(2π/√n) · e^{i(K-1)π/√n} ]
+```
+
+where `D_K` is the Dirichlet kernel. Detection when `|A_j| ≥ 0.15·√n` corresponds
+to the DFT magnitude exceeding a threshold calibrated to trigger at K ≈ 0.19·√n.
+
+This is a **matched filter**: given the target phase (known from t), correlate a
+structured sweep against it. In search, the reference is unknown; in matched
+filtering, it is given as input. See `docs/theta_sqrt_n_writeup.tex` §7 for the
+full critical analysis.
+
 
