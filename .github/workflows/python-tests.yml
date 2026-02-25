@@ -35,3 +35,19 @@ jobs:
 
       - name: Run unit tests
         run: pytest experiments/passive_ghz_demo/tests/ -v
+
+      - name: Run end-to-end demo (synthetic traces + report)
+        run: python experiments/passive_ghz_demo/run_demo.py --output-dir demo_output
+
+      - name: Upload demo report and plots
+        uses: actions/upload-artifact@v4
+        with:
+          name: passive-ghz-demo-report-${{ github.sha }}
+          path: |
+            demo_output/demo_report.md
+            demo_output/ringdown_fits.png
+            demo_output/kappa_summary.png
+            demo_output/phase_tracking.png
+            demo_output/waveform_preview.png
+          if-no-files-found: warn
+          retention-days: 90
