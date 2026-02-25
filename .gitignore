@@ -72,9 +72,18 @@ _CPack_Packages/
 # CodeQL build directory
 _codeql_build_dir/
 
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
 # LaTeX build artifacts
 docs/*.aux
 docs/*.log
 docs/*.toc
 docs/*.out
 docs/*.pdf
+
+# Passive GHz Demo — synthetic data files (regenerate with run_demo.py)
+experiments/passive_ghz_demo/demo_output/*.npz

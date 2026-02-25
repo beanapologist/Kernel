@@ -1,0 +1,14 @@
+# Requirements for Passive GHz Demo — Drive-only Variant 1
+#
+# Install with:  pip install -r requirements.txt
+#
+# zhinst-toolkit is required only for upload_hdawg.py (uploading to real
+# HDAWG hardware).  All other scripts work without it.
+
+numpy>=1.24
+scipy>=1.10       # optional; used for additional fitting if desired
+matplotlib>=3.7   # required for plot generation in analysis_ringdown.py
+pyyaml>=6.0       # required to read config_example.yaml
+
+# Hardware interface (optional — needed only for upload_hdawg.py)
+# zhinst-toolkit>=0.5
