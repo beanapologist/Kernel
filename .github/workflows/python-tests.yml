@@ -1,0 +1,37 @@
+name: Python Tests — Passive GHz Demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'experiments/passive_ghz_demo/**'
+      - '.github/workflows/python-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'experiments/passive_ghz_demo/**'
+      - '.github/workflows/python-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test-passive-ghz-demo:
+    name: pytest — passive_ghz_demo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install numpy matplotlib pyyaml pytest
+          # scipy is optional; install for completeness
+          pip install scipy
+
+      - name: Run unit tests
+        run: pytest experiments/passive_ghz_demo/tests/ -v

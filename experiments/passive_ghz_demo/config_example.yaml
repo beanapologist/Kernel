@@ -1,0 +1,39 @@
+# config_example.yaml — Passive GHz Demo, Drive-only Variant 1
+#
+# Edit the values below to match your hardware setup, then pass this file
+# to upload_hdawg.py and analysis_ringdown.py via --config.
+
+# ── HDAWG connection ──────────────────────────────────────────────────────────
+device_id: DEVXXXXX        # replace with your HDAWG serial, e.g. DEV8001
+host: localhost
+port: 8004
+
+# AWG channel pair: 0 = channels 1/2, 1 = 3/4, 2 = 5/6, 3 = 7/8
+channel_pair: 0
+
+# ── Waveform parameters ───────────────────────────────────────────────────────
+fs: 2.4e9              # HDAWG sample rate, Hz (do not change for standard HDAWG)
+t_step: 40e-9          # step duration, seconds
+samples_per_step: 96   # = fs * t_step (must remain 96)
+n_steps: 200           # number of 40-ns steps in the drive window
+D: 13717421            # slow-precession period (steps)
+a_drive: 0.5           # drive amplitude, 0 < a_drive <= 1.0
+
+# ── Readout / recording ───────────────────────────────────────────────────────
+fs_rec: 1.0e9          # digitiser sample rate for ringdown recording, Hz
+
+# Ringdown fit windows (seconds, relative to start of recorded trace)
+# Set these so the drive is definitely OFF before t_start.
+ringdown_windows:
+  start: 0.0           # seconds
+  end:   5.0e-6        # seconds
+
+# ── IQ mixer calibration ──────────────────────────────────────────────────────
+calibration:
+  i_offset: 0.0        # LO leakage on I port (subtract from raw I)
+  q_offset: 0.0        # LO leakage on Q port (subtract from raw Q)
+  phi_imbal: 0.0       # IQ phase imbalance, radians
+  amplitude_imbal: 1.0 # amplitude ratio Q/I (1.0 = balanced)
+
+# ── Output paths (used by analysis_ringdown.py) ───────────────────────────────
+output_dir: .          # directory for generated plots and results
