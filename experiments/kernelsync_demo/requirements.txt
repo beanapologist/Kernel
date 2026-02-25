@@ -1,0 +1,7 @@
+# Requirements for KernelSync Demo
+#
+# Install with:  pip install -r requirements.txt
+
+numpy>=1.24
+matplotlib>=3.7   # required for plot generation
+# scipy is optional; not used in the current simulation
