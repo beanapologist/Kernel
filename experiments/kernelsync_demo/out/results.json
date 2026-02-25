@@ -3,12 +3,17 @@
   "baseline": {
     "min_E_key": null,
     "min_E": null,
-    "rms_ns": null
+    "rms_ns": null,
+    "best_rms_ns": 55.178526694249584,
+    "best_E": 16000.0
   },
   "kernelsync": {
     "min_E_key": null,
     "min_E": null,
-    "rms_ns": null
+    "rms_ns": null,
+    "best_rms_ns": 50.62385986621747,
+    "best_E": 32000.0
   },
-  "improvement_factor": null
+  "improvement_factor": null,
+  "rms_ratio": 1.089970753713143
 }
