@@ -1,0 +1,14 @@
+{
+  "target_rms_ns": 1.0,
+  "baseline": {
+    "min_E_key": null,
+    "min_E": null,
+    "rms_ns": null
+  },
+  "kernelsync": {
+    "min_E_key": null,
+    "min_E": null,
+    "rms_ns": null
+  },
+  "improvement_factor": null
+}
