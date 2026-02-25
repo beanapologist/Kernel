@@ -23,6 +23,7 @@ from kernelsync_energy_proxy_sim import (
     make_kernelsync_code,
     matched_filter_tau_fast,
     phase_turns,
+    run_grid,
     simulate_node,
 )
 
@@ -357,3 +358,72 @@ class TestSimulateNode:
         assert np.all(np.isfinite(err)), (
             f"scheme={scheme}: non-finite values in output"
         )
+
+
+# ---------------------------------------------------------------------------
+# 5. Coherent grid sweep — RMS improvement over baseline
+# ---------------------------------------------------------------------------
+
+
+class TestCoherentGridSweep:
+    """
+    Integration test: run a small grid sweep and verify that the coherent
+    KernelSync receiver achieves at least 5× lower RMS timing error than
+    the incoherent baseline at the same (R, M) operating point.
+
+    At R = 500 pilots/s the PI loop converges under coherent reception
+    (KernelSync ~73 ns) but fails to converge under incoherent reception
+    (Baseline >2000 ns), giving a ratio well above the 5× floor that
+    follows from the sub-chip noise-reduction factor
+    ~σ_phase / (2π × 3/8) × Tc  vs  Tc/2.
+    """
+
+    def test_kernelsync_rms_at_least_5x_better_than_baseline(self):
+        """
+        Grid sweep over R = 500 evt/s, M ∈ {16, 32}: at each (R, M) point,
+        the final RMS of KernelSync must be at least 5× smaller than the
+        final RMS of the incoherent baseline.
+        """
+        grid_R = [500.0]
+        grid_M = [16, 32]
+        Tc = 40e-9
+        W_ns = 250e-9
+        n_nodes = 30
+        T_sim = 3.0
+        n_times = 30
+
+        results_base = run_grid(
+            rng=np.random.default_rng(42),
+            scheme="baseline",
+            grid_R=grid_R,
+            grid_M=grid_M,
+            n_nodes=n_nodes,
+            T_sim=T_sim,
+            Tc=Tc,
+            W_ns=W_ns,
+            n_times=n_times,
+        )
+        results_ks = run_grid(
+            rng=np.random.default_rng(42),
+            scheme="kernelsync",
+            grid_R=grid_R,
+            grid_M=grid_M,
+            n_nodes=n_nodes,
+            T_sim=T_sim,
+            Tc=Tc,
+            W_ns=W_ns,
+            n_times=n_times,
+        )
+
+        for R in grid_R:
+            for M in grid_M:
+                rms_base = results_base[(R, M)]["final_rms_ns"]
+                rms_ks = results_ks[(R, M)]["final_rms_ns"]
+                assert rms_ks > 0, f"R={R:.0f}, M={M}: KernelSync RMS is zero"
+                ratio = rms_base / rms_ks
+                assert ratio >= 5.0, (
+                    f"R={R:.0f} evt/s, M={M} chips: "
+                    f"KernelSync improvement {ratio:.2f}x < 5x "
+                    f"(baseline={rms_base:.1f} ns, "
+                    f"kernelsync={rms_ks:.1f} ns)"
+                )
