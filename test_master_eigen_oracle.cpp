@@ -425,8 +425,132 @@ static void test_phase_coverage() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// Main
+// 9. Scaling Law Benchmark: k ∝ √N
+//
+// For each N ∈ {2^8, 2^9, …, 2^14}, run TRIALS trials with uniformly spaced
+// target positions spanning [0, 2π).  For each trial measure:
+//   k          — iterations to detection (capped at safety limit if not found)
+//   success    — whether the threshold 0.15·√N was crossed
+// Then compute:
+//   mean_k     — mean iterations over successful trials
+//   p_success  — fraction of trials that succeeded
+// A log-log linear regression of log(mean_k) on log(N) must yield slope
+// ∈ [0.45, 0.55], confirming k ∝ √N.
 // ══════════════════════════════════════════════════════════════════════════════
+static void test_scaling_law_benchmark() {
+  std::cout << "\n── 9. Scaling Law Benchmark: k \u221d \u221aN "
+               "─────────────────────────────────\n";
+
+  static constexpr int TRIALS = 10; // uniformly spaced targets per N
+  static constexpr int N_SIZES = 7; // N = 2^8 … 2^14
+
+  struct ScalingRow {
+    uint64_t N;
+    double sqrt_N;
+    double mean_k;
+    double p_success;
+  };
+
+  std::cout << std::left << "  " << std::setw(8) << "N" << std::setw(10)
+            << "sqrt(N)" << std::setw(12) << "mean_k" << std::setw(14)
+            << "k/sqrt(N)" << "p_success\n";
+  std::cout << "  " << std::string(54, '-') << "\n";
+
+  std::vector<ScalingRow> rows;
+  for (int b = 8; b < 8 + N_SIZES; ++b) {
+    const uint64_t N = 1ULL << b;
+    const double sqrt_N = std::sqrt(static_cast<double>(N));
+
+    uint64_t total_k = 0;
+    int successes = 0;
+
+    for (int trial = 0; trial < TRIALS; ++trial) {
+      // Uniformly space targets across [0, 2π) for deterministic coverage
+      const double theta_t =
+          MEO_TWO_PI * static_cast<double>(trial) / static_cast<double>(TRIALS);
+      MasterEigenOracle oracle;
+      QueryResult r = oracle.query(theta_t, N);
+      if (r.detected) {
+        total_k += r.steps;
+        ++successes;
+      }
+    }
+
+    const double mean_k =
+        successes > 0 ? static_cast<double>(total_k) / successes : 0.0;
+    const double p_success = static_cast<double>(successes) / TRIALS;
+
+    rows.push_back({N, sqrt_N, mean_k, p_success});
+    std::cout << std::fixed << std::setprecision(2) << "  " << std::setw(8) << N
+              << std::setw(10) << sqrt_N << std::setw(12) << mean_k
+              << std::setw(14) << (sqrt_N > 0.0 ? mean_k / sqrt_N : 0.0)
+              << p_success << "\n";
+  }
+
+  // ── Assertion 1: success probability ≥ 0.99 for all N ───────────────────
+  bool all_succeed = true;
+  for (const auto &r : rows)
+    if (r.p_success < 0.99)
+      all_succeed = false;
+  test_assert(all_succeed,
+              "scaling_law: success probability \u2265 0.99 for all N "
+              "(2^8 \u2013 2^14)");
+
+  // ── Assertion 2: mean_k < sqrt_N for all N (sub-√N step count) ──────────
+  bool below_sqrt = true;
+  for (const auto &r : rows)
+    if (r.mean_k >= r.sqrt_N)
+      below_sqrt = false;
+  test_assert(below_sqrt,
+              "scaling_law: mean_k < \u221aN for all N "
+              "(step count is O(\u221aN))");
+
+  // ── Assertion 3: mean_k strictly increases with N ───────────────────────
+  bool mean_k_grows = true;
+  for (size_t i = 1; i < rows.size(); ++i)
+    if (rows[i].mean_k <= rows[i - 1].mean_k)
+      mean_k_grows = false;
+  test_assert(mean_k_grows,
+              "scaling_law: mean_k strictly increases with N "
+              "(non-trivial \u221aN growth, not constant)");
+
+  // ── Assertion 4: log-log regression slope ∈ [0.45, 0.55] ───────────────
+  //   x_i = log(N_i),  y_i = log(mean_k_i)
+  //   slope = Σ(x_i - x̄)(y_i - ȳ) / Σ(x_i - x̄)²
+  double x_mean = 0.0, y_mean = 0.0;
+  int valid = 0;
+  std::vector<double> xs, ys;
+  for (const auto &r : rows) {
+    if (r.mean_k > 0.0) {
+      double x = std::log(static_cast<double>(r.N));
+      double y = std::log(r.mean_k);
+      xs.push_back(x);
+      ys.push_back(y);
+      x_mean += x;
+      y_mean += y;
+      ++valid;
+    }
+  }
+  double slope = 0.0;
+  if (valid >= 2) {
+    x_mean /= valid;
+    y_mean /= valid;
+    double num = 0.0, den = 0.0;
+    for (int i = 0; i < valid; ++i) {
+      num += (xs[i] - x_mean) * (ys[i] - y_mean);
+      den += (xs[i] - x_mean) * (xs[i] - x_mean);
+    }
+    slope = (den > 0.0) ? num / den : 0.0;
+  }
+  std::cout << std::fixed << std::setprecision(4)
+            << "\n  Log-log regression slope = " << slope
+            << "  (expected \u2248 0.50 for k \u221d \u221aN)\n";
+  test_assert(slope >= 0.45 && slope <= 0.55,
+              "scaling_law: log-log slope \u2208 [0.45, 0.55] \u2192 "
+              "k \u221d \u221aN confirmed (\u0398(\u221aN) complexity)");
+}
+
+
 int main() {
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
@@ -458,6 +582,7 @@ int main() {
   test_four_channel_validation();
   test_reset_behaviour();
   test_phase_coverage();
+  test_scaling_law_benchmark();
 
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
