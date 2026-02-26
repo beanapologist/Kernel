@@ -218,7 +218,73 @@ estimates toward consensus.
 
 ---
 
-## 6  Conclusion
+## 6  Conserved Quantities
+
+Understanding what is and is not preserved illuminates the precise boundary of
+the analogy.
+
+### 6.1  Exact Grover diffusion ($g = 1$)
+
+Because $U_s = 2|s\rangle\langle s| - I$ is unitary (it is an isometry), the
+following quantities are **conserved** exactly:
+
+1. **Mean amplitude** $\bar a = \frac{1}{N}\sum_x a_x$.  Under
+   $a_x \mapsto 2\bar a - a_x$ the new mean is
+   $\frac{1}{N}\sum_x (2\bar a - a_x) = 2\bar a - \bar a = \bar a$.
+
+2. **Total squared norm** $\sum_x |a_x|^2$.  The map is a reflection (an
+   isometry of $\mathbb{R}^N$), so inner products and norms are preserved.
+
+3. **Sum of all amplitudes** $\sum_x a_x = N\bar a$ (follows from item 1).
+
+### 6.2  KernelSync EMA update ($g < 1$)
+
+For the damped update $\delta\theta_j \mapsto (1-g)\,\delta\theta_j$:
+
+1. **Mean phase $\bar\psi$ is conserved (to first order).**  Because
+   $\sum_j \phi_{\text{res},j} \approx -\sum_j \delta_j = 0$, the mean phase
+   does not shift:
+
+$$
+\bar\psi^{\,\text{new}}
+  = \frac{1}{N}\sum_j \hat\psi_j^{\,\text{new}}
+  = \frac{1}{N}\sum_j \bigl(\hat\psi_j - g\,\delta_j\bigr)
+  = \bar\psi - g\underbrace{\frac{1}{N}\sum_j\delta_j}_{=\,0}
+  = \bar\psi.
+$$
+
+2. **Total squared deviation $\sum_j \delta_j^2$ is NOT conserved.**  It
+   contracts by $(1-g)^2$ per step:
+
+$$
+\sum_j (\delta_j^{\text{new}})^2
+  = (1-g)^2 \sum_j \delta_j^2.
+$$
+
+   This is the dissipative character of the EMA: phase consensus is achieved
+   by progressively reducing the spread, not by a reversible reflection.
+
+3. **The circular sum $\left|\sum_j e^{i\hat\psi_j}\right|$ is non-decreasing
+   (monotone convergence).**  As the $\hat\psi_j$ cluster toward $\bar\psi$,
+   the magnitude of their vector sum increases, providing a natural convergence
+   indicator in the simulation output.
+
+### 6.3  Conservation summary
+
+| Quantity | Exact Grover ($g=1$) | KernelSync EMA ($g<1$) |
+|---|---|---|
+| Mean phase / amplitude $\bar\psi$ | ✓ conserved | ✓ conserved (first order) |
+| Total squared norm $\sum\delta_j^2$ | ✓ conserved (isometry) | ✗ decreases as $(1-g)^{2k}$ |
+| Sum of amplitudes $\sum a_x$ | ✓ conserved | ✓ conserved (follows from mean) |
+| Circular coherence $\|\sum e^{i\hat\psi_j}\|$ | depends on oracle | ✓ non-decreasing |
+
+The single quantity conserved by **both** algorithms is the mean phase
+$\bar\psi$; this is the fixed point of the reflection and the attractor of the
+EMA loop.
+
+---
+
+## 7  Conclusion
 
 **The KernelSync coherent update rule is, to first order in phase deviations, a
 damped Grover diffusion operator acting in phase space.**
