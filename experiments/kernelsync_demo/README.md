@@ -49,18 +49,69 @@ summary compares their *best-achieved* RMS and the best-RMS ratio.
 The KernelSync code has a constant per-chip phase increment (3/8 turns),
 making its circular autocorrelation magnitude flat (identical to the all-ones
 code in an integer-chip MF).  Both codes therefore have identical timing
-resolution in this receiver model.  The marginal differences in the simulation
-output arise from noise statistics and the specific floating-point behaviour
-of the FFT cross-correlation at different lags.
+resolution in an incoherent receiver.  The marginal differences in the
+simulation output for the incoherent baseline arise from noise statistics and
+the specific floating-point behaviour of the FFT cross-correlation at different
+lags.
 
 In a **coherent receiver** (where the carrier phase is tracked across bursts),
 the KernelSync code's deterministic phase structure enables sub-chip timing
-via carrier-phase ranging, giving genuine resolution improvement.  That
-receiver model is outside the scope of this demo.
+via carrier-phase ranging, giving genuine resolution improvement.  This
+coherent receiver is fully implemented in the simulation for the KernelSync
+scheme; see [Coherent receiver (KernelSync)](#coherent-receiver-kernelsync)
+below.
 
 The deterministic code does **not** eliminate drift without measurements; it
 improves estimator robustness in coherent receivers so you can reduce pilot
 overhead.
+
+---
+
+## Coherent receiver (KernelSync)
+
+KernelSync uses a coherent receiver that exploits the deterministic phase
+structure of the code for both integer-chip and sub-chip timing.  Four
+mechanisms work together:
+
+### 1. Continuous signal model
+
+The leader transmits continuously; the follower observes M chips from the
+global code sequence displaced by `tau_int` chips.  This eliminates
+edge-artefact plateaus in the correlation magnitude that arise from the
+windowed (zero-padded) model used by the baseline incoherent receiver.
+
+### 2. Phase-based integer detection
+
+Within a tight window of ±`W_tight` chips around the PI-loop-predicted `tau`,
+the lag minimising `|wrap(angle(corr) − ψ̂)|` is chosen.  The 3/8 turns/chip
+phase increment gives an unambiguous detection range of ±4 chips around the
+prediction.  `W_tight` must be < 4 to guarantee phase-unambiguous detection
+(the code's phase repeats every 8/3 ≈ 2.67 chips; the window must be smaller
+than half that period).
+
+### 3. Sub-chip timing via phase residual
+
+The complex MF peak encodes the fractional chip offset δ via residual phase:
+
+```
+δ_est = −φ_res / (2π × 3/8)
+```
+
+where `φ_res = wrap(angle(peak) − ψ̂)`.  This reduces per-measurement timing
+noise from ~Tc/2 (incoherent half-chip quantisation) to
+~σ_phase / (2π × 3/8) × Tc, typically a 5–20× improvement at practical SNR
+and burst length.
+
+### 4. Burst-to-burst carrier-phase continuity
+
+Each node maintains a persistent carrier-phase estimate `ψ̂` updated by EMA
+each burst.  The update removes the sub-chip contribution so only the carrier
+phase remains, enabling stable tracking across bursts:
+
+```
+ψ̂_new = angle(peak) + 2π × (3/8) × δ_est
+ψ̂  ←  ψ̂ + α_ψ × wrap(ψ̂_new − ψ̂)        (α_ψ = 0.3)
+```
 
 ---
 
@@ -111,10 +162,10 @@ A smaller E with the same RMS target means less bandwidth and power overhead.
 
 Two codes are compared:
 
-| Scheme     | Code s_k                           |
-|------------|------------------------------------|
-| Baseline   | s_k = 1  (all-ones BPSK DC)        |
-| KernelSync | s_k = exp(i 2π φ(n₀ + k))         |
+| Scheme     | Code s_k                           | Receiver                              |
+|------------|------------------------------------|---------------------------------------|
+| Baseline   | s_k = 1  (all-ones BPSK DC)        | Incoherent: integer-chip MF magnitude |
+| KernelSync | s_k = exp(i 2π φ(n₀ + k))         | Coherent: phase-based + sub-chip      |
 
 ---
 

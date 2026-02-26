@@ -1,0 +1,34 @@
+name: Python Tests — KernelSync Demo
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'experiments/kernelsync_demo/**'
+      - '.github/workflows/kernelsync-tests.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'experiments/kernelsync_demo/**'
+      - '.github/workflows/kernelsync-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test-kernelsync-demo:
+    name: pytest — kernelsync_demo (coherent grid sweep)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r experiments/kernelsync_demo/requirements.txt pytest
+
+      - name: Run unit and integration tests (including coherent grid sweep)
+        run: pytest experiments/kernelsync_demo/tests/ -v
