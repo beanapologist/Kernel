@@ -523,6 +523,98 @@ def plot_heatmap(results, grid_R, grid_M, target_rms_ns, title, out_path):
     print(f"  Saved {out_path}")
 
 
+def plot_reflection_effect(
+    N: int = 20,
+    n_iter: int = 40,
+    seed: int = 0,
+    out_path: str = "reflection_demo.png",
+) -> None:
+    """
+    Demonstrate the difference between exact Grover reflection (g=1) and the
+    KernelSync EMA update (g=0.3) by tracking circular coherence over time.
+
+    Simulates N nodes with uniformly random initial phases and iterates:
+      - Exact Grover reflection: psi_j -> 2*psi_bar - psi_j  (g = 1, isometry)
+      - KernelSync EMA:          psi_j -> psi_j - g*delta_j  (g = 0.3, dissipative)
+
+    where delta_j = wrap(psi_j - psi_bar) and psi_bar = angle(mean(exp(i*psi))).
+
+    Circular coherence R(t) = |mean(exp(i*psi_j))|:
+      - EMA:           non-decreasing; phases contract toward mean -> R -> 1.
+      - Exact Grover:  conserved (isometry); individual phases undergo a
+                       period-2 orbit but R stays at R_0 for all iterations.
+
+    Saves the plot to out_path and asserts the expected monotonicity properties.
+    """
+    rng = np.random.default_rng(seed)
+    psi0 = rng.uniform(-np.pi, np.pi, N)
+
+    def _circ_mean(phases: np.ndarray) -> float:
+        return float(np.angle(np.mean(np.exp(1j * phases))))
+
+    def _circ_coherence(phases: np.ndarray) -> float:
+        return float(np.abs(np.mean(np.exp(1j * phases))))
+
+    # --- Exact Grover reflection: psi_j -> 2*psi_bar - psi_j (g = 1) ---
+    psi_g = psi0.copy()
+    R_grover: list[float] = [_circ_coherence(psi_g)]
+    for _ in range(n_iter):
+        psi_bar = _circ_mean(psi_g)
+        psi_g = 2.0 * psi_bar - psi_g
+        R_grover.append(_circ_coherence(psi_g))
+
+    # --- KernelSync EMA: psi_j -> psi_j - g * wrap(psi_j - psi_bar) ---
+    g_ema = 0.3
+    psi_e = psi0.copy()
+    R_ema: list[float] = [_circ_coherence(psi_e)]
+    for _ in range(n_iter):
+        psi_bar = _circ_mean(psi_e)
+        delta = (psi_e - psi_bar + np.pi) % (2 * np.pi) - np.pi
+        psi_e = psi_e - g_ema * delta
+        R_ema.append(_circ_coherence(psi_e))
+
+    R_grover_arr = np.array(R_grover)
+    R_ema_arr = np.array(R_ema)
+
+    # EMA must be non-decreasing (dissipative contraction -> coherence grows)
+    tol = 1e-9
+    assert np.all(np.diff(R_ema_arr) >= -tol), (
+        "EMA circular coherence must be non-decreasing"
+    )
+    # Exact Grover is an isometry: R is conserved (stays at R_0, does not
+    # converge to 1 as EMA does)
+    assert R_grover_arr[-1] < R_ema_arr[-1] - tol, (
+        "Exact Grover R must stay below converged EMA R "
+        "(isometry conserves R; EMA dissipatively drives R -> 1)"
+    )
+
+    if not HAS_MPL:
+        return
+
+    iters = np.arange(n_iter + 1)
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.plot(iters, R_grover_arr,
+            label=r"Exact Grover ($g=1$, conserved $R$)",
+            marker="o", markersize=4, linewidth=1.5)
+    ax.plot(iters, R_ema_arr,
+            label=r"KernelSync EMA ($g=0.3$, $R \to 1$)",
+            marker="s", markersize=4, linewidth=1.5)
+    ax.set_xlabel("Iteration")
+    ax.set_ylabel(
+        r"Circular coherence $R = \left|\frac{1}{N}\sum_j e^{i\hat\psi_j}\right|$"
+    )
+    ax.set_title(
+        rf"Reflection vs EMA: Circular Coherence ($N={N}$ nodes)"
+    )
+    ax.set_ylim(0, 1.05)
+    ax.legend()
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    fig.savefig(out_path, dpi=150)
+    plt.close(fig)
+    print(f"  Saved {out_path}")
+
+
 def plot_rms_vs_time(results_base, results_ks, best_key_base, best_key_ks,
                      T_sim, out_path):
     if not HAS_MPL:
@@ -703,6 +795,7 @@ def main(argv=None):
             key_k = min(results_ks, key=lambda k: results_ks[k]["final_rms_ns"])
         plot_rms_vs_time(results_base, results_ks, key_b, key_k, args.tsim,
                          str(out / "rms_vs_time_best.png"))
+        plot_reflection_effect(out_path=str(out / "reflection_demo.png"))
 
     print("\nDone. Outputs written to:", out)
 
