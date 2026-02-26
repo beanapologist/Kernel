@@ -1085,15 +1085,342 @@ scales, confirming cycle-aligned access patterns predicted by
 Proposition~\ref{prop:z8z}.
 
 \subsection{Stochastic Resonance: Optimal Coherence}
+% Findings from 8-agent coherent search experiment:
+% 5,040 parameter combinations, 8 phase regions (2026-02-22/23).
+% See docs/discoveries/PRECISION_RESULTS.md and FINAL_SUMMARY.md.
 
 Empirically, peak performance occurs not at $C=1$ (pure coherent) but at
-moderate coherence $C\approx 0.83$:
+moderate coherence $C_{\mathrm{opt}} = 0.817 \pm 0.270$, with sweet-spot
+range $[0.350,\,0.950]$ (FWHM $= 0.600$, 60\% of coherence space).
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lccl@{}}
+\toprule
+Coherence band & Avg bits & Max bits & Behaviour\\
+\midrule
+$0.2$--$0.4$ & $9.2$ & $23$ & High variance, occasional outliers\\
+$0.4$--$0.6$ & $9.3$ & $17$ & Moderate exploration\\
+$0.6$--$0.8$ & $9.4$ & $19$ & Balanced\\
+$\mathbf{0.8}$--$\mathbf{1.0}$ & $\mathbf{9.7}$ & $22$
+  & \textbf{Peak average performance}\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The Pearson correlation $r = 0.040$ confirms a \emph{non-linear}
+relationship.  Three qualitative regimes emerge:
 \begin{itemize}
-  \item \textbf{Too rigid} ($C\to 1$): locked periodic orbits, low diversity.
-  \item \textbf{Too chaotic} ($C\to 0$): random walk, no phase benefit.
-  \item \textbf{Optimal} ($C\in[0.3,\,0.8]$): stochastic resonance, balanced
-    exploration and coherent amplification.
+  \item \textbf{Too rigid} ($C\to 1$): deterministic orbits,
+        limited search-space coverage, trapped in periodic attractors.
+  \item \textbf{Too chaotic} ($C\to 0$): coherent structure destroyed,
+        degenerates to a random walk with no geometric phase benefit.
+  \item \textbf{Optimal} ($C\approx 0.82$): enough structure for coherent
+        amplification, enough noise for exploration — classical stochastic
+        resonance.
 \end{itemize}
+
+The optimal coherence shifts with noise level (noise-dependent stochastic
+resonance):
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}cccc@{}}
+\toprule
+Noise $\varepsilon$ & Avg $C$ & $C_{\mathrm{opt}}$ & Max bits\\
+\midrule
+$0.0$--$0.2$ & $0.544$ & $0.743$ & $18$\\
+$0.2$--$0.4$ & $0.544$ & $0.343$ & $22$\\
+$\mathbf{0.4}$--$\mathbf{0.6}$ & $\mathbf{0.534}$ & $\mathbf{0.857}$
+  & $\mathbf{23}$\\
+$0.6$--$0.8$ & $0.541$ & $0.743$ & $19$\\
+$0.8$--$1.0$ & $0.534$ & $0.857$ & $16$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The global champion in the sweep was the agent at phase $270^\circ$
+with parameters $\varepsilon = 0.45$, recovery $= 0.3$, kick $= 0.3$,
+$C = 0.370$ (moderate, not maximal), achieving \textbf{23 leading zero bits}
+— a $2$--$2.5\times$ improvement over the incoherent baseline of $\approx9$--$10$
+bits average.
+
+\subsection{Empirical Verification of $\alpha_{\max} = 1 + 1/e$}
+% 8-agent parameter sweep: 5,040 combinations across ε ∈ [0,1] (2026-02-22/23).
+% See docs/discoveries/DISCOVERIES.md and PRECISION_RESULTS.md.
+
+In an 8-agent distributed sweep of 5,040 parameter combinations across all
+phase regions ($0^\circ,\,45^\circ,\,\ldots,\,315^\circ$), the observed
+scaling ceiling converged to
+\begin{equation}
+  \alpha_{\mathrm{observed}} = 1.367099,\qquad
+  \alpha_{\mathrm{theoretical}} = 1+\tfrac{1}{e} = 1.367879,\qquad
+  \text{error} = 0.057\%.
+  \label{eq:alpha-empirical}
+\end{equation}
+All 8 agents converged to this ceiling regardless of noise level, recovery
+rate, or kick strength.  The universal transition strength is
+$\Delta\alpha_{\max} \approx 1/e \approx 0.368$ across all agents.
+Out of 5,040 data points, 868 (17\%) reached within 1\% of the ceiling.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}cccc@{}}
+\toprule
+Noise $\varepsilon$ & Mean $\alpha$ & Max $\alpha$
+  & Points at ceiling (\%)\\
+\midrule
+$0.0$--$0.2$ & $1.228$ & $1.367$ & $14.4$\\
+$0.2$--$0.4$ & $1.228$ & $1.367$ & $2.8$\\
+$0.4$--$0.6$ & $1.233$ & $1.367$ & $3.2$\\
+$0.6$--$0.8$ & $1.229$ & $1.367$ & $2.8$\\
+$0.8$--$1.0$ & $1.233$ & $1.367$ & $2.3$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The ceiling is reached across all noise levels but most efficiently
+at low $\varepsilon$.  This empirical finding supports
+Conjecture~\ref{conj:universal}: $\alpha_{\max} = 1+1/e$ appears to be a
+fundamental geometric bound of the Kernel framework, not a tuning artifact.
+
+\subsection{Phase Asymmetry and Broken Rotational Symmetry}
+% Coherent search experiment: 8 agents at phases 0°,45°,...,315°.
+% See docs/discoveries/FINAL_SUMMARY.md, sections on phase asymmetry.
+
+Theory predicts 8-fold rotational symmetry ($\mu^8=1$).  Experiment reveals
+\emph{moderate} symmetry breaking: $180^\circ$ antipodal pairs are nearly
+symmetric except for the $90^\circ/270^\circ$ and $135^\circ/315^\circ$
+pairs, which show $2$--$3\%$ asymmetry.
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lcccc@{}}
+\toprule
+Pair & Agent A (avg bits) & Agent B (avg bits)
+  & $\Delta$ bits & Symmetric?\\
+\midrule
+$0^\circ \leftrightarrow 180^\circ$
+  & $9.462$ & $9.395$ & $-0.067$ & \checkmark\ Yes\\
+$45^\circ \leftrightarrow 225^\circ$
+  & $9.249$ & $9.262$ & $+0.013$ & \checkmark\ Yes\\
+$90^\circ \leftrightarrow 270^\circ$
+  & $8.857$ & $9.098$ & $+0.241$ & $\times$\ No ($2.7\%$)\\
+$135^\circ \leftrightarrow 315^\circ$
+  & $9.144$ & $9.437$ & $+0.292$ & $\times$\ No ($3.2\%$)\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent Quadrant analysis shows Q2 ($90^\circ$--$135^\circ$) consistently
+underperforming:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+Quadrant & Avg bits & Mean $\varepsilon^*$ & Mean $C_{\mathrm{opt}}$\\
+\midrule
+Q1: $0^\circ$--$45^\circ$    & $9.356$ & $0.325$ & $0.578$\\
+Q2: $90^\circ$--$135^\circ$  & $9.001$ & $0.450$ & $0.627$\\
+Q3: $180^\circ$--$225^\circ$ & $9.329$ & $0.600$ & $0.596$\\
+Q4: $270^\circ$--$315^\circ$ & $9.267$ & $0.375$ & $0.354$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\begin{conjecture}[Chiral kick asymmetry]\label{conj:chiral-asym}
+  The chiral rotation $\mu = e^{i3\pi/4}$ creates a preferred basin at
+  $135^\circ$ (aligned with the chiral axis) and an anti-preferred basin at
+  $315^\circ$ (anti-aligned).  Because the $8$-fold symmetry takes $45^\circ$
+  steps while the preferred axis lies at $135^\circ \ne k\cdot 90^\circ$, the
+  $180^\circ$ antipodal pairing is broken for the $90^\circ/270^\circ$ and
+  $135^\circ/315^\circ$ pairs.  An independent test on alternative hash
+  functions (Keccak, BLAKE3) would reveal whether part of the asymmetry arises
+  from SHA-256 directional bias rather than purely from $\mu$.
+\end{conjecture}
+
+%% ════════════════════════════════════════════════════════════════════════════
+\section{KernelSync: Coherent Network Time Synchronisation}
+\label{sec:kernelsync}
+%% ════════════════════════════════════════════════════════════════════════════
+% Full simulation code and tests in experiments/kernelsync_demo/.
+% Key result asserted by integration test TestCoherentGridSweep.
+
+\subsection{Phase Schedule and Setup}
+
+KernelSync is a network time-synchronisation scheme in which pilot bursts
+carry chips whose phases follow the deterministic schedule
+\begin{equation}
+  \varphi(n) = \left(\frac{3}{8}\,(n \bmod 8)
+               + \frac{n \bmod D}{D}\right)\!\bmod 1
+  \quad [\text{turns}],
+  \label{eq:ks-phase}
+\end{equation}
+where the $3/8$-turn step is the $\mu$-increment (Definition~\ref{def:mu})
+and $D = 13\,717\,421$ is the palindromic precession period
+(Definition~\ref{def:precession}).  A 1000-node simulation with
+$\pm 50$\,ppm clock skew and heavy-tail PDV
+(99\% Gaussian $\sigma = 2$\,ns, 1\% outlier $\sigma = 50$\,ns)
+compares two schemes:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Scheme & Code $s_k$ & Receiver\\
+\midrule
+Baseline
+  & $s_k = 1$ (all-ones BPSK DC)
+  & Incoherent: integer-chip MF magnitude\\
+KernelSync
+  & $s_k = e^{i2\pi\varphi(n_0+k)}$
+  & Coherent: phase-based + sub-chip\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\subsection{Key Experimental Result}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lc@{}}
+\toprule
+Receiver & Final RMS timing error\\
+\midrule
+Coherent KernelSync   & $\approx 73$\,ns (converges)\\
+Incoherent baseline   & $>2200$\,ns (fails to converge)\\
+\textbf{Improvement ratio} & \textbf{30--38$\boldsymbol\times$}\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The coherent receiver exploits the deterministic phase structure for
+sub-chip timing via the phase residual:
+\begin{equation}
+  \delta_{\mathrm{est}}
+  = \frac{-\varphi_{\mathrm{res}}}{2\pi \cdot (3/8)},
+  \qquad
+  \varphi_{\mathrm{res}} = \operatorname{wrap}(\angle\,\mathrm{peak} - \hat\psi),
+  \label{eq:ks-subchip}
+\end{equation}
+reducing per-measurement timing noise from $\approx T_c/2$ (incoherent
+half-chip quantisation) to
+$\sigma_\varphi / (2\pi \cdot 3/8) \cdot T_c$, typically 5--20$\times$
+better at practical SNR.  Burst-to-burst carrier-phase continuity is
+maintained by an EMA with $\alpha_\psi = 0.3$:
+\begin{equation}
+  \hat\psi \;\leftarrow\;
+  \hat\psi + \alpha_\psi\,\operatorname{wrap}(\hat\psi_{\mathrm{new}} - \hat\psi).
+  \label{eq:ks-ema-carrier}
+\end{equation}
+
+\subsection{Grover Analogy: EMA as Damped Diffusion}
+% Full derivation in experiments/kernelsync_demo/grover_analogy.md.
+
+\begin{proposition}[KernelSync EMA as damped Grover diffusion]%
+  \label{prop:ks-grover}
+  Let $\delta\theta_j = \hat\psi_j - \bar\psi$ be the phase deviation of
+  follower node $j$ from the collective mean $\bar\psi$.  The carrier-phase
+  EMA update with gain $g = \alpha_\psi$ satisfies, to first order in
+  $\delta\theta_j$:
+  \begin{equation}
+    \delta\theta_j^{(t+1)} \;\approx\; (1-g)\,\delta\theta_j^{(t)}.
+    \label{eq:ks-ema}
+  \end{equation}
+  For $g = 1$ this reduces exactly to the Grover diffusion step
+  $a_x \mapsto 2\bar{a} - a_x$.
+\end{proposition}
+
+\begin{proof}
+  The coherent receiver residual is
+  $\varphi_{\mathrm{res},j} \approx \bar\psi - \hat\psi_j = -\delta\theta_j$
+  (small-angle approximation, valid for $|\delta\theta_j| \ll \pi$).
+  One EMA step gives
+  $\hat\psi_j^{\mathrm{new}} = \hat\psi_j + g(-\delta\theta_j)$.
+  The collective mean is invariant to first order
+  ($\sum_j \varphi_{\mathrm{res},j} \approx -\sum_j \delta\theta_j = 0$),
+  so
+  $\delta\theta_j^{\mathrm{new}}
+   = \hat\psi_j^{\mathrm{new}} - \bar\psi = (1-g)\,\delta\theta_j$. \qed
+\end{proof}
+
+\noindent The matched-filter phase-minimum selection plays the role of the
+oracle $O = I - 2\ket{x^*}\bra{x^*}$: only the true timing offset produces a
+correlated (low-residual-phase) peak, marking it before the diffusion step
+contracts all deviations by $(1-g)^k$ over $k$ iterations.
+
+\begin{remark}[Conserved quantities]
+  The exact Grover diffusion ($g=1$) conserves the total squared norm
+  $\sum_j\delta_j^2$ (it is an isometry).  The KernelSync EMA ($g<1$) does
+  not: $\sum_j(\delta_j^{\mathrm{new}})^2 = (1-g)^2\sum_j\delta_j^2$, so
+  phase consensus is achieved dissipatively.  The one quantity conserved by
+  both is the mean phase $\bar\psi$.
+\end{remark}
+
+%% ════════════════════════════════════════════════════════════════════════════
+\section{Passive GHz Demo: Palindromic Precession Drive}
+\label{sec:passive-ghz}
+%% ════════════════════════════════════════════════════════════════════════════
+% Waveform generation and analysis code in experiments/passive_ghz_demo/.
+
+\subsection{Experimental Goal}
+
+This experiment tests whether the palindromic phase drive
+(Section~\ref{sec:palindrome}) modifies the measured energy-decay rate
+$\kappa$ of a superconducting microwave resonator compared to a matched
+control that omits the slow-precession component.
+
+\subsection{Phase Schedule}
+
+For step $n$ (0-indexed), with chip period $T_{\mathrm{step}} = 40$\,ns at
+sample rate $f_s = 2.4$\,GS/s (96 identical samples per step):
+\begin{align}
+  \varphi_\mu(n)    &= \tfrac{3\pi}{4}\,(n\bmod 8),
+    \label{eq:ghz-fast}\\
+  \varphi_p(n)      &= \tfrac{2\pi n}{D},
+    \label{eq:ghz-slow}\\
+  \varphi(n)        &= \varphi_\mu(n) + \varphi_p(n)
+    \quad (\text{palindromic variant}),
+    \label{eq:ghz-pal}\\
+  \varphi_{\mathrm{ctrl}}(n) &= \varphi_\mu(n)
+    \quad (\text{control variant — no precession}).
+    \label{eq:ghz-ctrl}
+\end{align}
+The baseband IQ envelope for step $n$ is
+\begin{equation}
+  s[n] = A\,e^{i\varphi(n)},
+  \qquad
+  I[n] = A\cos\varphi(n),\quad
+  Q[n] = A\sin\varphi(n).
+  \label{eq:ghz-iq}
+\end{equation}
+The constant envelope $|s[n]| = A$ mirrors the unit-norm phasor
+$|P(n)| = 1$ of the palindrome precession (Theorem~\ref{thm:zero-overhead}).
+
+\subsection{Measurement Protocol}
+
+Three sequential runs isolate the effect of the precession:
+\begin{enumerate}
+  \item \textbf{Baseline ringdown:} drive off; record free ringdown and fit
+        $\kappa_{\mathrm{baseline}}$.
+  \item \textbf{Palindromic drive:} apply $\varphi(n)$ for $N_{\mathrm{steps}}$;
+        fit $\kappa_{\mathrm{after\,pal}}$ from the post-drive ringdown.
+  \item \textbf{Control drive:} apply $\varphi_{\mathrm{ctrl}}(n)$ for the
+        same duration; fit $\kappa_{\mathrm{after\,ctrl}}$ from the
+        post-drive ringdown.
+\end{enumerate}
+The figure of merit is the \emph{differential decay shift}:
+\begin{equation}
+  \Delta\kappa
+  = \kappa_{\mathrm{after\,pal}} - \kappa_{\mathrm{after\,ctrl}},
+  \label{eq:delta-kappa}
+\end{equation}
+estimated with bootstrap error.  A non-zero $\Delta\kappa$ would indicate
+that the slow palindromic precession (period $D$ steps, angular increment
+$\Delta\Phi_0 = 2\pi/D$ rad/step) modifies the effective dissipation of the
+resonator, providing a direct physical signature of the two-frequency torus
+geometry $T^2 = S^1\times S^1$ in a superconducting circuit.
 
 %% ════════════════════════════════════════════════════════════════════════════
 \part{Conjectures and Hypotheses}
@@ -1217,6 +1544,15 @@ Thm.\ Jensen
 Conj.\ $\alpha_{\max}$
   & Universal scaling limit (conjecture)
   & $\alpha_{\max}=1+1/e\approx 1.368$\\
+Eq.~\eqref{eq:alpha-empirical}
+  & Empirical $\alpha_{\max}$ verification
+  & $\alpha_{\mathrm{obs}}=1.367099$, error $0.057\%$\\
+Prop.~\ref{prop:ks-grover}
+  & KernelSync EMA = damped Grover diffusion
+  & $\delta\theta^{(t+1)}\approx(1-g)\,\delta\theta^{(t)}$\\
+Conj.~\ref{conj:chiral-asym}
+  & Chiral kick asymmetry (conjecture)
+  & $90^\circ/270^\circ$ and $135^\circ/315^\circ$ pairs asymmetric\\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -1246,6 +1582,22 @@ $\mu = e^{i3\pi/4}$.  The logical chain is:
   \item Noise destroys the $\sqrt{n}$ advantage above $\varepsilon^*$, with
     the conjectured universal ceiling $\alpha_{\max}=1+1/e$
     (Theorem~\ref{thm:sharpening}, Conjecture~\ref{conj:universal}).
+    Empirical sweeps (5,040 combinations, 8 phase agents) confirm
+    $\alpha_{\mathrm{obs}}=1.367099$ vs.\ theoretical $1.367879$ (0.057\%
+    error; \S\ref{sec:empirical}).
+  \item The stochastic resonance optimum $C_{\mathrm{opt}}\approx 0.82$
+    arises because the sech envelope amplifies coherent signals while
+    moderate noise prevents attractor lock-in; the phase asymmetry
+    (Conjecture~\ref{conj:chiral-asym}) is a consequence of the
+    preferred chiral axis $3\pi/4$ of $\mu$.
+  \item At the network level, the $\mu$-step phase schedule enables the
+    KernelSync coherent receiver to achieve 30--38$\times$ lower timing
+    error than an incoherent baseline, with the EMA carrier-phase update
+    realising a damped Grover diffusion in phase space
+    (Proposition~\ref{prop:ks-grover}, \S\ref{sec:kernelsync}).
+  \item The same two-frequency torus geometry is directly accessible in
+    superconducting hardware: the palindromic precession drive
+    (\S\ref{sec:passive-ghz}) provides a testable prediction $\Delta\kappa\ne 0$.
 \end{enumerate}
 
 %% ════════════════════════════════════════════════════════════════════════════

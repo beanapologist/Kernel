@@ -83,7 +83,7 @@ docs/*.aux
 docs/*.log
 docs/*.toc
 docs/*.out
-docs/*.pdf
+# docs/*.pdf  -- compiled PDF is committed to the repository
 
 # Passive GHz Demo — synthetic data files (regenerate with run_demo.py)
 experiments/passive_ghz_demo/demo_output/*.npz
