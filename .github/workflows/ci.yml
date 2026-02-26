@@ -51,7 +51,9 @@ jobs:
             test_kernel_pipeline.cpp \
             test_coherent_search.cpp \
             test_noise_scaling_phase_transition.cpp \
-            test_chiral_nonlinear_gate.cpp
+            test_chiral_nonlinear_gate.cpp \
+            MasterEigenOracle.hpp \
+            test_master_eigen_oracle.cpp
 
   # ── Build & Test ─────────────────────────────────────────────────────────
   build-and-test:
@@ -123,6 +125,12 @@ jobs:
       - name: Run test_chiral_nonlinear_gate
         run: ./test_chiral_nonlinear_gate
 
+      - name: Build test_master_eigen_oracle
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o test_master_eigen_oracle test_master_eigen_oracle.cpp -lm
+
+      - name: Run test_master_eigen_oracle
+        run: ./test_master_eigen_oracle
+
   # ── Benchmarks ───────────────────────────────────────────────────────────
   benchmarks:
     name: Run benchmarks
@@ -182,6 +190,7 @@ jobs:
           g++ -std=c++17 -O0 --coverage -o test_coherent_search    test_coherent_search.cpp -lm
           g++ -std=c++17 -O0 --coverage -o test_noise_scaling_phase_transition test_noise_scaling_phase_transition.cpp -lm
           g++ -std=c++17 -O0 --coverage -o test_chiral_nonlinear_gate test_chiral_nonlinear_gate.cpp -lm
+          g++ -std=c++17 -O0 --coverage -o test_master_eigen_oracle     test_master_eigen_oracle.cpp     -lm
 
       - name: Run tests to collect coverage data
         run: |
@@ -195,6 +204,7 @@ jobs:
           ./test_coherent_search
           ./test_noise_scaling_phase_transition
           ./test_chiral_nonlinear_gate
+          ./test_master_eigen_oracle
 
       - name: Generate lcov report
         run: |

@@ -69,7 +69,8 @@ namespace kernel::oracle {
 
 using Cx = std::complex<double>;
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// ── Constants
+// ─────────────────────────────────────────────────────────────────
 static constexpr double MEO_PI = 3.14159265358979323846;
 static constexpr double MEO_TWO_PI = 2.0 * MEO_PI;
 static constexpr double MEO_ETA = 0.70710678118654752440; // 1/√2
@@ -82,19 +83,21 @@ static constexpr int MEO_N_CHANNELS = 8;
 // Balanced eigenvalue µ = e^{i3π/4} = η(−1+i)
 static const Cx MEO_MU{-MEO_ETA, MEO_ETA};
 
-// ── QueryResult ───────────────────────────────────────────────────────────────
+// ── QueryResult
+// ───────────────────────────────────────────────────────────────
 //
 // Output of a single MasterEigenOracle::query() call.
 //
 struct QueryResult {
-  int best_channel = 0;        ///< Eigenspace index j* ∈ {0…7} with max |A[j]|
+  int best_channel = 0; ///< Eigenspace index j* ∈ {0…7} with max |A[j]|
   double accumulator_peak = 0; ///< |A[j*]| at detection (or end of search)
   uint64_t steps = 0;          ///< Number of oracle steps taken
   double coherence = 0;        ///< G_eff = sech(λ) at the final step
   bool detected = false;       ///< true iff threshold 0.15√n was crossed
 };
 
-// ── MasterEigenOracle ─────────────────────────────────────────────────────────
+// ── MasterEigenOracle
+// ─────────────────────────────────────────────────────────
 //
 // Coherence-guided oracle over the 8 µ-eigenspaces.
 //
@@ -107,11 +110,13 @@ struct QueryResult {
 //
 struct MasterEigenOracle {
 
-  // ── Construction ────────────────────────────────────────────────────────────
+  // ── Construction
+  // ────────────────────────────────────────────────────────────
 
   MasterEigenOracle() { reset(); }
 
-  // ── Core query ──────────────────────────────────────────────────────────────
+  // ── Core query
+  // ──────────────────────────────────────────────────────────────
 
   // Run the full coherence-guided oracle search for a target at phase θ_t
   // in a search space of size n.
@@ -156,7 +161,8 @@ struct MasterEigenOracle {
         const Cx probe = slow_phasor * mu_orbit[j];
         // Continuous oracle signal: G_eff · cos(arg(Π) − θ_t)
         // = G_eff · Re(Π · conj(target_phasor))  (numerically stable form)
-        const double contrib = g_eff * (probe * std::conj(target_phasor)).real();
+        const double contrib =
+            g_eff * (probe * std::conj(target_phasor)).real();
         accumulators_[j] += contrib;
       }
 
@@ -209,8 +215,8 @@ struct MasterEigenOracle {
   // Reset accumulators and KernelState to the canonical coherent state.
   void reset() {
     accumulators_.fill(0.0);
-    pipeline_ = kernel::pipeline::Pipeline::create(
-        kernel::pipeline::KernelMode::FULL);
+    pipeline_ =
+        kernel::pipeline::Pipeline::create(kernel::pipeline::KernelMode::FULL);
   }
 
   // ── Static helpers ────────────────────────────────────────────────────────
@@ -240,9 +246,7 @@ private:
   std::array<double, MEO_N_CHANNELS> accumulators_{};
 
   // G_eff = sech(λ) from the current KernelState via SpectralBridge.
-  double pipeline_channel_g_eff() const {
-    return pipeline_.channel().G_eff();
-  }
+  double pipeline_channel_g_eff() const { return pipeline_.channel().G_eff(); }
 
   // Index of the channel with the largest |A[j]|.
   int best_channel_index() const {

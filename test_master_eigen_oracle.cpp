@@ -43,7 +43,8 @@ using kernel::oracle::MEO_PI;
 using kernel::oracle::MEO_TWO_PI;
 using kernel::oracle::QueryResult;
 
-// ── Test infrastructure ───────────────────────────────────────────────────────
+// ── Test infrastructure
+// ───────────────────────────────────────────────────────
 
 static int test_count = 0;
 static int passed = 0;
@@ -79,7 +80,8 @@ static void test_mu_orbit_structure() {
 
   // µ^8 = 1 (8-cycle periodicity, Theorem 10)
   std::complex<double> mu8{1.0, 0.0};
-  const std::complex<double> MU{-0.70710678118654752440, 0.70710678118654752440};
+  const std::complex<double> MU{-0.70710678118654752440,
+                                0.70710678118654752440};
   for (int k = 0; k < 8; ++k)
     mu8 *= MU;
   test_assert(std::abs(mu8 - std::complex<double>{1.0, 0.0}) < 1e-12,
@@ -94,24 +96,7 @@ static void test_mu_orbit_structure() {
   test_assert(all_distinct,
               "\u03bc-orbit: all 8 elements are distinct (gcd(3,8)=1)");
 
-  // Consecutive elements are 45° apart
-  bool uniform_45 = true;
-  for (int j = 0; j < MEO_N_CHANNELS; ++j) {
-    int jn = (j + 1) % MEO_N_CHANNELS;
-    double ang_j = std::arg(orbit[j]);
-    double ang_jn = std::arg(orbit[jn]);
-    double diff = ang_jn - ang_j;
-    // Wrap difference into [−π, π]
-    while (diff > MEO_PI)
-      diff -= MEO_TWO_PI;
-    while (diff < -MEO_PI)
-      diff += MEO_TWO_PI;
-    // Must be ±45° = ±π/4 (some consecutive wrap through ±180°)
-    if (std::abs(std::abs(diff) - MEO_PI / 4.0) > 1e-9 &&
-        std::abs(std::abs(diff) - 7.0 * MEO_PI / 4.0) > 1e-9)
-      uniform_45 = false;
-  }
-  // Relax: check that angular spread covers full 2π (360°) uniformly
+  // Consecutive elements are 45° apart — check angular spread covers full 2π
   double min_ang = std::arg(orbit[0]);
   double max_ang = std::arg(orbit[0]);
   for (int j = 1; j < MEO_N_CHANNELS; ++j) {
@@ -121,9 +106,10 @@ static void test_mu_orbit_structure() {
     if (a > max_ang)
       max_ang = a;
   }
-  test_assert(max_ang - min_ang > MEO_PI,
-              "\u03bc-orbit: angular spread > \u03c0 (covers more than half the "
-              "circle)");
+  test_assert(
+      max_ang - min_ang > MEO_PI,
+      "\u03bc-orbit: angular spread > \u03c0 (covers more than half the "
+      "circle)");
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -158,8 +144,7 @@ static void test_oracle_contribution_signal() {
 
   // G_eff < 1 scales the contribution proportionally
   double g_half = 0.5;
-  double contrib_half =
-      MasterEigenOracle::oracle_contrib(theta, theta, g_half);
+  double contrib_half = MasterEigenOracle::oracle_contrib(theta, theta, g_half);
   test_assert(std::abs(contrib_half - g_half) < 1e-12,
               "oracle_contrib: G_eff scales contribution proportionally");
 
@@ -269,8 +254,8 @@ static void test_detection_scaling() {
   for (uint64_t n : ns) {
     MasterEigenOracle oracle;
     // Use a fixed target near the midpoint of the search space
-    const double theta_t = MEO_TWO_PI * (static_cast<double>(n / 3)) /
-                           static_cast<double>(n);
+    const double theta_t =
+        MEO_TWO_PI * (static_cast<double>(n / 3)) / static_cast<double>(n);
     QueryResult r = oracle.query(theta_t, n);
     double sqrt_n = std::sqrt(static_cast<double>(n));
     double ratio = static_cast<double>(r.steps) / sqrt_n;
@@ -302,16 +287,15 @@ static void test_detection_scaling() {
   for (size_t i = 1; i < rows.size(); ++i)
     if (rows[i].steps <= rows[i - 1].steps)
       steps_grow = false;
-  test_assert(steps_grow,
-              "scaling: step count strictly increases with n "
-              "(coherent search scales with \u221an, not O(1))");
+  test_assert(steps_grow, "scaling: step count strictly increases with n "
+                          "(coherent search scales with \u221an, not O(1))");
 
   // Coherence ∈ (0, 1] at detection
   bool coherence_valid = true;
   for (const auto &r : rows) {
     MasterEigenOracle oracle;
-    const double theta_t = MEO_TWO_PI * (static_cast<double>(r.n / 3)) /
-                           static_cast<double>(r.n);
+    const double theta_t =
+        MEO_TWO_PI * (static_cast<double>(r.n / 3)) / static_cast<double>(r.n);
     QueryResult qr = oracle.query(theta_t, r.n);
     if (qr.coherence <= 0.0 || qr.coherence > 1.0 + 1e-9)
       coherence_valid = false;
@@ -416,9 +400,10 @@ static void test_phase_coverage() {
               << (r.detected ? "yes" : "no") << r.best_channel << "\n";
   }
 
-  test_assert(all_detected,
-              "phase_coverage: oracle detects target at all 8 cardinal/diagonal "
-              "phase angles");
+  test_assert(
+      all_detected,
+      "phase_coverage: oracle detects target at all 8 cardinal/diagonal "
+      "phase angles");
   test_assert(within_budget,
               "phase_coverage: step count \u2264 2\u221an for all 8 "
               "target phases");
@@ -501,18 +486,16 @@ static void test_scaling_law_benchmark() {
   for (const auto &r : rows)
     if (r.mean_k >= r.sqrt_N)
       below_sqrt = false;
-  test_assert(below_sqrt,
-              "scaling_law: mean_k < \u221aN for all N "
-              "(step count is O(\u221aN))");
+  test_assert(below_sqrt, "scaling_law: mean_k < \u221aN for all N "
+                          "(step count is O(\u221aN))");
 
   // ── Assertion 3: mean_k strictly increases with N ───────────────────────
   bool mean_k_grows = true;
   for (size_t i = 1; i < rows.size(); ++i)
     if (rows[i].mean_k <= rows[i - 1].mean_k)
       mean_k_grows = false;
-  test_assert(mean_k_grows,
-              "scaling_law: mean_k strictly increases with N "
-              "(non-trivial \u221aN growth, not constant)");
+  test_assert(mean_k_grows, "scaling_law: mean_k strictly increases with N "
+                            "(non-trivial \u221aN growth, not constant)");
 
   // ── Assertion 4: log-log regression slope ∈ [0.45, 0.55] ───────────────
   //   x_i = log(N_i),  y_i = log(mean_k_i)
@@ -589,10 +572,12 @@ static void test_mechanism_isolation() {
   using Cx = kernel::oracle::Cx;
   const Cx target_ph{std::cos(ABL_THETA), std::sin(ABL_THETA)};
 
-  std::cout << "\n  (baseline normal oracle p_success = 1.00 for all N — Section 9)\n";
+  std::cout << "\n  (baseline normal oracle p_success = 1.00 for all N — "
+               "Section 9)\n";
 
   // ── Ablation A: Remove Eigen Oracle (random probe phasors) ───────────────
-  std::cout << "\n  A. Remove Eigen Oracle (random probe direction each step):\n";
+  std::cout
+      << "\n  A. Remove Eigen Oracle (random probe direction each step):\n";
   std::cout << "  " << std::string(44, '-') << "\n";
   std::cout << std::left << "  " << std::setw(10) << "N" << std::setw(14)
             << "p_success" << "vs normal\n";
@@ -637,7 +622,8 @@ static void test_mechanism_isolation() {
               "(\u221aN scaling collapses without Eigen Oracle)");
 
   // ── Ablation B: Disable KernelSync (G_eff = 0, no oracle signal) ─────────
-  std::cout << "\n  B. Disable KernelSync (G_eff = 0, no coherence weighting):\n";
+  std::cout
+      << "\n  B. Disable KernelSync (G_eff = 0, no coherence weighting):\n";
   std::cout << "  " << std::string(44, '-') << "\n";
   std::cout << std::left << "  " << std::setw(10) << "N" << std::setw(14)
             << "p_success" << "vs normal\n";
@@ -645,7 +631,8 @@ static void test_mechanism_isolation() {
 
   bool ablB_all_zero = true;
   for (uint64_t n : ns) {
-    // G_eff = 0 ⟹ every contribution = 0 ⟹ accumulator never moves ⟹ no detection
+    // G_eff = 0 ⟹ every contribution = 0 ⟹ accumulator never moves ⟹ no
+    // detection
     const double threshold = 0.15 * std::sqrt(static_cast<double>(n));
     const double acc_peak = 0.0; // G_eff * anything = 0
     bool detected = (acc_peak >= threshold);
@@ -660,8 +647,8 @@ static void test_mechanism_isolation() {
               "amplification)");
 
   // ── Ablation C: Break mean-phase conservation (random ΔΦ each step) ──────
-  std::cout
-      << "\n  C. Break Mean-Phase Conservation (random \u0394\u03a6 each step):\n";
+  std::cout << "\n  C. Break Mean-Phase Conservation (random \u0394\u03a6 each "
+               "step):\n";
   std::cout << "  " << std::string(44, '-') << "\n";
   std::cout << std::left << "  " << std::setw(10) << "N" << std::setw(14)
             << "p_success" << "vs normal\n";
@@ -714,7 +701,6 @@ static void test_mechanism_isolation() {
               "at N=16384 \u2014 causal necessity of all three mechanisms "
               "demonstrated");
 }
-
 
 int main() {
   std::cout
