@@ -1,5 +1,22 @@
 # KernelSync Demo
 
+> **Key Result (coherent receiver)**
+>
+> In a 1000-node simulation with ±50 ppm skew and heavy-tail PDV Model B,
+> coherent KernelSync achieves **30–38× lower final RMS timing error** than
+> the incoherent baseline at fixed pilot budget (R = 500 evt/s, M = 16 or 32
+> chips/burst).
+>
+> | Receiver   | Final RMS timing error |
+> |------------|------------------------|
+> | Coherent KernelSync | ~73 ns (converges) |
+> | Incoherent baseline | >2200 ns (fails to converge) |
+> | **Improvement ratio** | **30–38×** |
+>
+> This is asserted by integration test
+> [`TestCoherentGridSweep`](tests/test_kernelsync.py#L368) (runs in CI on
+> every push/PR to the demo folder).
+
 A runnable simulation of **1000 nodes under heavy-tail packet-delay variation
 (PDV)** that demonstrates an energy-proxy improvement using a structured pilot
 burst code derived from the **μ 8-cycle + palindromic precession**.
