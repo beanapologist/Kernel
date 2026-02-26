@@ -58,6 +58,7 @@ if(KERNEL_BUILD_TESTS)
         test_kernel_pipeline
         test_interrupt_nist
         test_ipc
+        test_master_eigen_oracle
         test_noise_scaling_phase_transition
         test_ohm_coherence
         test_palindrome_precession
@@ -79,6 +80,7 @@ set(_kernel_headers
     KernelState.hpp
     LadderChiralSearch.hpp
     LadderSearchBenchmark.hpp
+    MasterEigenOracle.hpp
     PalindromePrecession.hpp
     SpectralBridge.hpp
     ohm_coherence_duality.hpp
