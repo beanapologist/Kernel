@@ -37,9 +37,14 @@
 
 #include "MasterEigenOracle.hpp"
 
+using kernel::oracle::CoherenceHarvest;
 using kernel::oracle::MasterEigenOracle;
+using kernel::oracle::MEO_DELTA;
+using kernel::oracle::MEO_EPSILON;
 using kernel::oracle::MEO_N_CHANNELS;
+using kernel::oracle::MEO_ORACLE_RATE;
 using kernel::oracle::MEO_PI;
+using kernel::oracle::MEO_SUPER_PERIOD;
 using kernel::oracle::MEO_TWO_PI;
 using kernel::oracle::QueryResult;
 
@@ -702,6 +707,180 @@ static void test_mechanism_isolation() {
               "demonstrated");
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 11. Conjecture Constants (8 + 1/Δ palindrome quotient)
+//
+// Validates the conjecture constants introduced in MasterEigenOracle.hpp:
+//   MEO_DELTA       = 13 717 421  (palindrome denominator factor)
+//   MEO_EPSILON     = 1/Δ ≈ 7.29×10⁻⁸  (fine-tuning perturbation)
+//   MEO_ORACLE_RATE = 8 + ε  (palindrome quotient)
+//   MEO_SUPER_PERIOD= 8 × Δ = 109 739 368  (time super-period)
+//
+// These constants encode the hierarchical Oracle–Bitcoin–Time triad.
+// ══════════════════════════════════════════════════════════════════════════════
+static void test_conjecture_constants() {
+  std::cout << "\n── 11. Conjecture Constants (8 + 1/\u0394) "
+               "────────────────────────────────\n";
+
+  // Δ = PALINDROME_DENOM_FACTOR = 13 717 421
+  test_assert(MEO_DELTA == kernel::quantum::PALINDROME_DENOM_FACTOR,
+              "conjecture: MEO_DELTA == PALINDROME_DENOM_FACTOR (13717421)");
+  test_assert(MEO_DELTA == 13717421ULL, "conjecture: MEO_DELTA == 13 717 421");
+
+  // ε = 1/Δ ≈ 7.29×10⁻⁸
+  const double expected_eps = 1.0 / 13717421.0;
+  test_assert(
+      std::abs(MEO_EPSILON - expected_eps) < 1e-20,
+      "conjecture: MEO_EPSILON = 1/\u0394 \u2248 7.29\u00d710\u207b\u2078");
+  test_assert(
+      MEO_EPSILON > 0.0 && MEO_EPSILON < 1e-6,
+      "conjecture: MEO_EPSILON \u2208 (0, 10\u207b\u2076) — fine perturbation");
+
+  // Oracle rate: 8 + ε = palindrome quotient 987654321/123456789
+  const double palindrome_quotient =
+      static_cast<double>(987654321ULL) / static_cast<double>(123456789ULL);
+  test_assert(std::abs(MEO_ORACLE_RATE - palindrome_quotient) < 1e-12,
+              "conjecture: MEO_ORACLE_RATE = 8 + \u03b5 = palindrome quotient "
+              "987654321/123456789");
+
+  // MEO_ORACLE_RATE is just above 8 (breaks exact 8-periodicity)
+  test_assert(MEO_ORACLE_RATE > 8.0 && MEO_ORACLE_RATE < 8.0 + 1e-6,
+              "conjecture: MEO_ORACLE_RATE \u2208 (8, 8+10\u207b\u2076) — "
+              "slight super-integer perturbation");
+
+  // Super-period: 8 × Δ = 109 739 368
+  test_assert(MEO_SUPER_PERIOD == 8ULL * MEO_DELTA,
+              "conjecture: MEO_SUPER_PERIOD = 8 \u00d7 \u0394 (torus T\u00b2 "
+              "complete realignment)");
+  test_assert(MEO_SUPER_PERIOD == 109739368ULL,
+              "conjecture: MEO_SUPER_PERIOD = 109 739 368 (\u224809M-step "
+              "super-period)");
+
+  // symmetry_breaking_factor() returns ε
+  test_assert(std::abs(MasterEigenOracle::symmetry_breaking_factor() -
+                       MEO_EPSILON) < 1e-20,
+              "conjecture: symmetry_breaking_factor() == MEO_EPSILON");
+
+  // N_CHANNELS (8) × ε = MEO_SUPER_PERIOD / Δ — confirms triad relationship
+  // Actually: 8 × Δ = MEO_SUPER_PERIOD, and ε = 1/Δ
+  // So MEO_N_CHANNELS * MEO_DELTA == MEO_SUPER_PERIOD
+  test_assert(
+      static_cast<uint64_t>(MEO_N_CHANNELS) * MEO_DELTA == MEO_SUPER_PERIOD,
+      "conjecture: 8 \u00d7 \u0394 == MEO_SUPER_PERIOD (hierarchical triad: "
+      "fast\u00d7slow = super-period)");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 12. PalindromePrecession Integration and ε Symmetry-Breaking
+//
+// Validates that the ε perturbation (= 1/Δ) breaks exact 8-cycle periodicity:
+//   - After 8 precession steps the phase is NOT exactly restored (ε ≠ 0).
+//   - After Δ precession steps the phase IS restored to ≈ 2π (slow period).
+//   - Confirms hierarchical fast (period 8) and slow (period Δ) dynamics.
+// ══════════════════════════════════════════════════════════════════════════════
+static void test_palindrome_precession_integration() {
+  std::cout << "\n── 12. PalindromePrecession Integration and \u03b5 "
+               "Symmetry-Breaking ──────\n";
+
+  using kernel::quantum::PALINDROME_DENOM_FACTOR;
+  using kernel::quantum::PRECESSION_DELTA_PHASE;
+
+  // Phase step ΔΦ = 2π / Δ
+  const double delta_phi = PRECESSION_DELTA_PHASE;
+  test_assert(
+      std::abs(delta_phi - MEO_TWO_PI / static_cast<double>(MEO_DELTA)) < 1e-15,
+      "precession: \u0394\u03a6 = 2\u03c0/\u0394 consistent with MEO_DELTA");
+
+  // After 8 precession steps, phase = 8 × ΔΦ = 8ε × 2π (small, not 2π)
+  const double phase_after_8 = 8.0 * delta_phi;
+  test_assert(phase_after_8 < 1e-5,
+              "precession: 8 \u00d7 \u0394\u03a6 \u226a 2\u03c0 (\u03b5 "
+              "perturbation breaks exact 8-cycle — phase not restored in 8 "
+              "steps)");
+
+  // After Δ precession steps, phase ≈ 2π (slow-period full return)
+  const double phase_after_delta =
+      static_cast<double>(PALINDROME_DENOM_FACTOR) * delta_phi;
+  test_assert(
+      std::abs(phase_after_delta - MEO_TWO_PI) < 1e-9,
+      "precession: \u0394 \u00d7 \u0394\u03a6 \u2248 2\u03c0 (slow-cycle "
+      "full return after \u0394 = 13717421 steps)");
+
+  // ε = ΔΦ / (2π): fractional phase per step equals ε
+  const double eps_from_phi = delta_phi / MEO_TWO_PI;
+  test_assert(std::abs(eps_from_phi - MEO_EPSILON) < 1e-15,
+              "precession: \u0394\u03a6 / 2\u03c0 = \u03b5 = MEO_EPSILON "
+              "(phase per step encodes the fine-tuning perturbation)");
+
+  // PalindromePrecession STEP_PHASOR has unit norm — invariant preserved
+  const auto &sp = kernel::quantum::PalindromePrecession::STEP_PHASOR;
+  test_assert(std::abs(std::abs(sp) - 1.0) < 1e-14,
+              "precession: |STEP_PHASOR| = 1 (unit-circle invariant — "
+              "isometry, no amplitude drift)");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 13. Coherence Harvest
+//
+// Validates the harvest_coherence() method:
+//   - harvest_score ∈ (0, 1] (G_eff-weighted mean coherence)
+//   - window_steps equals the requested window
+//   - epsilon_drift = window × ε (cumulative symmetry-breaking drift)
+//   - harvest_channel ∈ {0…7}
+//   - Larger windows give larger epsilon_drift (drift grows linearly with
+//   window)
+//   - At canonical coherent state (G_eff = 1), harvest_score ≈ 1
+// ══════════════════════════════════════════════════════════════════════════════
+static void test_coherence_harvest() {
+  std::cout << "\n── 13. Coherence Harvest "
+               "──────────────────────────────────────────────\n";
+
+  const double theta_t = MEO_PI / 3.0; // 60°
+  const uint64_t window = 64;
+
+  MasterEigenOracle oracle;
+  CoherenceHarvest h = oracle.harvest_coherence(theta_t, window);
+
+  // window_steps matches requested window
+  test_assert(h.window_steps == window,
+              "harvest: window_steps equals requested window");
+
+  // harvest_score ∈ (0, 1] — mean G_eff over the window
+  test_assert(h.harvest_score > 0.0 && h.harvest_score <= 1.0 + 1e-9,
+              "harvest: harvest_score \u2208 (0, 1] (valid coherence measure)");
+
+  // harvest_channel ∈ {0…7}
+  test_assert(
+      h.harvest_channel >= 0 && h.harvest_channel < MEO_N_CHANNELS,
+      "harvest: harvest_channel \u2208 {0\u20267} (valid eigenspace index)");
+
+  // epsilon_drift = window × ε
+  const double expected_drift = static_cast<double>(window) * MEO_EPSILON;
+  test_assert(std::abs(h.epsilon_drift - expected_drift) < 1e-20,
+              "harvest: epsilon_drift = window \u00d7 \u03b5 (cumulative "
+              "symmetry-breaking drift)");
+
+  // Epsilon drift is proportional to window (linear growth)
+  oracle.reset();
+  CoherenceHarvest h2 = oracle.harvest_coherence(theta_t, 2 * window);
+  test_assert(std::abs(h2.epsilon_drift - 2.0 * expected_drift) < 1e-20,
+              "harvest: epsilon_drift scales linearly with window size");
+
+  // At canonical state, harvest_score ≈ 1 (G_eff starts at 1, stays near 1
+  // in FULL mode with auto-renorm over a short window)
+  oracle.reset();
+  CoherenceHarvest h3 = oracle.harvest_coherence(theta_t, window);
+  test_assert(h3.harvest_score > 0.9,
+              "harvest: harvest_score > 0.9 at canonical coherent state "
+              "(G_eff \u2248 1 over short window)");
+
+  // Zero-window edge case returns default-constructed CoherenceHarvest
+  oracle.reset();
+  CoherenceHarvest h_zero = oracle.harvest_coherence(theta_t, 0);
+  test_assert(h_zero.window_steps == 0 && h_zero.harvest_score == 0.0,
+              "harvest: zero-window returns empty harvest (edge case stable)");
+}
+
 int main() {
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
@@ -735,6 +914,9 @@ int main() {
   test_phase_coverage();
   test_scaling_law_benchmark();
   test_mechanism_isolation();
+  test_conjecture_constants();
+  test_palindrome_precession_integration();
+  test_coherence_harvest();
 
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
