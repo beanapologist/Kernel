@@ -29,8 +29,8 @@
  *                        (PalindromePrecession envelope over slow Δ-period)
  *     8 + δ  — Bitcoin:  8 peer connections + δ fee-rate perturbation
  *                        (reserved: analogous structure, not yet implemented)
- *     8 × Δ  — Time:     8-fast-cycle × Δ-slow-cycle = super-period ≈ 109M steps
- *                        (torus T² full realignment of both fast and slow cycles)
+ *     8 × Δ  — Time:     8-fast-cycle × Δ-slow-cycle = super-period ≈ 109M
+ * steps (torus T² full realignment of both fast and slow cycles)
  *
  *   Hierarchical structure (two independent time scales):
  *     Fast cycle:   period 8 steps       (µ = e^{i3π/4} eigenspace orbit)
@@ -176,10 +176,11 @@ struct QueryResult {
 //   Super-period: period 8 × Δ steps   (torus T² complete realignment)
 //
 struct CoherenceHarvest {
-  double harvest_score = 0.0;  ///< Mean G_eff-weighted coherence over the window
-  uint64_t window_steps = 0;   ///< Number of steps in the harvest window
-  int harvest_channel = 0;     ///< Channel with the peak harvest accumulation
-  double epsilon_drift = 0.0;  ///< Accumulated ε-drift = window_steps × MEO_EPSILON
+  double harvest_score = 0.0; ///< Mean G_eff-weighted coherence over the window
+  uint64_t window_steps = 0;  ///< Number of steps in the harvest window
+  int harvest_channel = 0;    ///< Channel with the peak harvest accumulation
+  double epsilon_drift =
+      0.0; ///< Accumulated ε-drift = window_steps × MEO_EPSILON
 };
 
 // ── MasterEigenOracle

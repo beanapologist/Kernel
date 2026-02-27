@@ -37,16 +37,16 @@
 
 #include "MasterEigenOracle.hpp"
 
-using kernel::oracle::MasterEigenOracle;
-using kernel::oracle::MEO_N_CHANNELS;
-using kernel::oracle::MEO_PI;
-using kernel::oracle::MEO_TWO_PI;
-using kernel::oracle::QueryResult;
 using kernel::oracle::CoherenceHarvest;
+using kernel::oracle::MasterEigenOracle;
 using kernel::oracle::MEO_DELTA;
 using kernel::oracle::MEO_EPSILON;
+using kernel::oracle::MEO_N_CHANNELS;
 using kernel::oracle::MEO_ORACLE_RATE;
+using kernel::oracle::MEO_PI;
 using kernel::oracle::MEO_SUPER_PERIOD;
+using kernel::oracle::MEO_TWO_PI;
+using kernel::oracle::QueryResult;
 
 // ── Test infrastructure
 // ───────────────────────────────────────────────────────
@@ -725,15 +725,16 @@ static void test_conjecture_constants() {
   // Δ = PALINDROME_DENOM_FACTOR = 13 717 421
   test_assert(MEO_DELTA == kernel::quantum::PALINDROME_DENOM_FACTOR,
               "conjecture: MEO_DELTA == PALINDROME_DENOM_FACTOR (13717421)");
-  test_assert(MEO_DELTA == 13717421ULL,
-              "conjecture: MEO_DELTA == 13 717 421");
+  test_assert(MEO_DELTA == 13717421ULL, "conjecture: MEO_DELTA == 13 717 421");
 
   // ε = 1/Δ ≈ 7.29×10⁻⁸
   const double expected_eps = 1.0 / 13717421.0;
-  test_assert(std::abs(MEO_EPSILON - expected_eps) < 1e-20,
-              "conjecture: MEO_EPSILON = 1/\u0394 \u2248 7.29\u00d710\u207b\u2078");
-  test_assert(MEO_EPSILON > 0.0 && MEO_EPSILON < 1e-6,
-              "conjecture: MEO_EPSILON \u2208 (0, 10\u207b\u2076) — fine perturbation");
+  test_assert(
+      std::abs(MEO_EPSILON - expected_eps) < 1e-20,
+      "conjecture: MEO_EPSILON = 1/\u0394 \u2248 7.29\u00d710\u207b\u2078");
+  test_assert(
+      MEO_EPSILON > 0.0 && MEO_EPSILON < 1e-6,
+      "conjecture: MEO_EPSILON \u2208 (0, 10\u207b\u2076) — fine perturbation");
 
   // Oracle rate: 8 + ε = palindrome quotient 987654321/123456789
   const double palindrome_quotient =
@@ -756,10 +757,9 @@ static void test_conjecture_constants() {
               "super-period)");
 
   // symmetry_breaking_factor() returns ε
-  test_assert(
-      std::abs(MasterEigenOracle::symmetry_breaking_factor() - MEO_EPSILON) <
-          1e-20,
-      "conjecture: symmetry_breaking_factor() == MEO_EPSILON");
+  test_assert(std::abs(MasterEigenOracle::symmetry_breaking_factor() -
+                       MEO_EPSILON) < 1e-20,
+              "conjecture: symmetry_breaking_factor() == MEO_EPSILON");
 
   // N_CHANNELS (8) × ε = MEO_SUPER_PERIOD / Δ — confirms triad relationship
   // Actually: 8 × Δ = MEO_SUPER_PERIOD, and ε = 1/Δ
@@ -782,8 +782,8 @@ static void test_palindrome_precession_integration() {
   std::cout << "\n── 12. PalindromePrecession Integration and \u03b5 "
                "Symmetry-Breaking ──────\n";
 
-  using kernel::quantum::PRECESSION_DELTA_PHASE;
   using kernel::quantum::PALINDROME_DENOM_FACTOR;
+  using kernel::quantum::PRECESSION_DELTA_PHASE;
 
   // Phase step ΔΦ = 2π / Δ
   const double delta_phi = PRECESSION_DELTA_PHASE;
@@ -801,9 +801,10 @@ static void test_palindrome_precession_integration() {
   // After Δ precession steps, phase ≈ 2π (slow-period full return)
   const double phase_after_delta =
       static_cast<double>(PALINDROME_DENOM_FACTOR) * delta_phi;
-  test_assert(std::abs(phase_after_delta - MEO_TWO_PI) < 1e-9,
-              "precession: \u0394 \u00d7 \u0394\u03a6 \u2248 2\u03c0 (slow-cycle "
-              "full return after \u0394 = 13717421 steps)");
+  test_assert(
+      std::abs(phase_after_delta - MEO_TWO_PI) < 1e-9,
+      "precession: \u0394 \u00d7 \u0394\u03a6 \u2248 2\u03c0 (slow-cycle "
+      "full return after \u0394 = 13717421 steps)");
 
   // ε = ΔΦ / (2π): fractional phase per step equals ε
   const double eps_from_phi = delta_phi / MEO_TWO_PI;
@@ -826,7 +827,8 @@ static void test_palindrome_precession_integration() {
 //   - window_steps equals the requested window
 //   - epsilon_drift = window × ε (cumulative symmetry-breaking drift)
 //   - harvest_channel ∈ {0…7}
-//   - Larger windows give larger epsilon_drift (drift grows linearly with window)
+//   - Larger windows give larger epsilon_drift (drift grows linearly with
+//   window)
 //   - At canonical coherent state (G_eff = 1), harvest_score ≈ 1
 // ══════════════════════════════════════════════════════════════════════════════
 static void test_coherence_harvest() {
@@ -848,12 +850,12 @@ static void test_coherence_harvest() {
               "harvest: harvest_score \u2208 (0, 1] (valid coherence measure)");
 
   // harvest_channel ∈ {0…7}
-  test_assert(h.harvest_channel >= 0 && h.harvest_channel < MEO_N_CHANNELS,
-              "harvest: harvest_channel \u2208 {0\u20267} (valid eigenspace index)");
+  test_assert(
+      h.harvest_channel >= 0 && h.harvest_channel < MEO_N_CHANNELS,
+      "harvest: harvest_channel \u2208 {0\u20267} (valid eigenspace index)");
 
   // epsilon_drift = window × ε
-  const double expected_drift =
-      static_cast<double>(window) * MEO_EPSILON;
+  const double expected_drift = static_cast<double>(window) * MEO_EPSILON;
   test_assert(std::abs(h.epsilon_drift - expected_drift) < 1e-20,
               "harvest: epsilon_drift = window \u00d7 \u03b5 (cumulative "
               "symmetry-breaking drift)");
