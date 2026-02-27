@@ -43,6 +43,7 @@ jobs:
             LadderSearchBenchmark.hpp \
             ohm_coherence_duality.hpp \
             test_ohm_coherence.cpp \
+            test_battery_analogy.cpp \
             PalindromePrecession.hpp \
             test_palindrome_precession.cpp \
             KernelState.hpp \
@@ -94,6 +95,12 @@ jobs:
 
       - name: Run test_ohm_coherence
         run: ./test_ohm_coherence
+
+      - name: Build test_battery_analogy
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o test_battery_analogy test_battery_analogy.cpp -lm
+
+      - name: Run test_battery_analogy
+        run: ./test_battery_analogy
 
       - name: Build test_palindrome_precession
         run: g++ -std=c++17 -Wall -Wextra -O2 -o test_palindrome_precession test_palindrome_precession.cpp -lm

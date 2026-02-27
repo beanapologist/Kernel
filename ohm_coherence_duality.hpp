@@ -295,7 +295,8 @@ struct QuTritDegradation {
 //
 //   1. SOURCE  — N nodes each carrying a phase frustration δθ_j = ψ̂_j − ψ̄.
 //                These nodes "want to give up" their deviation (chemical
-//                potential → electrical potential; phase deviation → coherence).
+//                potential → electrical potential; phase deviation →
+//                coherence).
 //
 //   2. SINK    — The collective mean phase ψ̄ = arg(⟨e^{iψ_j}⟩).
 //                It is the attractor that receives the released frustration and

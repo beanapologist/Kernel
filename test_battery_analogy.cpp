@@ -8,7 +8,8 @@
  *                that give up their frustration over time.
  *
  *   2. SINK    — mean attractor ψ̄ that is conserved while receiving the
- *                released frustration and converting it to circular coherence R.
+ *                released frustration and converting it to circular coherence
+ * R.
  *
  *   3. MEDIUM  — G_eff = sech(λ) damping that controls the transfer rate:
  *                  g = 0     → open circuit  (no transfer, battery dead)
@@ -38,7 +39,8 @@
 
 using namespace kernel::ohm;
 
-// ── Test framework ────────────────────────────────────────────────────────────
+// ── Test framework
+// ────────────────────────────────────────────────────────────
 static int test_count = 0;
 static int passed = 0;
 static int failed = 0;
@@ -57,7 +59,8 @@ static void test_assert(bool condition, const std::string &name) {
 static constexpr double TOL = 1e-9;
 static constexpr double LOOSE_TOL = 1e-6;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helpers
+// ───────────────────────────────────────────────────────────────────
 
 // Wrap angle to (−π, π]
 static double wrap(double a) {
@@ -65,18 +68,18 @@ static double wrap(double a) {
 }
 
 // Build N phases uniformly spaced over [−spread, +spread] around centre.
-static std::vector<double> uniform_phases(int N, double centre,
-                                          double spread) {
+static std::vector<double> uniform_phases(int N, double centre, double spread) {
   std::vector<double> ph(N);
   for (int j = 0; j < N; ++j)
     ph[j] = centre + spread * (2.0 * j / (N - 1.0) - 1.0);
   return ph;
 }
 
-// ── 1. Source exists ──────────────────────────────────────────────────────────
-// Verify that a system with non-uniform initial phases has positive frustration
-// (chemical potential / source energy), and that a perfectly uniform system
-// has zero frustration (no energy to convert — dead battery).
+// ── 1. Source exists
+// ────────────────────────────────────────────────────────── Verify that a
+// system with non-uniform initial phases has positive frustration (chemical
+// potential / source energy), and that a perfectly uniform system has zero
+// frustration (no energy to convert — dead battery).
 void test_source_exists() {
   std::cout << "\n\u2554\u2550\u2550\u2550 1. Source: Phase Frustration "
                "\u2550\u2550\u2550\u2557\n";
@@ -103,9 +106,10 @@ void test_source_exists() {
               "wider spread → more frustration (stronger source)");
 }
 
-// ── 2. Sink is conserved ──────────────────────────────────────────────────────
-// The mean attractor ψ̄ must remain invariant while frustration flows into it,
-// exactly as the electrolyte equilibrium is maintained in a battery.
+// ── 2. Sink is conserved
+// ────────────────────────────────────────────────────── The mean attractor ψ̄
+// must remain invariant while frustration flows into it, exactly as the
+// electrolyte equilibrium is maintained in a battery.
 void test_sink_is_conserved() {
   std::cout << "\n\u2554\u2550\u2550\u2550 2. Sink: Mean Phase Conserved "
                "\u2550\u2550\u2550\u2557\n";
@@ -136,8 +140,9 @@ void test_sink_is_conserved() {
   for (int i = 0; i < STEPS; ++i)
     bat2.step();
   double drift2 = std::abs(wrap(bat2.mean_phase() - psi2_init));
-  test_assert(drift2 < LOOSE_TOL,
-              "offset mean phase stays near \u03c0/4 under EMA (sink invariant)");
+  test_assert(
+      drift2 < LOOSE_TOL,
+      "offset mean phase stays near \u03c0/4 under EMA (sink invariant)");
 
   // Frustration must decrease (source gives to sink)
   auto ph3 = uniform_phases(N, 0.0, OHM_PI / 2.0);
@@ -173,8 +178,9 @@ void test_medium_controls() {
   PhaseBattery bat3(N, 0.3, ph);
   for (int i = 0; i < STEPS; ++i)
     bat3.step();
-  test_assert(bat3.frustration() < E0_before * 0.9,
-              "g=0.3 (controlled medium): frustration decreases — battery works");
+  test_assert(
+      bat3.frustration() < E0_before * 0.9,
+      "g=0.3 (controlled medium): frustration decreases — battery works");
 
   // g = 1.0 (ideal medium): frustration collapses to near-zero in one step
   PhaseBattery bat1(N, 1.0, ph);
@@ -204,8 +210,9 @@ void test_medium_controls() {
               "(medium active)");
 }
 
-// ── 4. Three essentials — battery only works with all three ───────────────────
-// Systematically disable each essential and verify the battery fails.
+// ── 4. Three essentials — battery only works with all three
+// ─────────────────── Systematically disable each essential and verify the
+// battery fails.
 void test_three_essentials() {
   std::cout << "\n\u2554\u2550\u2550\u2550 4. All Three Essentials Required "
                "\u2550\u2550\u2550\u2557\n";
@@ -287,7 +294,7 @@ void test_coherence_monotone() {
     prev_R = R;
   }
   test_assert(monotone, "R(t) is monotonically non-decreasing for g=0.3 "
-                         "(dissipative sink absorbs all released frustration)");
+                        "(dissipative sink absorbs all released frustration)");
 
   // Also verify final R is significantly larger than initial R
   auto ph2 = uniform_phases(N, 0.0, OHM_PI);
@@ -335,8 +342,8 @@ void test_g_eff_rate() {
   int steps_hi = steps_to_target(0.7);
 
   std::cout << std::fixed << std::setprecision(1);
-  std::cout << "    Steps to R > 0.95:  g=0.1 → " << steps_lo
-            << "  g=0.3 → " << steps_mid << "  g=0.7 → " << steps_hi << "\n";
+  std::cout << "    Steps to R > 0.95:  g=0.1 → " << steps_lo << "  g=0.3 → "
+            << steps_mid << "  g=0.7 → " << steps_hi << "\n";
 
   test_assert(steps_lo > steps_mid,
               "g=0.1 slower than g=0.3: higher G_eff → faster convergence");
@@ -344,8 +351,8 @@ void test_g_eff_rate() {
               "g=0.3 slower than g=0.7: higher G_eff → faster convergence");
 
   // Verify via λ: G_eff = sech(λ), so λ small → G_eff large → fast
-  double lam_fast = 0.3;                 // sech(0.3) ≈ 0.956
-  double lam_slow = 2.0;                 // sech(2.0) ≈ 0.266
+  double lam_fast = 0.3; // sech(0.3) ≈ 0.956
+  double lam_slow = 2.0; // sech(2.0) ≈ 0.266
   int steps_fast = steps_to_target(conductance(lam_fast));
   int steps_slow = steps_to_target(conductance(lam_slow));
   test_assert(steps_fast < steps_slow,
@@ -358,7 +365,8 @@ void test_g_eff_rate() {
               "battery dead without medium");
 }
 
-// ── Main ──────────────────────────────────────────────────────────────────────
+// ── Main
+// ──────────────────────────────────────────────────────────────────────
 int main() {
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
