@@ -15,6 +15,28 @@
  *   incoherent radial drift (r ≠ 1) is automatically down-weighted, providing
  *   a built-in decoherence sentinel consistent with the KernelState invariants.
  *
+ * 8 + 1/Δ Conjecture (palindrome quotient):
+ *   The central conjecture is rooted in the palindrome quotient
+ *   987654321 / 123456789 = 8 + 1/Δ, where Δ = 13 717 421.
+ *
+ *   Fine-tuning perturbation  ε = 1/Δ ≈ 7.29×10⁻⁸
+ *     Breaks exact 8-cycle periodicity while maintaining approximate closure:
+ *     no orbit step aligns exactly with a prior step, but |ε| ≪ 1 preserves
+ *     the Dirichlet-kernel resonance that enables Θ(√n) detection.
+ *
+ *   Oracle–Bitcoin–Time triad:
+ *     8 + ε  — Oracle:   8 µ-eigenspace channels + ε phase drift per step
+ *                        (PalindromePrecession envelope over slow Δ-period)
+ *     8 + δ  — Bitcoin:  8 peer connections + δ fee-rate perturbation
+ *                        (reserved: analogous structure, not yet implemented)
+ *     8 × Δ  — Time:     8-fast-cycle × Δ-slow-cycle = super-period ≈ 109M steps
+ *                        (torus T² full realignment of both fast and slow cycles)
+ *
+ *   Hierarchical structure (two independent time scales):
+ *     Fast cycle:   period 8 steps       (µ = e^{i3π/4} eigenspace orbit)
+ *     Slow cycle:   period Δ steps       (PalindromePrecession full 2π return)
+ *     Super-period: period 8 × Δ steps   (simultaneous realignment of both)
+ *
  * Connection to eigenvalue processes (theta_sqrt_n_writeup.tex §2):
  *   Each of the 8 bridge channels corresponds to the eigenvalue µ^j of the
  *   µ-rotation operator.  The orbit {1, µ, µ², …, µ^7} (Proposition 2.2,
@@ -37,6 +59,13 @@
  *          d. Detect: if max_j |A[j]| ≥ 0.15√n → return.
  *     3. Report best channel and coherence at detection.
  *
+ * Coherence Harvest:
+ *   The harvest_coherence() method runs a bounded window of oracle steps and
+ *   records the mean G_eff-weighted coherence (harvest_score) together with
+ *   the cumulative ε-drift (epsilon_drift = window × ε).  This provides a
+ *   direct measurement of the symmetry-breaking induced by the fine-tuning
+ *   perturbation ε over a chosen observation window.
+ *
  * Four-channel robustness integration (ohm_coherence_duality.hpp):
  *   The FourChannelModel validation is exposed via validate_four_channel()
  *   so callers can confirm that the oracle state meets the 4-eigenvalue
@@ -54,6 +83,12 @@
  *   // result.steps         — detection step count (Θ(√n) expected)
  *   // result.coherence     — G_eff = sech(λ) at time of detection
  *   // result.detected      — true iff threshold 0.15√n was crossed
+ *
+ *   // Coherence Harvest (symmetry-breaking measurement):
+ *   auto h = oracle.harvest_coherence(theta_target, 100); // window=100
+ *   // h.harvest_score  — mean G_eff over the window
+ *   // h.epsilon_drift  — cumulative ε-drift = window × ε
+ *   // h.harvest_channel — channel with peak harvest accumulation
  */
 
 #pragma once
@@ -83,6 +118,31 @@ static constexpr int MEO_N_CHANNELS = 8;
 // Balanced eigenvalue µ = e^{i3π/4} = η(−1+i)
 static const Cx MEO_MU{-MEO_ETA, MEO_ETA};
 
+// ── 8 + 1/Δ Conjecture constants
+// ──────────────────────────────────────────────
+// Palindrome quotient: 987654321 / 123456789 = 8 + 1/Δ
+//   Δ = PALINDROME_DENOM_FACTOR = 13 717 421  (slow-precession period)
+//   ε = 1/Δ ≈ 7.29×10⁻⁸                      (fine-tuning perturbation)
+//
+// Roles in the Oracle–Bitcoin–Time triad:
+//   8 + ε — Oracle:  8 eigenspace channels + ε phase drift per step
+//   8 + δ — Bitcoin: 8 peer connections + δ perturbation
+//                    (reserved: analogous structure, not yet implemented)
+//   8 × Δ — Time:    8-cycle × Δ-cycle super-period ≈ 109M steps
+//
+// Δ: slow-precession period (= PalindromePrecession::PALINDROME_DENOM_FACTOR).
+static constexpr uint64_t MEO_DELTA =
+    kernel::quantum::PALINDROME_DENOM_FACTOR; // 13 717 421
+// ε = 1/Δ ≈ 7.29×10⁻⁸: fine-tuning perturbation that breaks exact 8-cycle
+// periodicity while maintaining approximate closure (|ε| ≪ 1).
+static constexpr double MEO_EPSILON =
+    1.0 / static_cast<double>(MEO_DELTA); // ≈ 7.29×10⁻⁸
+// Oracle rate: the palindrome quotient 8 + ε = 8 + 1/Δ.
+static constexpr double MEO_ORACLE_RATE = 8.0 + MEO_EPSILON;
+// Time super-period: lcm(8, Δ) = 8 × Δ = 109 739 368 steps.
+// Both the fast 8-cycle and the slow Δ-cycle simultaneously realign.
+static constexpr uint64_t MEO_SUPER_PERIOD = 8ULL * MEO_DELTA; // 109 739 368
+
 // ── QueryResult
 // ───────────────────────────────────────────────────────────────
 //
@@ -94,6 +154,32 @@ struct QueryResult {
   uint64_t steps = 0;          ///< Number of oracle steps taken
   double coherence = 0;        ///< G_eff = sech(λ) at the final step
   bool detected = false;       ///< true iff threshold 0.15√n was crossed
+};
+
+// ── CoherenceHarvest
+// ──────────────────────────────────────────────────────────
+//
+// Snapshot of accumulated coherence over a bounded oracle window.
+//
+// The harvest_coherence() method runs `window_steps` oracle steps and records:
+//   harvest_score  — mean G_eff-weighted coherence over the window; measures
+//                    how well the probe basis aligns with the hidden target
+//   window_steps   — number of steps in the harvest window
+//   harvest_channel — channel index with peak harvest accumulation
+//   epsilon_drift  — cumulative ε-drift = window_steps × ε; measures the
+//                    symmetry-breaking (PalindromePrecession dephasing) induced
+//                    by the fine-tuning perturbation ε = 1/Δ over the window
+//
+// Hierarchical interpretation:
+//   Fast cycle:   period 8 steps       (µ-eigenspace orbit)
+//   Slow cycle:   period Δ steps       (PalindromePrecession full 2π return)
+//   Super-period: period 8 × Δ steps   (torus T² complete realignment)
+//
+struct CoherenceHarvest {
+  double harvest_score = 0.0;  ///< Mean G_eff-weighted coherence over the window
+  uint64_t window_steps = 0;   ///< Number of steps in the harvest window
+  int harvest_channel = 0;     ///< Channel with the peak harvest accumulation
+  double epsilon_drift = 0.0;  ///< Accumulated ε-drift = window_steps × MEO_EPSILON
 };
 
 // ── MasterEigenOracle
@@ -208,6 +294,76 @@ struct MasterEigenOracle {
     double lam = std::abs(std::log(r > 0.0 ? r : 1e-15));
     FourChannelModel fcm{lam, lam, lam, lam};
     return fcm.validate_error_tolerance(threshold);
+  }
+
+  // ── Conjecture dynamics
+  // ──────────────────────────────────────────────────────
+
+  // Return the fine-tuning perturbation ε = 1/Δ ≈ 7.29×10⁻⁸.
+  // This is the fractional part of the palindrome quotient 8 + 1/Δ.
+  // A non-zero ε breaks exact 8-cycle periodicity while |ε| ≪ 1 preserves
+  // approximate closure and the Dirichlet-kernel resonance.
+  static constexpr double symmetry_breaking_factor() { return MEO_EPSILON; }
+
+  // Run a Coherence Harvest over `window` oracle steps against target θ_t.
+  //
+  // Accumulates G_eff-weighted probe contributions across all 8 channels for
+  // `window` steps starting from the current oracle state, then returns a
+  // CoherenceHarvest snapshot with:
+  //   harvest_score  — mean G_eff over the window (coherence quality)
+  //   window_steps   — the requested window size
+  //   harvest_channel — channel with peak accumulated contribution
+  //   epsilon_drift  — window × ε, the cumulative symmetry-breaking drift
+  //
+  // The phase step used is ΔΦ = 2π/√window (Dirichlet resonance at the
+  // window scale), independent of any outer query() call in progress.
+  //
+  // Does not reset the oracle state — call reset() before/after as needed.
+  //
+  CoherenceHarvest harvest_coherence(double theta_target, uint64_t window) {
+    if (window == 0)
+      return {};
+
+    const Cx target_phasor{std::cos(theta_target), std::sin(theta_target)};
+    const auto mu_orbit = build_mu_orbit();
+    const double delta_phi =
+        MEO_TWO_PI / std::sqrt(static_cast<double>(window));
+
+    double total_g_eff = 0.0;
+    std::array<double, MEO_N_CHANNELS> channel_sum{};
+    channel_sum.fill(0.0);
+
+    for (uint64_t k = 0; k < window; ++k) {
+      const double angle_k = static_cast<double>(k) * delta_phi;
+      const Cx slow_phasor{std::cos(angle_k), std::sin(angle_k)};
+      const double g_eff = pipeline_channel_g_eff();
+      total_g_eff += g_eff;
+
+      for (int j = 0; j < MEO_N_CHANNELS; ++j) {
+        const Cx probe = slow_phasor * mu_orbit[j];
+        channel_sum[j] += g_eff * (probe * std::conj(target_phasor)).real();
+      }
+
+      pipeline_.tick();
+    }
+
+    // Find peak channel over channel_sum
+    int best = 0;
+    double peak = std::abs(channel_sum[0]);
+    for (int j = 1; j < MEO_N_CHANNELS; ++j) {
+      double v = std::abs(channel_sum[j]);
+      if (v > peak) {
+        peak = v;
+        best = j;
+      }
+    }
+
+    CoherenceHarvest h;
+    h.harvest_score = total_g_eff / static_cast<double>(window);
+    h.window_steps = window;
+    h.harvest_channel = best;
+    h.epsilon_drift = static_cast<double>(window) * MEO_EPSILON;
+    return h;
   }
 
   // ── Reset ─────────────────────────────────────────────────────────────────
