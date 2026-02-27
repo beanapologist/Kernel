@@ -288,4 +288,92 @@ struct QuTritDegradation {
   }
 };
 
+// ── PhaseBattery: phase-space analogue of an electrochemical battery ─────────
+//
+// Models the three structural essentials shared by every energy-conversion
+// device — battery or coherence engine:
+//
+//   1. SOURCE  — N nodes each carrying a phase frustration δθ_j = ψ̂_j − ψ̄.
+//                These nodes "want to give up" their deviation (chemical
+//                potential → electrical potential; phase deviation → coherence).
+//
+//   2. SINK    — The collective mean phase ψ̄ = arg(⟨e^{iψ_j}⟩).
+//                It is the attractor that receives the released frustration and
+//                is analogous to the opposite electrode.
+//
+//   3. MEDIUM  — The EMA gain g = G_eff = sech(λ) ∈ (0, 1].
+//                G_eff damping controls the rate of transfer without
+//                short-circuiting (g > 1 ⇒ over-shoot / oscillation ≡ short
+//                circuit; g = 0 ⇒ open circuit; g ∈ (0,1) ⇒ useful work).
+//
+// Update rule per step:
+//   ψ̂_j ← ψ̂_j − g · δθ_j,   δθ_j = wrap(ψ̂_j − ψ̄)
+//
+// Key observables:
+//   frustration()  = (1/N) Σ δθ_j²   — source energy (decreases)
+//   circular_r()   = |⟨e^{iψ_j}⟩|   — output coherence / sink signal (rises)
+//   mean_phase()   = arg(⟨e^{iψ_j}⟩) — conserved attractor (sink address)
+//
+struct PhaseBattery {
+  int N;                      // Number of nodes
+  double g;                   // EMA gain = G_eff = sech(λ) ∈ [0, ∞)
+  std::vector<double> phases; // ψ̂_j for each node (radians)
+
+  PhaseBattery(int n_nodes, double gain, const std::vector<double> &init_phases)
+      : N(n_nodes), g(gain), phases(init_phases) {}
+
+  // Mean phase ψ̄ = arg(⟨e^{iψ_j}⟩) — the SINK attractor
+  double mean_phase() const {
+    double cx, cy;
+    complex_sum(cx, cy);
+    return std::atan2(cy, cx);
+  }
+
+  // Circular coherence R = |⟨e^{iψ_j}⟩| ∈ [0, 1] — SINK output signal
+  double circular_r() const {
+    double cx, cy;
+    complex_sum(cx, cy);
+    return std::sqrt(cx * cx + cy * cy) / static_cast<double>(N);
+  }
+
+  // Phase frustration (1/N) Σ δθ_j² — SOURCE energy store
+  double frustration() const {
+    double psi_bar = mean_phase();
+    double E = 0.0;
+    for (double p : phases) {
+      double d = wrap_angle(p - psi_bar);
+      E += d * d;
+    }
+    return E / static_cast<double>(N);
+  }
+
+  // One EMA step: SOURCE gives up frustration via MEDIUM (G_eff) to SINK.
+  // Returns the frustration released this step (≥ 0 for g ∈ [0, 1]).
+  double step() {
+    double E_before = frustration();
+    double psi_bar = mean_phase();
+    for (double &p : phases)
+      p -= g * wrap_angle(p - psi_bar);
+    double E_after = frustration();
+    return E_before - E_after;
+  }
+
+private:
+  // Compute Σ cos(ψ_j) and Σ sin(ψ_j) in a single pass (shared by
+  // mean_phase() and circular_r() to avoid duplicated iteration).
+  void complex_sum(double &cx, double &cy) const {
+    cx = 0.0;
+    cy = 0.0;
+    for (double p : phases) {
+      cx += std::cos(p);
+      cy += std::sin(p);
+    }
+  }
+
+  // Wrap angle to (−π, π].
+  static double wrap_angle(double a) {
+    return a - 2.0 * OHM_PI * std::floor((a + OHM_PI) / (2.0 * OHM_PI));
+  }
+};
+
 } // namespace kernel::ohm
