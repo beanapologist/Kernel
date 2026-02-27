@@ -229,13 +229,15 @@ def plot_epsilon_drift(ax):
 # ── Panel 4: CoherenceHarvest Accumulator Trajectories ───────────────────────
 def plot_coherence_harvest(ax):
     """
-    Simulate 8-channel oracle accumulation for θ_t = π/3 (60°) over 200 steps.
-    Uses G_eff = 1 (canonical coherent state) and ΔΦ = 2π/√200.
+    Simulate 8-channel oracle accumulation for θ_t = π/3 (60°) over n steps.
+    Uses G_eff = 1 (canonical coherent state) and ΔΦ = 2π/√n (Dirichlet
+    resonance condition, theta_sqrt_n_writeup.tex §2).
     """
     N_STEPS = 200
     THETA_TARGET = PI / 3.0  # 60°
 
-    delta_phi_q = TWO_PI / math.sqrt(N_STEPS)  # Dirichlet resonance condition
+    # Dirichlet-kernel resonance step: ΔΦ = 2π/√n
+    dirichlet_delta_phi = TWO_PI / math.sqrt(N_STEPS)
     target_phasor = (math.cos(THETA_TARGET), math.sin(THETA_TARGET))
 
     # Pre-compute µ-orbit phasors
@@ -248,7 +250,7 @@ def plot_coherence_harvest(ax):
     # Accumulate
     accumulators = np.zeros((8, N_STEPS + 1))
     for k in range(N_STEPS):
-        slow_angle = k * delta_phi_q
+        slow_angle = k * dirichlet_delta_phi
         sp = (math.cos(slow_angle), math.sin(slow_angle))
         for j in range(8):
             mx, my = mu_orbit[j]
