@@ -548,6 +548,103 @@ void test_silver_balance_symmetry() {
   }
 }
 
+// ── 9. Metallic-mean oscillation ─────────────────────────────────────────────
+// Validates metallic_mean(), metallic_angle_inc(), and
+// metallic_oscillating_phases() by:
+//
+//   • Continued-fraction identity: Mₙ = n + 1/Mₙ  for n = 1, 2, 3
+//   • Angle increments are monotone-decreasing with n (larger mean → smaller
+//     arc step), since 2π/Mₙ² decreases as Mₙ grows.
+//   • A golden/silver oscillation (sequence {1,2}) produces phases whose
+//     consecutive gaps alternate between 2π/φ² and 2π/δ_s².
+//   • PhaseBattery convergence: oscillating-phase initialisation still acts as
+//     a valid source (frustration > 0, decreasing under EMA).
+//   • Three-mean cycle {1,2,3}: consecutive gaps cycle correctly across all
+//     three metallic means, confirming arbitrary-length sequence support.
+void test_metallic_mean_oscillation() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 9. Metallic-Mean Oscillation "
+               "\u2550\u2550\u2550\u2557\n";
+
+  // ── Continued-fraction identity: Mₙ = n + 1/Mₙ  ⟺  Mₙ² = n·Mₙ + 1
+  for (int n = 1; n <= 3; ++n) {
+    double m = metallic_mean(n);
+    double lhs = m;
+    double rhs = static_cast<double>(n) + 1.0 / m;
+    std::string name = "M\u2099=" + std::to_string(n) +
+                       ": Mₙ = n + 1/Mₙ (continued-fraction identity)";
+    test_assert(std::abs(lhs - rhs) < LOOSE_TOL, name);
+  }
+
+  // ── Angle increments decrease with n (larger mean → smaller step)
+  double inc1 = metallic_angle_inc(1); // golden   ~2.400 rad
+  double inc2 = metallic_angle_inc(2); // silver   ~1.079 rad
+  double inc3 = metallic_angle_inc(3); // bronze   ~0.576 rad
+  test_assert(inc1 > inc2,
+              "metallic_angle_inc: golden (n=1) > silver (n=2) "
+              "(increment decreases with n)");
+  test_assert(inc2 > inc3,
+              "metallic_angle_inc: silver (n=2) > bronze (n=3) "
+              "(increment decreases with n)");
+
+  // ── Golden/silver oscillation {1,2}: gaps alternate between inc1 and inc2
+  const int N = 16;
+  auto osc12 = metallic_oscillating_phases(N, {1, 2}, 0.0);
+  bool gaps_ok = true;
+  for (int j = 1; j < N; ++j) {
+    double expected_gap = (j % 2 == 1) ? inc1 : inc2;
+    if (std::abs((osc12[j] - osc12[j - 1]) - expected_gap) > TOL)
+      gaps_ok = false;
+  }
+  test_assert(gaps_ok,
+              "oscillation {1,2}: gaps alternate 2\u03c0/\u03c6\u00b2 and "
+              "2\u03c0/\u03b4_s\u00b2 (golden/silver)");
+
+  // ── Three-mean cycle {1,2,3}: gaps cycle through inc1, inc2, inc3
+  auto osc123 = metallic_oscillating_phases(N, {1, 2, 3}, 0.0);
+  bool cycle_ok = true;
+  const double incs[] = {inc1, inc2, inc3};
+  const int n_incs = static_cast<int>(sizeof(incs) / sizeof(incs[0]));
+  for (int j = 1; j < N; ++j) {
+    double expected_gap = incs[(j - 1) % n_incs];
+    if (std::abs((osc123[j] - osc123[j - 1]) - expected_gap) > TOL)
+      cycle_ok = false;
+  }
+  test_assert(cycle_ok,
+              "oscillation {1,2,3}: gaps cycle golden\u2192silver\u2192bronze "
+              "(three-mean cycle)");
+
+  // ── Silver/golden order reversed {2,1}: same set of gaps but swapped order
+  auto osc21 = metallic_oscillating_phases(N, {2, 1}, 0.0);
+  bool swapped_ok = true;
+  for (int j = 1; j < N; ++j) {
+    double expected_gap = (j % 2 == 1) ? inc2 : inc1;
+    if (std::abs((osc21[j] - osc21[j - 1]) - expected_gap) > TOL)
+      swapped_ok = false;
+  }
+  test_assert(swapped_ok,
+              "oscillation {2,1}: gaps alternate 2\u03c0/\u03b4_s\u00b2 and "
+              "2\u03c0/\u03c6\u00b2 (silver/golden — reversed order)");
+
+  // ── PhaseBattery with oscillating initialisation: valid source + convergence
+  PhaseBattery bat12(N, 0.3, metallic_oscillating_phases(N, {1, 2}, 0.0));
+  double E12_init = bat12.frustration();
+  test_assert(E12_init > 0.0,
+              "PhaseBattery(osc{1,2}): frustration > 0 (valid source)");
+  for (int i = 0; i < 50; ++i)
+    bat12.step();
+  test_assert(bat12.frustration() < E12_init,
+              "PhaseBattery(osc{1,2}): frustration decreases after 50 steps "
+              "(oscillating source converges)");
+
+  PhaseBattery bat123(N, 0.3, metallic_oscillating_phases(N, {1, 2, 3}, 0.0));
+  double E123_init = bat123.frustration();
+  for (int i = 0; i < 50; ++i)
+    bat123.step();
+  test_assert(bat123.frustration() < E123_init,
+              "PhaseBattery(osc{1,2,3}): frustration decreases "
+              "(three-mean oscillation converges)");
+}
+
 // ── Main
 // ──────────────────────────────────────────────────────────────────────
 int main() {
@@ -578,6 +675,7 @@ int main() {
   test_g_eff_rate();
   test_silver_ratio_nodes();
   test_silver_balance_symmetry();
+  test_metallic_mean_oscillation();
 
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
