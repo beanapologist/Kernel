@@ -377,4 +377,41 @@ private:
   }
 };
 
+// ── Silver Ratio constants ────────────────────────────────────────────────────
+// δ_s = 1 + √2 ≈ 2.41421356237  (silver ratio)
+// 1/δ_s = √2 − 1 ≈ 0.41421356237  (reciprocal; equals 1/SILVER_RATIO)
+// 2π/δ_s² ≈ 1.07914589 rad        (silver angle increment for spirals)
+// 3π/4 ≈ 2.35619449 rad           (balance angle — 8-fold symmetry pivot)
+
+static constexpr double SILVER_RATIO       = 2.41421356237309504880; // 1+√2
+static constexpr double SILVER_RATIO_RECIP = 0.41421356237309504880; // √2−1 = 1/δ_s
+static constexpr double SILVER_ANGLE_INC   =
+    2.0 * OHM_PI / (SILVER_RATIO * SILVER_RATIO); // 2π/δ_s²
+static constexpr double SILVER_BALANCE_ANGLE = 3.0 * OHM_PI / 4.0; // 3π/4
+
+// Generate N phases following the silver-ratio outward spiral (growth phase).
+// Phase j = base_angle + j * (2π/δ_s²), providing irrational angular spacing
+// analogous to golden-ratio phyllotaxis but driven by δ_s.
+inline std::vector<double>
+silver_growth_phases(int N, double base_angle = SILVER_BALANCE_ANGLE) {
+  std::vector<double> ph(N);
+  for (int j = 0; j < N; ++j)
+    ph[j] = base_angle + static_cast<double>(j) * SILVER_ANGLE_INC;
+  return ph;
+}
+
+// Generate N phases with reciprocal folding (dual inward/outward spiral).
+// Even-indexed nodes follow the outward growth spiral (increment × 1).
+// Odd-indexed nodes are folded inward by 1/δ_s (increment × SILVER_RATIO_RECIP),
+// encoding the recursive shrinking phase driven by √2 − 1.
+inline std::vector<double>
+silver_folded_phases(int N, double base_angle = SILVER_BALANCE_ANGLE) {
+  std::vector<double> ph(N);
+  for (int j = 0; j < N; ++j) {
+    double scale = (j % 2 == 0) ? 1.0 : SILVER_RATIO_RECIP;
+    ph[j] = base_angle + static_cast<double>(j) * SILVER_ANGLE_INC * scale;
+  }
+  return ph;
+}
+
 } // namespace kernel::ohm
