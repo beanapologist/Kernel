@@ -348,6 +348,16 @@ struct PhaseBattery {
     return E / static_cast<double>(N);
   }
 
+  // Z-transform pole of the linearised per-node update.
+  // Linearising δψ_j[n+1] = (1−g)·δψ_j[n] yields pole z = 1−g.
+  // Stability requires |z_pole()| < 1, i.e. g ∈ (0, 2).
+  double z_pole() const { return 1.0 - g; }
+
+  // Returns true iff the battery is in the stable operating regime:
+  //   |z_pole()| < 1  ⟺  g ∈ (0, 2).
+  // g = 0 → open circuit (no transfer); g ≥ 2 → unstable / short-circuit.
+  bool is_stable() const { return std::abs(1.0 - g) < 1.0; }
+
   // One EMA step: SOURCE gives up frustration via MEDIUM (G_eff) to SINK.
   // Returns the frustration released this step (≥ 0 for g ∈ [0, 1]).
   double step() {
