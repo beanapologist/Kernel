@@ -54,6 +54,7 @@ if(KERNEL_BUILD_TESTS)
 
     set(_kernel_tests
         test_battery_analogy
+        test_bft_stress
         test_chiral_nonlinear_gate
         test_coherent_search
         test_kernel_pipeline
