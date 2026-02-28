@@ -370,12 +370,14 @@ void test_g_eff_rate() {
 // pole at z = 1−g.  Stability requires |z_pole| < 1, i.e. g ∈ (0, 2).
 // is_stable() encodes this and z_pole() exposes the pole location.
 void test_stability_safeguards() {
-  std::cout << "\n\u2554\u2550\u2550\u2550 7. Stability Safeguards (Z-transform "
-               "Pole Analysis) \u2550\u2550\u2550\u2557\n";
+  std::cout
+      << "\n\u2554\u2550\u2550\u2550 7. Stability Safeguards (Z-transform "
+         "Pole Analysis) \u2550\u2550\u2550\u2557\n";
 
   std::vector<double> ph4(4, 0.0); // phases irrelevant for these checks
 
-  // g = 0 (open circuit): pole at z = 1 — on the unit circle, not strictly inside
+  // g = 0 (open circuit): pole at z = 1 — on the unit circle, not strictly
+  // inside
   PhaseBattery bat0(4, 0.0, ph4);
   test_assert(std::abs(bat0.z_pole() - 1.0) < TOL,
               "g=0: z_pole = 1 (pole on unit circle — open circuit)");
