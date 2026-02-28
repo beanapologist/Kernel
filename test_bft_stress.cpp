@@ -21,6 +21,16 @@
  *   6. Finality          — committed blocks are never rolled back under BFT.
  *   7. Recovery Rate     — measures coherence convergence after mass fault.
  *   8. Liveness & Safety — simultaneous node failures + phase faults.
+ *   9. Validator Sync Hook — EthValidatorSyncHook interface; stub used in CI;
+ *                            hook coherence weights applied to BftEnvironment.
+ *
+ * Ethereum testnet sync hook:
+ *   EthValidatorSyncHook defines the interface a live integration would use.
+ *   Set the KERNEL_ETH_TESTNET_RPC environment variable to point to a real
+ *   beacon-chain RPC endpoint (e.g. https://rpc.sepolia.org) and subclass
+ *   LiveEthValidatorSyncHook for production use.  In this test suite the
+ *   default StubEthValidatorSyncHook returns deterministic synthetic data so
+ *   that CI runs remain hermetic and network-free.
  *
  * Build:
  *   g++ -std=c++17 -Wall -Wextra -O2 -o test_bft_stress test_bft_stress.cpp -lm
@@ -39,9 +49,11 @@
 #include <cmath>
 #include <complex>
 #include <cstdint>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <limits>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -81,12 +93,102 @@ enum class FaultKind {
   MESSAGE_DELAY         // Outgoing votes are held for D rounds before delivery.
 };
 
-// ── BftNode: a single validator wrapping KernelState
-// ────────────────────────────────
+// ── Ethereum testnet validator sync hook
+// ─────────────────────────────────────
 //
-// In Ethereum's BFT (Gasper/Tendermint-style) each validator holds local
-// state and casts votes.  Here the "vote" is whether the node's KernelState
-// satisfies all coherence invariants — an analogue of a valid block proposal.
+// EthValidatorSyncHook defines the interface through which the BFT simulation
+// layer can obtain per-validator metadata from an Ethereum testnet beacon
+// chain.  The coherence_weight field carries the validator's attestation-duty
+// contribution to the Kernel coherence model: a fully-staked, active validator
+// maps to weight 1.0; slashed / inactive validators map to 0.0.
+//
+// Production integration steps:
+//   1. Export KERNEL_ETH_TESTNET_RPC=<beacon-chain-RPC-URL> (e.g. Sepolia).
+//   2. Subclass EthValidatorSyncHook, override fetch_validator_info() to call
+//      the eth/v1/beacon/states/head/validators REST endpoint and deserialise
+//      the response.
+//   3. Pass the subclass instance to BftEnvironment::set_sync_hook().
+//
+// In this test suite StubEthValidatorSyncHook is used so CI runs are hermetic.
+//
+struct EthValidatorInfo {
+  uint64_t validator_index; // Beacon-chain validator index.
+  double effective_balance; // Effective balance in ETH (32 = full stake).
+  bool is_active;           // True when validator status == "active_ongoing".
+  double coherence_weight;  // Coherence weight in [0, 1] for Kernel model.
+};
+
+struct EthValidatorSyncHook {
+  virtual ~EthValidatorSyncHook() = default;
+
+  // Fetch metadata for the validator identified by node_id.
+  virtual EthValidatorInfo fetch_validator_info(uint32_t node_id) const = 0;
+
+  // Human-readable endpoint description (e.g. RPC URL or "stub").
+  virtual std::string endpoint_description() const = 0;
+
+  // True when this hook is connected to a live network; false for stubs.
+  virtual bool is_live() const = 0;
+};
+
+// ── StubEthValidatorSyncHook — hermetic default for CI
+// ───────────────────────────
+//
+// Returns deterministic synthetic validator info derived from node_id.
+// All validators are active, carry a full 32 ETH stake, and have a
+// coherence_weight of 1.0 minus a tiny per-node perturbation so the
+// test can distinguish hook responses per node.
+//
+struct StubEthValidatorSyncHook : EthValidatorSyncHook {
+  EthValidatorInfo fetch_validator_info(uint32_t node_id) const override {
+    // Synthetic but deterministic: index = 1000 + node_id,
+    // effective_balance decreases slightly for higher node IDs.
+    // All stub validators are fully active with coherence_weight = 1.0.
+    double balance = 32.0 - 0.01 * static_cast<double>(node_id % 10);
+    return {1000ULL + node_id, balance, true, 1.0};
+  }
+
+  std::string endpoint_description() const override {
+    return "stub://kernel-bft-testnet-simulator";
+  }
+
+  bool is_live() const override { return false; }
+};
+
+// ── LiveEthValidatorSyncHook — production template (network-free in CI)
+// ──────
+//
+// When KERNEL_ETH_TESTNET_RPC is set this hook documents where the real RPC
+// call would go; in CI (no env var) it falls back to the stub so the test
+// remains hermetic.  A real implementation would replace fetch_validator_info
+// with an HTTP GET to the beacon-chain validators REST API.
+//
+struct LiveEthValidatorSyncHook : EthValidatorSyncHook {
+  std::string rpc_url;
+  StubEthValidatorSyncHook fallback;
+
+  LiveEthValidatorSyncHook() {
+    const char *env = std::getenv("KERNEL_ETH_TESTNET_RPC");
+    rpc_url = (env != nullptr && env[0] != '\0') ? std::string(env) : "";
+  }
+
+  EthValidatorInfo fetch_validator_info(uint32_t node_id) const override {
+    // In a live integration this would issue:
+    //   GET <rpc_url>/eth/v1/beacon/states/head/validators/<validator_index>
+    // and parse the JSON response.  Without network access we fall back to
+    // the stub so CI runs remain hermetic.
+    return fallback.fetch_validator_info(node_id);
+  }
+
+  std::string endpoint_description() const override {
+    return rpc_url.empty() ? "live://not-configured (fallback to stub)"
+                           : "live://" + rpc_url;
+  }
+
+  bool is_live() const override { return !rpc_url.empty(); }
+};
+
+// ── BftNode: a single validator wrapping KernelState
 //
 struct BftNode {
   uint32_t id;             // Unique node identifier.
@@ -172,10 +274,38 @@ struct BftEnvironment {
   int skipped_rounds = 0;                // Rounds where quorum was not reached.
   std::vector<double> coherence_history; // Mean coherence per round.
 
+  // Optional validator sync hook.  When set, apply_sync_hook() uses it to
+  // apply per-node coherence weights from an Ethereum testnet (or stub).
+  const EthValidatorSyncHook *sync_hook = nullptr;
+
   explicit BftEnvironment(int N) {
     nodes.reserve(static_cast<size_t>(N));
     for (int i = 0; i < N; ++i)
       nodes.emplace_back(static_cast<uint32_t>(i));
+  }
+
+  // Attach a validator sync hook.  The hook must outlive this environment.
+  void set_sync_hook(const EthValidatorSyncHook *hook) { sync_hook = hook; }
+
+  // Apply the sync hook to every live node: fetch validator info and scale
+  // beta by the hook's coherence_weight so that under-staked / inactive
+  // validators appear as partially decoherent in the Kernel model.
+  // If no hook is attached this is a no-op.
+  void apply_sync_hook() {
+    if (sync_hook == nullptr)
+      return;
+    for (auto &node : nodes) {
+      if (node.crashed)
+        continue;
+      EthValidatorInfo info = sync_hook->fetch_validator_info(node.id);
+      if (!info.is_active) {
+        node.inject_amplitude_corruption(0.0); // Fully decohere inactive node.
+      } else if (info.coherence_weight < 1.0 - KS_COHERENCE_TOL) {
+        // Scale beta magnitude by coherence_weight to represent partial stake.
+        node.state.beta *= info.coherence_weight;
+        node.state.normalize();
+      }
+    }
   }
 
   int num_nodes() const { return static_cast<int>(nodes.size()); }
@@ -648,6 +778,84 @@ static void test_liveness_and_safety() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 9. Ethereum Testnet Validator Sync Hook
+// ══════════════════════════════════════════════════════════════════════════════
+static void test_validator_sync_hook() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 9. Validator Sync Hook "
+               "\u2550\u2550\u2550\u2557\n";
+
+  // ── 9a. StubEthValidatorSyncHook interface contract ───────────────────────
+  StubEthValidatorSyncHook stub;
+
+  test_assert(!stub.is_live(),
+              "stub hook: is_live() = false (hermetic, no network)");
+
+  std::string ep = stub.endpoint_description();
+  test_assert(!ep.empty(), "stub hook: endpoint_description() non-empty");
+
+  // Fetch info for a few nodes and validate the fields.
+  for (uint32_t id = 0; id < 5; ++id) {
+    EthValidatorInfo info = stub.fetch_validator_info(id);
+    test_assert(info.validator_index == 1000ULL + id,
+                "stub hook: validator_index = 1000 + node_id");
+    test_assert(info.is_active, "stub hook: is_active = true");
+    test_assert(info.effective_balance > 0.0 && info.effective_balance <= 32.0,
+                "stub hook: effective_balance in (0, 32]");
+    test_assert(info.coherence_weight > 0.0 && info.coherence_weight <= 1.0,
+                "stub hook: coherence_weight in (0, 1]");
+  }
+
+  // ── 9b. LiveEthValidatorSyncHook falls back to stub when no RPC set ───────
+  LiveEthValidatorSyncHook live;
+  // In CI KERNEL_ETH_TESTNET_RPC is not set → is_live() = false.
+  // (If the env var were set the hook would report is_live() = true.)
+  bool env_rpc_set = (std::getenv("KERNEL_ETH_TESTNET_RPC") != nullptr &&
+                      std::getenv("KERNEL_ETH_TESTNET_RPC")[0] != '\0');
+  test_assert(live.is_live() == env_rpc_set,
+              "live hook: is_live() matches KERNEL_ETH_TESTNET_RPC presence");
+
+  // Regardless of env var, fetch_validator_info must return valid data.
+  EthValidatorInfo live_info = live.fetch_validator_info(0);
+  test_assert(live_info.coherence_weight > 0.0 &&
+                  live_info.coherence_weight <= 1.0,
+              "live hook: coherence_weight in (0, 1] regardless of RPC env");
+
+  // ── 9c. BftEnvironment::set_sync_hook / apply_sync_hook integration ───────
+  const int N = 7;
+  BftEnvironment env(N);
+
+  // Warm up without hook.
+  for (int i = 0; i < 5; ++i)
+    env.run_round();
+  double coh_no_hook = env.mean_coherence();
+  test_assert(coh_no_hook > 0.99,
+              "sync hook test: mean coherence > 0.99 before hook applied");
+
+  // Attach stub hook and apply it (all validators fully staked → no drift).
+  env.set_sync_hook(&stub);
+  env.apply_sync_hook();
+
+  // Full-stake stub weights are ≈ 1.0: coherence should remain near 1.
+  double coh_after_hook = env.mean_coherence();
+  test_assert(coh_after_hook > 0.98,
+              "sync hook: full-stake stub preserves mean coherence > 0.98");
+  test_assert(env.coherent_fraction() >= 1.0 - LOOSE_TOL,
+              "sync hook: all nodes coherent after full-stake hook applied");
+
+  // Quorum still works after hook application.
+  int committed = 0;
+  for (int i = 0; i < 5; ++i)
+    if (env.run_round())
+      ++committed;
+  test_assert(committed == 5,
+              "sync hook: 5/5 rounds commit after full-stake hook applied");
+
+  // Print hook summary.
+  std::cout << "    stub endpoint : " << stub.endpoint_description() << "\n";
+  std::cout << "    live endpoint : " << live.endpoint_description() << "\n";
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // main
 // ══════════════════════════════════════════════════════════════════════════════
 int main() {
@@ -665,6 +873,7 @@ int main() {
   test_finality_preservation();
   test_recovery_rate();
   test_liveness_and_safety();
+  test_validator_sync_hook();
 
   auto t1 = std::chrono::steady_clock::now();
   double elapsed_ms =

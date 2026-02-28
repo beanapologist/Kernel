@@ -15,8 +15,11 @@ consensus layer (Gasper / Tendermint-style).
 | Component | Description |
 |-----------|-------------|
 | `BftNode` | Single validator wrapping a `KernelState`. Supports crash, phase-fault, amplitude-corruption, and vote-delay injection. |
-| `BftEnvironment` | N-node round-based consensus network with a ⌊2N/3⌋+1 quorum rule and per-round finality tracking. |
+| `BftEnvironment` | N-node round-based consensus network with a ⌊2N/3⌋+1 quorum rule, per-round finality tracking, and optional `EthValidatorSyncHook`. |
 | `FaultKind` | Enumeration of injectable fault types: `CRASH`, `PHASE_FAULT`, `AMPLITUDE_CORRUPTION`, `MESSAGE_DELAY`. |
+| `EthValidatorSyncHook` | Abstract interface for fetching per-validator metadata (index, balance, coherence weight) from an Ethereum beacon chain. |
+| `StubEthValidatorSyncHook` | Deterministic synthetic implementation used in CI — hermetic, no network access required. |
+| `LiveEthValidatorSyncHook` | Production template; reads `KERNEL_ETH_TESTNET_RPC` env var and falls back to stub when not set. |
 
 ### Integration with the Kernel Coherence Model
 
@@ -41,6 +44,26 @@ Recovery is performed via `BftNode::try_recover()`, which iterates
 | 6 | **Finality** | `committed_rounds` never decreases after fault injection (safety). Post-fault liveness verified. |
 | 7 | **Recovery Rate** | Mean coherence convergence measured over 30 recovery rounds after mass phase fault. |
 | 8 | **Liveness & Safety** | Combined crash + delay + phase fault on N=13 network; safety and liveness properties verified simultaneously. |
+| 9 | **Validator Sync Hook** | `StubEthValidatorSyncHook` interface contract; `LiveEthValidatorSyncHook` fallback behaviour; `BftEnvironment::set_sync_hook` / `apply_sync_hook` integration with quorum. |
+
+## Ethereum Testnet Validator Sync Hook
+
+To connect to a live Ethereum testnet beacon chain:
+
+1. Export the RPC endpoint:
+   ```bash
+   export KERNEL_ETH_TESTNET_RPC=https://rpc.sepolia.org
+   ```
+2. Subclass `EthValidatorSyncHook` and implement `fetch_validator_info()` to
+   call `GET <rpc_url>/eth/v1/beacon/states/head/validators/<index>` and map
+   the JSON response fields to `EthValidatorInfo`.
+3. Pass an instance to `BftEnvironment::set_sync_hook()` before calling
+   `apply_sync_hook()` to initialise node coherence weights from the beacon
+   state.
+
+When `KERNEL_ETH_TESTNET_RPC` is not set (e.g. in CI), `LiveEthValidatorSyncHook`
+falls back automatically to `StubEthValidatorSyncHook` so all tests remain
+hermetic and network-free.
 
 ## Build
 
@@ -78,8 +101,14 @@ failure (the failing assertion name is printed to stdout).
   ✓ mean coherence > 0.95 after full recovery period
     post-fault C=0.998811  final C=1.000000
 
+╔═══ 9. Validator Sync Hook ═══╗
+  ✓ stub hook: is_live() = false (hermetic, no network)
+  ...
+    stub endpoint : stub://kernel-bft-testnet-simulator
+    live endpoint : live://not-configured (fallback to stub)
+
 ══════════════════════════════════════════════════════
-  Results: 39/39 passed  [0.6 ms]
+  Results: 67/67 passed  [0.5 ms]
 ══════════════════════════════════════════════════════
 ```
 
