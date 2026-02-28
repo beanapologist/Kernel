@@ -365,6 +365,58 @@ void test_g_eff_rate() {
               "battery dead without medium");
 }
 
+// ── 7. Stability safeguards: Z-transform pole analysis ───────────────────────
+// The linearised per-node update δψ_j[n+1] = (1−g)·δψ_j[n] has a Z-domain
+// pole at z = 1−g.  Stability requires |z_pole| < 1, i.e. g ∈ (0, 2).
+// is_stable() encodes this and z_pole() exposes the pole location.
+void test_stability_safeguards() {
+  std::cout
+      << "\n\u2554\u2550\u2550\u2550 7. Stability Safeguards (Z-transform "
+         "Pole Analysis) \u2550\u2550\u2550\u2557\n";
+
+  std::vector<double> ph4(4, 0.0); // phases irrelevant for these checks
+
+  // g = 0 (open circuit): pole at z = 1 — on the unit circle, not strictly
+  // inside
+  PhaseBattery bat0(4, 0.0, ph4);
+  test_assert(std::abs(bat0.z_pole() - 1.0) < TOL,
+              "g=0: z_pole = 1 (pole on unit circle — open circuit)");
+  test_assert(!bat0.is_stable(),
+              "g=0: is_stable() = false (open circuit, no transfer)");
+
+  // g = 0.5 (normal operating): pole at z = 0.5, inside unit circle
+  PhaseBattery bat_half(4, 0.5, ph4);
+  test_assert(std::abs(bat_half.z_pole() - 0.5) < TOL,
+              "g=0.5: z_pole = 0.5 (inside unit circle)");
+  test_assert(bat_half.is_stable(),
+              "g=0.5: is_stable() = true (controlled-discharge regime)");
+
+  // g = 1.0 (full collapse): pole at z = 0 — fastest stable convergence
+  PhaseBattery bat1(4, 1.0, ph4);
+  test_assert(std::abs(bat1.z_pole()) < TOL,
+              "g=1: z_pole = 0 (deadbeat pole — all frustration removed in 1 "
+              "step)");
+  test_assert(bat1.is_stable(),
+              "g=1: is_stable() = true (ideal medium, g at upper useful edge)");
+
+  // g = 2.0 (marginal boundary): pole at z = -1 — unit circle, not stable
+  PhaseBattery bat2(4, 2.0, ph4);
+  test_assert(std::abs(bat2.z_pole() + 1.0) < TOL,
+              "g=2: z_pole = -1 (pole on unit circle — marginal boundary)");
+  test_assert(!bat2.is_stable(),
+              "g=2: is_stable() = false (marginal — pole not strictly inside "
+              "unit circle)");
+
+  // g = 2.5 (unstable): pole at z = -1.5, outside unit circle
+  PhaseBattery bat25(4, 2.5, ph4);
+  test_assert(std::abs(bat25.z_pole() + 1.5) < TOL,
+              "g=2.5: z_pole = -1.5 (outside unit circle — unstable)");
+  test_assert(!bat25.is_stable(),
+              "g=2.5: is_stable() = false (short-circuit regime)");
+  test_assert(std::abs(bat25.z_pole()) > 1.0,
+              "g=2.5: |z_pole| > 1 confirms instability criterion");
+}
+
 // ── Main
 // ──────────────────────────────────────────────────────────────────────
 int main() {
@@ -393,6 +445,7 @@ int main() {
   test_three_essentials();
   test_coherence_monotone();
   test_g_eff_rate();
+  test_stability_safeguards();
 
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
