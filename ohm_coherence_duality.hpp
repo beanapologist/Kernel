@@ -377,4 +377,92 @@ private:
   }
 };
 
+// ── Silver Ratio constants
+// ──────────────────────────────────────────────────── δ_s = 1 + √2
+// ≈ 2.41421356237  (silver ratio) 1/δ_s = √2 − 1 ≈ 0.41421356237  (reciprocal;
+// equals 1/SILVER_RATIO) 2π/δ_s² ≈ 1.07914589 rad        (silver angle
+// increment for spirals) 3π/4 ≈ 2.35619449 rad           (balance angle —
+// 8-fold symmetry pivot)
+
+static constexpr double SILVER_RATIO = 2.41421356237309504880; // 1+√2
+static constexpr double SILVER_RATIO_RECIP =
+    0.41421356237309504880; // √2−1 = 1/δ_s
+static constexpr double SILVER_ANGLE_INC =
+    2.0 * OHM_PI / (SILVER_RATIO * SILVER_RATIO);                  // 2π/δ_s²
+static constexpr double SILVER_BALANCE_ANGLE = 3.0 * OHM_PI / 4.0; // 3π/4
+
+// Generate N phases following the silver-ratio outward spiral (growth phase).
+// Phase j = base_angle + j * (2π/δ_s²), providing irrational angular spacing
+// analogous to golden-ratio phyllotaxis but driven by δ_s.
+inline std::vector<double>
+silver_growth_phases(int N, double base_angle = SILVER_BALANCE_ANGLE) {
+  std::vector<double> ph(N);
+  for (int j = 0; j < N; ++j)
+    ph[j] = base_angle + static_cast<double>(j) * SILVER_ANGLE_INC;
+  return ph;
+}
+
+// Generate N phases with reciprocal folding (dual inward/outward spiral).
+// Even-indexed nodes follow the outward growth spiral (increment × 1).
+// Odd-indexed nodes are folded inward by 1/δ_s (increment ×
+// SILVER_RATIO_RECIP), encoding the recursive shrinking phase driven by √2 − 1.
+inline std::vector<double>
+silver_folded_phases(int N, double base_angle = SILVER_BALANCE_ANGLE) {
+  std::vector<double> ph(N);
+  for (int j = 0; j < N; ++j) {
+    double scale = (j % 2 == 0) ? 1.0 : SILVER_RATIO_RECIP;
+    ph[j] = base_angle + static_cast<double>(j) * SILVER_ANGLE_INC * scale;
+  }
+  return ph;
+}
+
+// ── Metallic Means — family containing the silver ratio and beyond
+// ──────────── The nth metallic mean Mₙ = (n + √(n²+4)) / 2, n ≥ 1:
+//   n=1 → golden ratio φ  ≈ 1.61803398875 (angle inc 2π/φ²  ≈ 2.39996 rad)
+//   n=2 → silver ratio δ_s ≈ 2.41421356237 (angle inc 2π/δ_s² ≈ 1.07915 rad)
+//   n=3 → bronze ratio     ≈ 3.30277563773 (angle inc 2π/M₃² ≈ 0.57612 rad)
+//
+// Each Mₙ satisfies Mₙ = n + 1/Mₙ  (continued fraction identity).
+//
+// metallic_mean(n)  — compute Mₙ at run-time for any positive integer n.
+// metallic_angle_inc(n) — angular increment 2π/Mₙ² for spiral node spacing.
+//
+// metallic_oscillating_phases(N, sequence, base_angle)
+//   Generates N phases by cycling through a supplied sequence of metallic-mean
+//   indices.  Node j uses the angle increment of Mₙ where n = sequence[j % K]:
+//     φ_j = φ_{j-1} + 2π / M_{sequence[j % K]}²   (φ_0 = base)
+//   The oscillation between means produces an aperiodic, multiscale spiral that
+//   interleaves different irrational spacings.
+
+// Compute the nth metallic mean: Mₙ = (n + √(n²+4)) / 2
+inline double metallic_mean(int n) {
+  return (static_cast<double>(n) +
+          std::sqrt(static_cast<double>(n * n) + 4.0)) *
+         0.5;
+}
+
+// Angular increment for the nth metallic mean: 2π / Mₙ²
+inline double metallic_angle_inc(int n) {
+  double m = metallic_mean(n);
+  return 2.0 * OHM_PI / (m * m);
+}
+
+// Generate N phases by cycling through the given sequence of metallic-mean
+// indices (e.g. {1, 2} to oscillate between golden and silver).
+// Phase j accumulates increments 2π/M_{seq[j % K]}² from base_angle.
+inline std::vector<double>
+metallic_oscillating_phases(int N, const std::vector<int> &sequence,
+                            double base_angle = SILVER_BALANCE_ANGLE) {
+  if (sequence.empty() || N <= 0)
+    return {};
+  const int K = static_cast<int>(sequence.size());
+  std::vector<double> ph(N);
+  double acc = base_angle;
+  for (int j = 0; j < N; ++j) {
+    ph[j] = acc;
+    acc += metallic_angle_inc(sequence[j % K]);
+  }
+  return ph;
+}
+
 } // namespace kernel::ohm

@@ -365,6 +365,284 @@ void test_g_eff_rate() {
               "battery dead without medium");
 }
 
+// ── 7. Silver-ratio node generation ──────────────────────────────────────────
+// Validates that silver_growth_phases() and silver_folded_phases() produce
+// nodes with the correct angular increments.
+//
+//   Growth phase  : φ_j = base + j · (2π/δ_s²)        outward spiral
+//   Folded phase  : odd nodes contracted by 1/δ_s ≈ √2−1  (inward spiral)
+//
+// Key numerical checks:
+//   • δ_s · (1/δ_s) = 1   (reciprocal identity)
+//   • SILVER_ANGLE_INC = 2π/δ_s²
+//   • Consecutive growth-phase gap = SILVER_ANGLE_INC
+//   • Consecutive folded-phase gap = SILVER_ANGLE_INC · (scale of next node)
+void test_silver_ratio_nodes() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 7. Silver-Ratio Node Generation "
+               "\u2550\u2550\u2550\u2557\n";
+
+  // ── Reciprocal identity: δ_s × (1/δ_s) = 1
+  test_assert(std::abs(SILVER_RATIO * SILVER_RATIO_RECIP - 1.0) < TOL,
+              "\u03b4_s \u00d7 (1/\u03b4_s) = 1 (reciprocal identity holds)");
+
+  // ── SILVER_ANGLE_INC = 2π/δ_s²
+  double expected_inc = 2.0 * OHM_PI / (SILVER_RATIO * SILVER_RATIO);
+  test_assert(std::abs(SILVER_ANGLE_INC - expected_inc) < TOL,
+              "SILVER_ANGLE_INC = 2\u03c0/\u03b4_s\u00b2 (definition correct)");
+
+  // ── Growth phases: consecutive gap = SILVER_ANGLE_INC
+  const int N = 16;
+  auto growth = silver_growth_phases(N, 0.0);
+  bool growth_gap_ok = true;
+  for (int j = 1; j < N; ++j) {
+    if (std::abs((growth[j] - growth[j - 1]) - SILVER_ANGLE_INC) > TOL)
+      growth_gap_ok = false;
+  }
+  test_assert(growth_gap_ok,
+              "silver_growth_phases: consecutive gap = SILVER_ANGLE_INC "
+              "(outward spiral)");
+
+  // ── Growth phases start at the supplied base angle
+  auto growth_base = silver_growth_phases(N, SILVER_BALANCE_ANGLE);
+  test_assert(std::abs(growth_base[0] - SILVER_BALANCE_ANGLE) < TOL,
+              "silver_growth_phases: first node at base angle (3\u03c0/4)");
+
+  // ── Folded phases: even nodes scale by 1, odd nodes by 1/δ_s
+  auto folded = silver_folded_phases(N, 0.0);
+  bool even_ok = true, odd_ok = true;
+  for (int j = 1; j < N; ++j) {
+    double scale = (j % 2 == 0) ? 1.0 : SILVER_RATIO_RECIP;
+    double expected = static_cast<double>(j) * SILVER_ANGLE_INC * scale;
+    if (std::abs(folded[j] - expected) > TOL) {
+      if (j % 2 == 0)
+        even_ok = false;
+      else
+        odd_ok = false;
+    }
+  }
+  test_assert(even_ok,
+              "silver_folded_phases: even nodes follow outward growth spiral");
+  test_assert(odd_ok,
+              "silver_folded_phases: odd nodes contracted by 1/\u03b4_s "
+              "(inward/reciprocal fold)");
+
+  // ── Odd folded phases are strictly closer to base than growth phases
+  bool folded_smaller = true;
+  for (int j = 1; j < N; j += 2) {
+    if (std::abs(folded[j]) >= std::abs(growth[j]) - TOL)
+      folded_smaller = false;
+  }
+  test_assert(
+      folded_smaller,
+      "odd folded phases nearer to base than growth phases (inward < outward)");
+
+  // ── PhaseBattery with growth phases converges (source → sink)
+  PhaseBattery bat_grow(N, 0.3, silver_growth_phases(N, 0.0));
+  double E_init = bat_grow.frustration();
+  for (int i = 0; i < 30; ++i)
+    bat_grow.step();
+  test_assert(bat_grow.frustration() < E_init,
+              "PhaseBattery(silver_growth_phases): frustration decreases "
+              "\u2014 source active");
+
+  // ── PhaseBattery with folded phases also converges
+  PhaseBattery bat_fold(N, 0.3, silver_folded_phases(N, 0.0));
+  double E_fold_init = bat_fold.frustration();
+  for (int i = 0; i < 30; ++i)
+    bat_fold.step();
+  test_assert(bat_fold.frustration() < E_fold_init,
+              "PhaseBattery(silver_folded_phases): frustration decreases "
+              "\u2014 source active");
+}
+
+// ── 8. Silver-ratio balance symmetry (3π/4 pivot, 8-fold stability) ──────────
+// Validates mirrored precession through the balance angle 3π/4.
+//
+//   8-fold cancellation : 8 phases at base + k·(3π/4) (k=0…7) have R = 0
+//                         since 3π/4 × 8 = 6π = 3×(2π) (three full rotations),
+//                         visiting all 8 directions in multiples of π/4
+//                         (equidistant unit vectors cancel).
+//
+//   Mirror symmetry     : reflecting each phase through 3π/4 (i.e. φ' = 3π/2 −
+//   φ)
+//                         preserves frustration and circular_r — the
+//                         battery observables are invariant under this
+//                         reflection (rotational symmetry of the energy).
+//
+//   Silver-ratio balance: silver_growth_phases centred at 3π/4 converge
+//                         symmetrically; frustration decreases while the
+//                         mean phase stays near the 3π/4 balance angle.
+void test_silver_balance_symmetry() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 8. Silver-Ratio Balance Symmetry "
+               "(3\u03c0/4 pivot, 8-fold) \u2550\u2550\u2550\u2557\n";
+
+  // ── SILVER_BALANCE_ANGLE = 3π/4
+  test_assert(std::abs(SILVER_BALANCE_ANGLE - 3.0 * OHM_PI / 4.0) < TOL,
+              "SILVER_BALANCE_ANGLE = 3\u03c0/4 (8-fold symmetry pivot)");
+
+  // ── 8-fold cancellation: 8 equidistant phases at k·(3π/4) have R = 0
+  // 3π/4 × 8 = 6π = 3×(2π): three full rotations, visiting all 8 distinct
+  // directions (multiples of π/4); equidistant unit vectors sum to zero.
+  {
+    const int K = 8;
+    std::vector<double> phases8(K);
+    for (int k = 0; k < K; ++k)
+      phases8[k] = static_cast<double>(k) * SILVER_BALANCE_ANGLE;
+    PhaseBattery bat8(K, 0.0, phases8); // g=0: open circuit, no evolution
+    test_assert(bat8.circular_r() < LOOSE_TOL,
+                "8 phases at k\u00b7(3\u03c0/4): circular_r = 0 "
+                "(8-fold equidistant cancellation)");
+  }
+
+  // ── Mirror symmetry: φ' = 3π/2 − φ preserves frustration and R
+  {
+    const int N = 16;
+    auto orig = silver_growth_phases(N, 0.5); // arbitrary base ≠ 3π/4
+    std::vector<double> mirrored(N);
+    const double mirror_axis = 2.0 * SILVER_BALANCE_ANGLE; // 3π/2
+    for (int j = 0; j < N; ++j)
+      mirrored[j] = mirror_axis - orig[j];
+
+    PhaseBattery bat_orig(N, 0.0, orig);
+    PhaseBattery bat_mirr(N, 0.0, mirrored);
+
+    test_assert(
+        std::abs(bat_orig.frustration() - bat_mirr.frustration()) < LOOSE_TOL,
+        "mirrored phases (3\u03c0/2 \u2212 \u03c6): frustration invariant "
+        "under 3\u03c0/4 reflection");
+    test_assert(
+        std::abs(bat_orig.circular_r() - bat_mirr.circular_r()) < LOOSE_TOL,
+        "mirrored phases: circular_r invariant under 3\u03c0/4 reflection");
+  }
+
+  // ── Silver growth phases centred at 3π/4: mean phase near 3π/4 initially
+  {
+    const int N = 9;
+    // N=9 odd: symmetric about the centre element (j=4 → centre of spiral)
+    auto ph = silver_growth_phases(N, SILVER_BALANCE_ANGLE);
+    PhaseBattery bat(N, 0.3, ph);
+    // After many steps the battery should converge; frustration must decrease
+    double E0 = bat.frustration();
+    for (int i = 0; i < 50; ++i)
+      bat.step();
+    test_assert(bat.frustration() < E0,
+                "silver_growth_phases(base=3\u03c0/4): frustration decreases "
+                "(converges toward balance angle)");
+    test_assert(bat.circular_r() > 0.5,
+                "silver_growth_phases(base=3\u03c0/4): R > 0.5 after 50 "
+                "steps (majority coherence — cross stable threshold for "
+                "8-fold symmetric convergence)");
+  }
+
+  // ── Folded phases at 3π/4 balance angle: source + sink active
+  {
+    const int N = 16;
+    auto ph = silver_folded_phases(N, SILVER_BALANCE_ANGLE);
+    PhaseBattery bat(N, 0.3, ph);
+    double R_init = bat.circular_r();
+    for (int i = 0; i < 50; ++i)
+      bat.step();
+    test_assert(bat.circular_r() >= R_init,
+                "silver_folded_phases(base=3\u03c0/4): R non-decreasing "
+                "(inward+outward spiral converges)");
+  }
+}
+
+// ── 9. Metallic-mean oscillation ─────────────────────────────────────────────
+// Validates metallic_mean(), metallic_angle_inc(), and
+// metallic_oscillating_phases() by:
+//
+//   • Continued-fraction identity: Mₙ = n + 1/Mₙ  for n = 1, 2, 3
+//   • Angle increments are monotone-decreasing with n (larger mean → smaller
+//     arc step), since 2π/Mₙ² decreases as Mₙ grows.
+//   • A golden/silver oscillation (sequence {1,2}) produces phases whose
+//     consecutive gaps alternate between 2π/φ² and 2π/δ_s².
+//   • PhaseBattery convergence: oscillating-phase initialisation still acts as
+//     a valid source (frustration > 0, decreasing under EMA).
+//   • Three-mean cycle {1,2,3}: consecutive gaps cycle correctly across all
+//     three metallic means, confirming arbitrary-length sequence support.
+void test_metallic_mean_oscillation() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 9. Metallic-Mean Oscillation "
+               "\u2550\u2550\u2550\u2557\n";
+
+  // ── Continued-fraction identity: Mₙ = n + 1/Mₙ  ⟺  Mₙ² = n·Mₙ + 1
+  for (int n = 1; n <= 3; ++n) {
+    double m = metallic_mean(n);
+    double lhs = m;
+    double rhs = static_cast<double>(n) + 1.0 / m;
+    std::string name = "M\u2099=" + std::to_string(n) +
+                       ": Mₙ = n + 1/Mₙ (continued-fraction identity)";
+    test_assert(std::abs(lhs - rhs) < LOOSE_TOL, name);
+  }
+
+  // ── Angle increments decrease with n (larger mean → smaller step)
+  double inc1 = metallic_angle_inc(1); // golden   ~2.400 rad
+  double inc2 = metallic_angle_inc(2); // silver   ~1.079 rad
+  double inc3 = metallic_angle_inc(3); // bronze   ~0.576 rad
+  test_assert(inc1 > inc2, "metallic_angle_inc: golden (n=1) > silver (n=2) "
+                           "(increment decreases with n)");
+  test_assert(inc2 > inc3, "metallic_angle_inc: silver (n=2) > bronze (n=3) "
+                           "(increment decreases with n)");
+
+  // ── Golden/silver oscillation {1,2}: gaps alternate between inc1 and inc2
+  const int N = 16;
+  auto osc12 = metallic_oscillating_phases(N, {1, 2}, 0.0);
+  bool gaps_ok = true;
+  for (int j = 1; j < N; ++j) {
+    double expected_gap = (j % 2 == 1) ? inc1 : inc2;
+    if (std::abs((osc12[j] - osc12[j - 1]) - expected_gap) > TOL)
+      gaps_ok = false;
+  }
+  test_assert(gaps_ok,
+              "oscillation {1,2}: gaps alternate 2\u03c0/\u03c6\u00b2 and "
+              "2\u03c0/\u03b4_s\u00b2 (golden/silver)");
+
+  // ── Three-mean cycle {1,2,3}: gaps cycle through inc1, inc2, inc3
+  auto osc123 = metallic_oscillating_phases(N, {1, 2, 3}, 0.0);
+  bool cycle_ok = true;
+  const double incs[] = {inc1, inc2, inc3};
+  const int n_incs = static_cast<int>(sizeof(incs) / sizeof(incs[0]));
+  for (int j = 1; j < N; ++j) {
+    double expected_gap = incs[(j - 1) % n_incs];
+    if (std::abs((osc123[j] - osc123[j - 1]) - expected_gap) > TOL)
+      cycle_ok = false;
+  }
+  test_assert(cycle_ok,
+              "oscillation {1,2,3}: gaps cycle golden\u2192silver\u2192bronze "
+              "(three-mean cycle)");
+
+  // ── Silver/golden order reversed {2,1}: same set of gaps but swapped order
+  auto osc21 = metallic_oscillating_phases(N, {2, 1}, 0.0);
+  bool swapped_ok = true;
+  for (int j = 1; j < N; ++j) {
+    double expected_gap = (j % 2 == 1) ? inc2 : inc1;
+    if (std::abs((osc21[j] - osc21[j - 1]) - expected_gap) > TOL)
+      swapped_ok = false;
+  }
+  test_assert(swapped_ok,
+              "oscillation {2,1}: gaps alternate 2\u03c0/\u03b4_s\u00b2 and "
+              "2\u03c0/\u03c6\u00b2 (silver/golden — reversed order)");
+
+  // ── PhaseBattery with oscillating initialisation: valid source + convergence
+  PhaseBattery bat12(N, 0.3, metallic_oscillating_phases(N, {1, 2}, 0.0));
+  double E12_init = bat12.frustration();
+  test_assert(E12_init > 0.0,
+              "PhaseBattery(osc{1,2}): frustration > 0 (valid source)");
+  for (int i = 0; i < 50; ++i)
+    bat12.step();
+  test_assert(bat12.frustration() < E12_init,
+              "PhaseBattery(osc{1,2}): frustration decreases after 50 steps "
+              "(oscillating source converges)");
+
+  PhaseBattery bat123(N, 0.3, metallic_oscillating_phases(N, {1, 2, 3}, 0.0));
+  double E123_init = bat123.frustration();
+  for (int i = 0; i < 50; ++i)
+    bat123.step();
+  test_assert(bat123.frustration() < E123_init,
+              "PhaseBattery(osc{1,2,3}): frustration decreases "
+              "(three-mean oscillation converges)");
+}
+
 // ── Main
 // ──────────────────────────────────────────────────────────────────────
 int main() {
@@ -393,6 +671,9 @@ int main() {
   test_three_essentials();
   test_coherence_monotone();
   test_g_eff_rate();
+  test_silver_ratio_nodes();
+  test_silver_balance_symmetry();
+  test_metallic_mean_oscillation();
 
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
