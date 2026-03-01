@@ -26,6 +26,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <fstream>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -376,13 +378,41 @@ inline double interaction_energy(double R, int N, double g) {
 //   circular_r()   = |⟨e^{iψ_j}⟩|   — output coherence / sink signal (rises)
 //   mean_phase()   = arg(⟨e^{iψ_j}⟩) — conserved attractor (sink address)
 //
+// Debug / adaptive-α extensions:
+//   enable_debug(true)          — turns on per-step console logging and
+//                                  history recording for E(t), R(t), α(t).
+//   set_alpha_sensitivity(c1,c2) — configures adaptive-α coefficients so that
+//                                  α_adaptive = alpha + c1·ΔE + c2·ΔR.
+//   write_debug_csv(filename)   — writes recorded history as CSV.
+//
 struct PhaseBattery {
   int N;                      // Number of nodes
   double g;                   // EMA gain = G_eff = sech(λ) ∈ [0, ∞)
   std::vector<double> phases; // ψ̂_j for each node (radians)
 
+  // ── Debug / adaptive-α state ──────────────────────────────────────────────
+  bool debug_mode = false; // master toggle: enables logging + history
+  double alpha_c1 = 0.0; // α sensitivity coefficient for ΔE (frustration decay)
+  double alpha_c2 = 0.0; // α sensitivity coefficient for ΔR (coherence gain)
+
+  // Time-series histories (filled when debug_mode is true)
+  std::vector<double> history_E;     // E(t) after each feedback_step
+  std::vector<double> history_R;     // R(t) after each feedback_step
+  std::vector<double> history_alpha; // α_adaptive(t) used in each feedback_step
+
   PhaseBattery(int n_nodes, double gain, const std::vector<double> &init_phases)
       : N(n_nodes), g(gain), phases(init_phases) {}
+
+  // Enable or disable debug mode (console logging + history recording).
+  void enable_debug(bool on) { debug_mode = on; }
+
+  // Set adaptive-α sensitivity coefficients:
+  //   α_adaptive = alpha_arg + c1 · ΔE + c2 · ΔR
+  // Defaults (0, 0) reproduce the original fixed-α behaviour.
+  void set_alpha_sensitivity(double c1, double c2) {
+    alpha_c1 = c1;
+    alpha_c2 = c2;
+  }
 
   // Mean phase ψ̄ = arg(⟨e^{iψ_j}⟩) — the SINK attractor
   double mean_phase() const {
@@ -420,31 +450,101 @@ struct PhaseBattery {
     return E_before - E_after;
   }
 
-  // Compute-feedback step: simulates a feedback loop where the coherence R
-  // produced by the standard EMA contraction is fed back as an additional
-  // alignment pass, amplifying total phase-field compression.
+  // Compute-feedback step with adaptive-α and optional debug instrumentation.
   //
   // Sub-step 1 — standard EMA contraction (gain g):
   //   ψ_j ← ψ_j − g · wrap(ψ_j − ψ̄)
-  // Sub-step 2 — coherence-driven feedback pass (gain g · α · R):
-  //   ψ_j ← ψ_j − (g · α · R) · wrap(ψ_j − ψ̄)
   //
-  // Both sub-steps are independently dissipative for g ∈ (0, 1] and α ≤ 1,
-  // ensuring the combined step remains stable.
+  // Adaptive α — adjusted from the base value using per-step dynamics:
+  //   ΔE        = E_before − E_mid   (frustration decay in sub-step 1)
+  //   ΔR        = R_mid  − R_before  (coherence gain in sub-step 1)
+  //   α_adaptive = clamp(alpha + c1·ΔE + c2·ΔR, 0, 1)
+  //
+  // Sub-step 2 — coherence-driven feedback pass (gain g · α_adaptive · R):
+  //   ψ_j ← ψ_j − (g · α_adaptive · R) · wrap(ψ_j − ψ̄)
+  //
+  // Both sub-steps are independently dissipative for g ∈ (0, 1] and
+  // α_adaptive ≤ 1, ensuring the combined step remains stable.
   // Returns total frustration released across both sub-steps.
+  //
+  // When debug_mode is true:
+  //   • Logs per-node δθ_j, mean E, R, and α_adaptive to stdout.
+  //   • Appends E_after, R_after, α_adaptive to history_{E,R,alpha}.
   double feedback_step(double alpha = 1.0) {
     double E_before = frustration();
-    // Sub-step 1: standard EMA contraction
+    double R_before = circular_r();
+
+    // ── Frustration probe: capture per-node deviations before sub-step 1 ──
+    std::vector<double> delta_theta;
+    if (debug_mode) {
+      double psi_bar_probe = mean_phase();
+      delta_theta.resize(static_cast<size_t>(N));
+      for (int j = 0; j < N; ++j)
+        delta_theta[static_cast<size_t>(j)] =
+            wrap_angle(phases[static_cast<size_t>(j)] - psi_bar_probe);
+    }
+
+    // ── Sub-step 1: standard EMA contraction ──
     double psi_bar = mean_phase();
     for (double &p : phases)
       p -= g * wrap_angle(p - psi_bar);
-    // Sub-step 2: coherence-amplified feedback pass
-    double R = circular_r();
-    double g_fb = g * alpha * R; // feedback gain ∝ current coherence
+
+    double E_mid = frustration();
+    double R_mid = circular_r();
+
+    // ── Adaptive α: scale by per-step frustration decay and coherence gain ──
+    double delta_E = E_before - E_mid; // frustration decay (≥ 0 for g ∈ (0,1])
+    double delta_R = R_mid - R_before; // coherence gain   (≥ 0 for g ∈ (0,1])
+    double alpha_adaptive = alpha + alpha_c1 * delta_E + alpha_c2 * delta_R;
+    // Clamp to [0, 1] to guarantee stability of sub-step 2
+    if (alpha_adaptive < 0.0)
+      alpha_adaptive = 0.0;
+    if (alpha_adaptive > 1.0)
+      alpha_adaptive = 1.0;
+
+    // ── Sub-step 2: coherence-amplified feedback pass ──
+    double g_fb = g * alpha_adaptive * R_mid; // feedback gain ∝ coherence
     psi_bar = mean_phase();
     for (double &p : phases)
       p -= g_fb * wrap_angle(p - psi_bar);
-    return E_before - frustration();
+
+    double E_after = frustration();
+    double R_after = circular_r();
+
+    // ── Debug instrumentation ──
+    if (debug_mode) {
+      history_E.push_back(E_after);
+      history_R.push_back(R_after);
+      history_alpha.push_back(alpha_adaptive);
+
+      std::cout << "[DEBUG] E_before=" << E_before << " E_after=" << E_after
+                << " R=" << R_after << " alpha_adaptive=" << alpha_adaptive
+                << "\n";
+      std::cout << "[DEBUG] per-node delta_theta:";
+      for (int j = 0; j < N; ++j)
+        std::cout << " " << delta_theta[static_cast<size_t>(j)];
+      std::cout << "\n";
+    }
+
+    return E_before - E_after;
+  }
+
+  // Write recorded debug time-series to a CSV file.
+  // Columns: step, E, R, alpha
+  // No-op if no history has been recorded (debug_mode was never on).
+  void write_debug_csv(const std::string &filename) const {
+    if (history_E.empty())
+      return;
+    std::ofstream f(filename);
+    if (!f.is_open()) {
+      std::cerr << "[PhaseBattery] write_debug_csv: cannot open '" << filename
+                << "' for writing\n";
+      return;
+    }
+    f << "step,E,R,alpha\n";
+    for (size_t i = 0; i < history_E.size(); ++i)
+      f << i << "," << history_E[i] << "," << history_R[i] << ","
+        << history_alpha[i] << "\n";
   }
 
 private:

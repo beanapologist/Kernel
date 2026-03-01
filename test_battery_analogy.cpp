@@ -32,6 +32,7 @@
 #include "ohm_coherence_duality.hpp"
 
 #include <cmath>
+#include <fstream>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -547,6 +548,172 @@ void test_silver_balance_symmetry() {
               "combined feedback iterations");
 }
 
+// ── 10. Adaptive α — stable initial conditions (moderate coherence)
+// ─────────────────
+// With c1 > 0 and c2 > 0, the adaptive α grows when the step produces large
+// frustration decay (ΔE) or coherence gain (ΔR).  Under moderate initial
+// conditions the adaptation must not destabilise the battery.
+void test_adaptive_alpha_stable() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 10. Adaptive \u03b1 \u2014 Stable "
+               "Initial Conditions \u2550\u2550\u2550\u2557\n";
+
+  const int N = 20;
+  const int STEPS = 30;
+  auto ph = uniform_phases(N, 0.0, OHM_PI / 4.0); // moderate spread → R ≈ 0.9
+
+  PhaseBattery bat(N, 0.3, ph);
+  bat.set_alpha_sensitivity(0.2, 0.2);
+  bat.enable_debug(true);
+
+  double R_prev = bat.circular_r();
+  bool non_decreasing_R = true;
+  for (int i = 0; i < STEPS; ++i) {
+    bat.feedback_step(0.5);
+    double R = bat.circular_r();
+    if (R < R_prev - LOOSE_TOL)
+      non_decreasing_R = false;
+    R_prev = R;
+  }
+
+  test_assert(non_decreasing_R,
+              "adaptive \u03b1 (c1=c2=0.2): R(t) non-decreasing under stable "
+              "initial conditions");
+  test_assert(bat.circular_r() > 0.99,
+              "adaptive \u03b1: converges to R > 0.99 from moderate spread");
+
+  // History must be populated when debug is on
+  test_assert(static_cast<int>(bat.history_E.size()) == STEPS,
+              "debug history_E records one entry per feedback_step");
+  test_assert(static_cast<int>(bat.history_R.size()) == STEPS,
+              "debug history_R records one entry per feedback_step");
+  test_assert(static_cast<int>(bat.history_alpha.size()) == STEPS,
+              "debug history_alpha records one entry per feedback_step");
+
+  // All recorded α values must be in [0, 1]
+  bool alpha_clamped = true;
+  for (double a : bat.history_alpha)
+    if (a < 0.0 || a > 1.0 + LOOSE_TOL)
+      alpha_clamped = false;
+  test_assert(alpha_clamped,
+              "all recorded \u03b1_adaptive values are clamped to [0, 1]");
+}
+
+// ── 11. Adaptive α — high initial frustration (low coherence)
+// ─────────────────── Wide initial spread pushes the battery into a high-ΔE /
+// high-ΔR regime, causing the adaptive α to be elevated in early steps.  The
+// adaptive variant must still converge and must not inflate α beyond 1.
+void test_adaptive_alpha_high_frustration() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 11. Adaptive \u03b1 \u2014 High "
+               "Initial Frustration \u2550\u2550\u2550\u2557\n";
+
+  const int N = 20;
+  const int STEPS = 60;
+  auto ph = uniform_phases(N, 0.0, OHM_PI * 0.9); // near-full spread → R ≈ 0.1
+
+  // Compare: fixed α = 0.5 vs adaptive α with c1 = 0.3
+  PhaseBattery bat_fixed(N, 0.3, ph);
+  PhaseBattery bat_adapt(N, 0.3, ph);
+  bat_adapt.set_alpha_sensitivity(0.3, 0.0);
+
+  double E_fixed = bat_fixed.frustration();
+  double E_adapt = bat_adapt.frustration();
+
+  for (int i = 0; i < STEPS; ++i) {
+    bat_fixed.feedback_step(0.5);
+    bat_adapt.feedback_step(0.5);
+  }
+
+  test_assert(bat_adapt.frustration() < E_adapt * 0.01,
+              "adaptive \u03b1: frustration drops to < 1 % of initial E under "
+              "high frustration");
+  test_assert(bat_fixed.frustration() < E_fixed * 0.01,
+              "fixed \u03b1: frustration also drops to < 1 % (baseline)");
+
+  // Energy efficiency: adaptive α must achieve ΔE/step ≥ fixed α
+  double dE_fixed = (E_fixed - bat_fixed.frustration()) / STEPS;
+  double dE_adapt = (E_adapt - bat_adapt.frustration()) / STEPS;
+  test_assert(dE_adapt >= dE_fixed - LOOSE_TOL,
+              "adaptive \u03b1 (\u0394E/step) \u2265 fixed \u03b1 under high "
+              "initial frustration");
+}
+
+// ── 12. Adaptive α — oscillatory near-critical gain
+// ─────────────────────────── With g close to 1, the EMA step is aggressive
+// (near-full collapse in one step).  Adaptive α must not push the feedback gain
+// above 1, so the system remains stable even in this near-critical regime.
+void test_adaptive_alpha_near_critical() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 12. Adaptive \u03b1 \u2014 "
+               "Near-Critical Gain \u2550\u2550\u2550\u2557\n";
+
+  const int N = 20;
+  const int STEPS = 20;
+  auto ph = uniform_phases(N, 0.0, OHM_PI / 3.0);
+
+  // g = 0.9 — near-critical but stable (|1−g| = 0.1 < 1)
+  PhaseBattery bat(N, 0.9, ph);
+  bat.set_alpha_sensitivity(0.5, 0.5); // aggressive sensitivity
+  bat.enable_debug(true);
+
+  bool non_decreasing_R = true;
+  double R_prev = bat.circular_r();
+  for (int i = 0; i < STEPS; ++i) {
+    bat.feedback_step(0.5);
+    double R = bat.circular_r();
+    if (R < R_prev - LOOSE_TOL)
+      non_decreasing_R = false;
+    R_prev = R;
+  }
+
+  test_assert(non_decreasing_R,
+              "near-critical g=0.9: R(t) non-decreasing with adaptive \u03b1 "
+              "(c1=c2=0.5)");
+  test_assert(bat.circular_r() > 1.0 - LOOSE_TOL,
+              "near-critical g=0.9: converges to R = 1 with adaptive \u03b1");
+
+  // Feedback gain g_fb = g·α·R must never cause g_fb > 1 (stability proof)
+  // Since α_adaptive ≤ 1 and g=0.9 ≤ 1 and R ≤ 1: g_fb ≤ 0.9 < 1 always
+  bool all_alpha_valid = true;
+  for (double a : bat.history_alpha)
+    if (a < 0.0 || a > 1.0 + LOOSE_TOL)
+      all_alpha_valid = false;
+  test_assert(all_alpha_valid,
+              "near-critical: all adaptive \u03b1 values remain in [0, 1]");
+}
+
+// ── 13. Debug CSV output
+// ────────────────────────────────────────────────────── Verify that
+// write_debug_csv produces a well-formed file that can be read back, and that
+// the CSV column count and row count match the history vectors.
+void test_debug_csv_output() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 13. Debug CSV Output "
+               "\u2550\u2550\u2550\u2557\n";
+
+  const int N = 10;
+  const int STEPS = 5;
+  auto ph = uniform_phases(N, 0.0, OHM_PI / 4.0);
+
+  PhaseBattery bat(N, 0.3, ph);
+  bat.enable_debug(true);
+  for (int i = 0; i < STEPS; ++i)
+    bat.feedback_step(0.5);
+
+  const std::string csv_path = "/tmp/test_phase_battery_debug.csv";
+  bat.write_debug_csv(csv_path);
+
+  // Read back and count lines (header + STEPS data rows)
+  std::ifstream f(csv_path);
+  test_assert(f.is_open(), "write_debug_csv: file created successfully");
+
+  int lines = 0;
+  std::string line;
+  while (std::getline(f, line))
+    ++lines;
+  f.close();
+
+  test_assert(lines == STEPS + 1,
+              "write_debug_csv: file has header + one row per step");
+}
+
 // ── Main
 // ──────────────────────────────────────────────────────────────────────
 int main() {
@@ -578,6 +745,10 @@ int main() {
   test_feedback_loop_stability();
   test_interaction_energy_scaling();
   test_silver_balance_symmetry();
+  test_adaptive_alpha_stable();
+  test_adaptive_alpha_high_frustration();
+  test_adaptive_alpha_near_critical();
+  test_debug_csv_output();
 
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"

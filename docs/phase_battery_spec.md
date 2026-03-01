@@ -85,7 +85,7 @@ post-step coherence `R` back into the gain for the same iteration.
 | `circular_r()`  | `double` | `|Σ e^{iψ̂_j}| / N ∈ [0, 1]`            | non-decreasing           |
 | `mean_phase()`  | `double` | `atan2(Σ sin ψ̂_j,  Σ cos ψ̂_j)` (rad)  | conserved (invariant)    |
 | `step()`        | `double` | runs one EMA update; returns `ΔE ≥ 0`   | —                        |
-| `feedback_step(α)` | `double` | two-sub-step EMA + coherence feedback; returns total `ΔE ≥ 0` | — |
+| `feedback_step(α)` | `double` | two-sub-step EMA + adaptive coherence feedback; returns total `ΔE ≥ 0` | — |
 
 ### 3.3 Update Rule
 
@@ -105,24 +105,98 @@ For each node j:
     δθ_j  ← wrap(ψ̂_j − ψ̄)
     ψ̂_j  ← ψ̂_j − g · δθ_j
 
-// Measure post-step coherence
-R  ← |⟨e^{iψ̂_j}⟩|   // circular_r()
+// Measure post-step frustration and coherence
+E_mid ← frustration()
+R_mid ← circular_r()
+
+// Adaptive α — adjust from base value using per-step dynamics
+ΔE         = E_before − E_mid         (frustration decay in sub-step 1)
+ΔR         = R_mid  − R_before        (coherence gain in sub-step 1)
+α_adaptive = clamp(alpha + c1·ΔE + c2·ΔR, 0, 1)
 
 // Sub-step 2 — coherence-driven amplification pass
-g_fb ← g · α · R      // feedback gain ∝ coherence (α is amplification factor)
+g_fb ← g · α_adaptive · R_mid
 For each node j:
     δθ_j  ← wrap(ψ̂_j − ψ̄)
     ψ̂_j  ← ψ̂_j − g_fb · δθ_j
 ```
 
 Both sub-steps are independently dissipative contractions for `g ∈ (0, 1]` and
-`α ≤ 1` (since `g_fb = g · α · R ≤ g · 1 · 1 ≤ 1`).  The system therefore
-converges at least as fast as the standard `step()` and never diverges within
-the stable operating zone.
+`α_adaptive ≤ 1` (since `g_fb = g · α_adaptive · R_mid ≤ g · 1 · 1 ≤ 1`).
+The system therefore converges at least as fast as the standard `step()` and
+never diverges within the stable operating zone.
+
+**Adaptive α sensitivity parameters** (`c1`, `c2`, default = 0):
+- `c1 > 0`: α grows when a step produces large frustration decay (high-ΔE regime).
+- `c2 > 0`: α grows when a step produces large coherence gain (high-ΔR regime).
+- Both default to **0**, making `α_adaptive = alpha` (backward-compatible).
 
 **Key insight:** `g_fb` is largest when `R` is already high, meaning the
 feedback amplification is strongest when phases are most aligned — exactly the
-"lensing" regime where constructive interference is most effective.
+"lensing" regime where constructive interference is most effective.  With
+adaptive α the feedback gain is additionally boosted on steps where the system
+releases the most frustration, accelerating convergence during high-energy
+transients.
+
+---
+
+## 3b. Debug Mode and Adaptive-α Tools
+
+### 3b.1 `enable_debug(bool on)`
+
+Master toggle that enables:
+- **Console probes** — after each `feedback_step()` prints per-node deviations
+  δθ_j (before sub-step 1), mean frustration E, coherence R, and α_adaptive.
+- **History recording** — appends `E_after`, `R_after`, and `α_adaptive` to the
+  `history_E`, `history_R`, and `history_alpha` vectors, respectively.
+
+```cpp
+bat.enable_debug(true);   // enable
+bat.enable_debug(false);  // disable (default)
+```
+
+### 3b.2 `set_alpha_sensitivity(double c1, double c2)`
+
+Configure the adaptive-α coefficients:
+
+```cpp
+bat.set_alpha_sensitivity(0.2, 0.1);
+// α_adaptive = alpha + 0.2·ΔE + 0.1·ΔR  (clamped to [0, 1])
+```
+
+Default values are `c1 = c2 = 0`, reproducing fixed-α behaviour for full
+backward compatibility.
+
+### 3b.3 `write_debug_csv(const std::string &filename)`
+
+Writes the recorded time-series to a CSV file with columns
+`step, E, R, alpha`.  No-op if no history has been recorded.
+
+```
+step,E,R,alpha
+0,0.2273,0.9604,0.5342
+1,0.0802,0.9859,0.5122
+...
+```
+
+### 3b.4 Debug usage example
+
+```cpp
+PhaseBattery bat(20, 0.3, init_phases);
+bat.set_alpha_sensitivity(0.2, 0.1);
+bat.enable_debug(true);
+
+for (int t = 0; t < 30; ++t)
+    bat.feedback_step(0.5);
+
+bat.write_debug_csv("/tmp/battery_trace.csv");
+```
+
+Console output format (per step):
+```
+[DEBUG] E_before=0.2273 E_after=0.0802 R=0.9604 alpha_adaptive=0.5342
+[DEBUG] per-node delta_theta: -0.785 -0.703 ... 0.785
+```
 
 ---
 
@@ -340,9 +414,9 @@ through its natural Lyapunov parameterisation.*
 | `circular_r() = 1` iff `E = 0`         | `N ≥ 1`                 | all phases equal ⟺ no frustration ⟺ R at maximum (1)                  |
 | `step()` returns `ΔE ≥ 0`              | `g ∈ (0, 1]`            | follows from non-increasing frustration guarantee                     |
 | `frustration() = 0` for flat init      | any `g`                 | `δθ_j = 0 ∀ j` ⇒ dead battery, nothing to release                    |
-| `feedback_step()` stable               | `g ∈ (0,1]`, `α ∈ (0,1]` | `g_fb = g·α·R ≤ g ≤ 1` ⇒ both sub-steps are dissipative contractions |
-| `feedback_step()` converges ≥ `step()` | `g ∈ (0,1]`, `α > 0`   | second sub-step always shrinks residual frustration further           |
-| `R = 1` is a fixed point of `feedback_step()` | any `g`, `α` | zero frustration ⇒ all δθ_j = 0 ⇒ both sub-steps leave phases unchanged |
+| `feedback_step()` stable               | `g ∈ (0,1]`, `α_adaptive ∈ (0,1]` | `g_fb = g·α_adaptive·R ≤ g ≤ 1` ⇒ both sub-steps are dissipative contractions |
+| `feedback_step()` converges ≥ `step()` | `g ∈ (0,1]`, `α_adaptive > 0`   | second sub-step always shrinks residual frustration further           |
+| `R = 1` is a fixed point of `feedback_step()` | any `g`, `α_adaptive` | zero frustration ⇒ all δθ_j = 0 ⇒ both sub-steps leave phases unchanged |
 | `interaction_energy` monotone in R     | any `N`, `g`            | `R² · N · g` is strictly increasing in `R` for `N·g > 0`             |
 | `metallic_oscillating_phases` contracts | `R·α ≤ 1`              | output spread = `(1 − R·α)` × input spread ≤ input spread            |
 | Mirror symmetry preserved              | symmetric init, any `g`, `α` | EMA and feedback gains are uniform ⇒ symmetric deviation cancels symmetrically |
@@ -368,9 +442,29 @@ double psi_bar = bat.mean_phase();     // conserved attractor
 // Standard step — SOURCE → MEDIUM → SINK transfer:
 double delta_E = bat.step();           // returns ΔE ≥ 0
 
-// Feedback step — standard EMA + coherence-amplified second pass:
+// Feedback step — standard EMA + adaptive coherence-amplified second pass:
 double delta_E_fb = bat.feedback_step(/*alpha=*/0.5);
-// alpha=0 → identical to step(); alpha=1.0 → maximum amplification
+// alpha=0 → no feedback; alpha=1.0 → maximum amplification
+// α_adaptive = clamp(alpha + c1·ΔE + c2·ΔR, 0, 1)  (c1=c2=0 by default)
+
+// Adaptive-α tuning:
+bat.set_alpha_sensitivity(/*c1=*/0.2, /*c2=*/0.1);
+// α_adaptive now scales with per-step frustration decay and coherence gain
+
+// Debug mode — console probes + history recording:
+bat.enable_debug(true);
+bat.feedback_step(0.5);
+// Prints: [DEBUG] E_before=... E_after=... R=... alpha_adaptive=...
+//         [DEBUG] per-node delta_theta: ...
+bat.enable_debug(false);
+
+// Time-series history (populated when debug_mode is true):
+//   bat.history_E[t]     — frustration after step t
+//   bat.history_R[t]     — coherence after step t
+//   bat.history_alpha[t] — α_adaptive used at step t
+
+// Export time-series to CSV (step, E, R, alpha):
+bat.write_debug_csv("/tmp/battery_trace.csv");
 
 // Phase lensing — project phases toward focal alignment angle:
 bat.phases = metallic_oscillating_phases(
@@ -398,8 +492,8 @@ for (int iter = 0; iter < 10; ++iter) {
 
 | Document | Relation |
 |---|---|
-| `ohm_coherence_duality.hpp` | Source implementation of `PhaseBattery`, `metallic_oscillating_phases`, `interaction_energy` |
-| `test_battery_analogy.cpp` | 37-assertion empirical proof suite (tests 1–6: base model; tests 7–9: feedback + lensing) |
+| `ohm_coherence_duality.hpp` | Source implementation of `PhaseBattery` (incl. debug mode, adaptive α, CSV export), `metallic_oscillating_phases`, `interaction_energy` |
+| `test_battery_analogy.cpp` | 51-assertion empirical proof suite (tests 1–6: base model; tests 7–9: feedback + lensing; tests 10–13: adaptive α + debug) |
 | `experiments/kernelsync_demo/grover_analogy.md` | Grover-diffusion interpretation of the EMA update |
 | `docs/scaling_laws.md` | Lyapunov exponent scaling and channel capacity |
 | `docs/B11_palindrome_precession.md` | Conserved-quantity analysis pattern reference |
