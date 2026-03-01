@@ -365,6 +365,187 @@ void test_g_eff_rate() {
               "battery dead without medium");
 }
 
+// ── 7. Feedback loop stability ────────────────────────────────────────────────
+// The compute-feedback step must remain stable (non-amplifying) under both
+// perfect coherence (R = 1, no frustration) and near-perfect coherence
+// (R ≈ 0.99, tight phase spread).  High coherence amplifies the feedback gain,
+// but because both sub-steps are independently dissipative the system converges.
+void test_feedback_loop_stability() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 7. Feedback Loop: Stability Under "
+               "Perfect / Near-Perfect Coherence \u2550\u2550\u2550\u2557\n";
+
+  const int N = 20;
+  const double ALPHA = 0.5; // conservative amplification
+
+  // ── Perfect coherence: R = 1, frustration = 0 ──
+  std::vector<double> ph_perfect(N, 0.0);
+  PhaseBattery bat_perfect(N, 0.3, ph_perfect);
+  test_assert(bat_perfect.circular_r() > 1.0 - TOL,
+              "perfect coherence: initial R = 1");
+  bat_perfect.feedback_step(ALPHA);
+  test_assert(bat_perfect.frustration() < TOL,
+              "perfect coherence: frustration stays 0 after feedback step");
+  test_assert(bat_perfect.circular_r() > 1.0 - TOL,
+              "perfect coherence: R = 1 preserved after feedback step");
+
+  // ── Near-perfect coherence: tight spread → R > 0.98 ──
+  auto ph_near = uniform_phases(N, 0.0, 0.1); // ±0.1 rad
+  PhaseBattery bat_near(N, 0.3, ph_near);
+  test_assert(bat_near.circular_r() > 0.98,
+              "near-perfect coherence: initial R > 0.98 for tight spread");
+
+  bool stable = true;
+  for (int i = 0; i < 30; ++i) {
+    double R_before = bat_near.circular_r();
+    bat_near.feedback_step(ALPHA);
+    if (bat_near.circular_r() < R_before - TOL)
+      stable = false;
+  }
+  test_assert(stable,
+              "near-perfect coherence: R(t) non-decreasing under feedback "
+              "(system stable)");
+  test_assert(bat_near.circular_r() > 1.0 - LOOSE_TOL,
+              "near-perfect coherence: converges to R = 1 under feedback");
+
+  // ── Feedback converges at least as fast as the standard step ──
+  auto ph_test = uniform_phases(N, 0.0, OHM_PI / 3.0);
+  PhaseBattery bat_std(N, 0.3, ph_test);
+  PhaseBattery bat_fb(N, 0.3, ph_test);
+  for (int i = 0; i < 20; ++i) {
+    bat_std.step();
+    bat_fb.feedback_step(1.0);
+  }
+  test_assert(bat_fb.circular_r() >= bat_std.circular_r(),
+              "feedback step achieves \u2265 coherence of standard step after "
+              "20 iterations");
+}
+
+// ── 8. Interaction energy scales predictably as R → 1 ────────────────────────
+// E_interact(R) = R² · N · g is monotonically increasing and reaches its
+// maximum N·g at R = 1 (perfect coherence limit), analogous to the lensing
+// focal intensity of a metallic mirror concentrating coherent energy.
+void test_interaction_energy_scaling() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 8. Interaction Energy Scaling: "
+               "R \u2192 1.0 (Perfect Coherence Limit) \u2550\u2550\u2550\u2557\n";
+
+  const int N = 20;
+  const double g = 0.3;
+
+  // Analytic sweep: verify E_interact is monotonically increasing
+  std::cout << "    R      E_interact\n";
+  double E_prev = interaction_energy(0.0, N, g);
+  bool monotone = true;
+  for (int k = 1; k <= 10; ++k) {
+    double R = k * 0.1;
+    double E = interaction_energy(R, N, g);
+    std::cout << "    " << std::fixed << std::setprecision(1) << R
+              << "    " << std::setprecision(4) << E << "\n";
+    if (E < E_prev - TOL)
+      monotone = false;
+    E_prev = E;
+  }
+  test_assert(monotone,
+              "E_interact = R\u00b2\u00b7N\u00b7g is monotonically increasing "
+              "as R \u2192 1.0");
+
+  // Limiting value at perfect coherence: E → N·g
+  double E_max = interaction_energy(1.0, N, g);
+  test_assert(std::abs(E_max - static_cast<double>(N) * g) < TOL,
+              "at R = 1: E_interact = N\u00b7g (maximum focal energy)");
+
+  // Simulated convergence: interaction energy rises as phases align
+  auto ph = uniform_phases(N, 0.0, OHM_PI / 2.0);
+  PhaseBattery bat(N, g, ph);
+  double E_sim_prev = interaction_energy(bat.circular_r(), N, g);
+  bool sim_monotone = true;
+  std::cout << "\n    Simulated convergence (step, R, E_interact):\n";
+  for (int blk = 0; blk < 6; ++blk) {
+    for (int j = 0; j < 5; ++j)
+      bat.feedback_step(0.5);
+    double R = bat.circular_r();
+    double E_i = interaction_energy(R, N, g);
+    std::cout << "    step " << std::setw(2) << (blk + 1) * 5
+              << ":  R = " << std::setprecision(4) << R
+              << "  E_interact = " << std::setprecision(4) << E_i << "\n";
+    if (E_i < E_sim_prev - TOL)
+      sim_monotone = false;
+    E_sim_prev = E_i;
+  }
+  test_assert(sim_monotone,
+              "interaction energy increases monotonically during feedback "
+              "convergence simulation");
+}
+
+// ── 9. Silver balance symmetry with compute feedback ─────────────────────────
+// A mirror-symmetric initial phase distribution (ψ_j = −ψ_{N−1−j}) must
+// remain symmetric through iterative feedback transformations, and the
+// metallic_oscillating_phases function must preserve this balance.
+// Multi-phase simulation stacks both transforms and verifies focal coherence.
+void test_silver_balance_symmetry() {
+  std::cout << "\n\u2554\u2550\u2550\u2550 9. Silver Balance Symmetry: Mirrored "
+               "Recursion + Compute Feedback \u2550\u2550\u2550\u2557\n";
+
+  const int N = 20;
+  const double ALPHA = 0.5;
+
+  // Build mirror-symmetric phases: ψ_j = −ψ_{N−1−j}, centred on 0
+  auto ph_sym = uniform_phases(N, 0.0, OHM_PI / 4.0);
+  bool init_sym = true;
+  for (int j = 0; j < (N + 1) / 2; ++j)
+    if (std::abs(ph_sym[j] + ph_sym[N - 1 - j]) > TOL)
+      init_sym = false;
+  test_assert(init_sym,
+              "initial phases are mirror-symmetric around \u03c8=0 "
+              "(silver balance)");
+
+  // Feedback steps must preserve mirror symmetry
+  PhaseBattery bat(N, 0.3, ph_sym);
+  bool sym_preserved = true;
+  for (int s = 0; s < 20; ++s) {
+    bat.feedback_step(ALPHA);
+    for (int j = 0; j < (N + 1) / 2; ++j)
+      if (std::abs(bat.phases[j] + bat.phases[N - 1 - j]) > LOOSE_TOL)
+        sym_preserved = false;
+  }
+  test_assert(sym_preserved,
+              "mirror symmetry \u03c8_j = \u2212\u03c8_{N\u22121\u2212j} "
+              "preserved through 20 feedback steps (mirrored recursion "
+              "stable)");
+
+  // metallic_oscillating_phases: output spread \u2264 input spread (lensing
+  // focuses phases toward the alignment angle)
+  auto ph_spread = uniform_phases(N, 0.0, OHM_PI / 3.0);
+  auto ph_out = metallic_oscillating_phases(ph_spread, 0.0, 1.0);
+  double ss_in = 0.0, ss_out = 0.0;
+  for (double p : ph_spread)
+    ss_in += p * p;
+  for (double p : ph_out)
+    ss_out += p * p;
+  test_assert(ss_out <= ss_in + TOL,
+              "metallic_oscillating_phases: output spread \u2264 input spread "
+              "(constructive lensing focuses phases)");
+
+  // Multi-phase simulation: interleave metallic projection + feedback,
+  // verifying focal coherence reaches near-unity
+  std::cout << "    Multi-phase simulation (metallic projection + feedback "
+               "\u03b1=0.5, 10 iter):\n";
+  auto ph_multi = uniform_phases(N, 0.0, OHM_PI / 2.0);
+  PhaseBattery bat_multi(N, 0.3, ph_multi);
+  for (int iter = 0; iter < 10; ++iter) {
+    bat_multi.phases =
+        metallic_oscillating_phases(bat_multi.phases, bat_multi.mean_phase(),
+                                    ALPHA);
+    bat_multi.feedback_step(ALPHA);
+    if (iter % 2 == 1)
+      std::cout << "    iter " << std::setw(2) << (iter + 1)
+                << ":  R = " << std::fixed << std::setprecision(4)
+                << bat_multi.circular_r() << "\n";
+  }
+  test_assert(bat_multi.circular_r() > 0.99,
+              "multi-phase simulation: focal coherence R > 0.99 after 10 "
+              "combined feedback iterations");
+}
+
 // ── Main
 // ──────────────────────────────────────────────────────────────────────
 int main() {
@@ -393,6 +574,9 @@ int main() {
   test_three_essentials();
   test_coherence_monotone();
   test_g_eff_rate();
+  test_feedback_loop_stability();
+  test_interaction_energy_scaling();
+  test_silver_balance_symmetry();
 
   std::cout
       << "\n\u2554\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550"
