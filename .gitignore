@@ -88,3 +88,4 @@ docs/*.out
 
 # Passive GHz Demo — synthetic data files (regenerate with run_demo.py)
 experiments/passive_ghz_demo/demo_output/*.npz
+test_battery_analogy
