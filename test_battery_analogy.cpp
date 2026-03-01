@@ -365,11 +365,12 @@ void test_g_eff_rate() {
               "battery dead without medium");
 }
 
-// ── 7. Feedback loop stability ────────────────────────────────────────────────
-// The compute-feedback step must remain stable (non-amplifying) under both
-// perfect coherence (R = 1, no frustration) and near-perfect coherence
-// (R ≈ 0.99, tight phase spread).  High coherence amplifies the feedback gain,
-// but because both sub-steps are independently dissipative the system converges.
+// ── 7. Feedback loop stability
+// ──────────────────────────────────────────────── The compute-feedback step
+// must remain stable (non-amplifying) under both perfect coherence (R = 1, no
+// frustration) and near-perfect coherence (R ≈ 0.99, tight phase spread).  High
+// coherence amplifies the feedback gain, but because both sub-steps are
+// independently dissipative the system converges.
 void test_feedback_loop_stability() {
   std::cout << "\n\u2554\u2550\u2550\u2550 7. Feedback Loop: Stability Under "
                "Perfect / Near-Perfect Coherence \u2550\u2550\u2550\u2557\n";
@@ -425,8 +426,9 @@ void test_feedback_loop_stability() {
 // maximum N·g at R = 1 (perfect coherence limit), analogous to the lensing
 // focal intensity of a metallic mirror concentrating coherent energy.
 void test_interaction_energy_scaling() {
-  std::cout << "\n\u2554\u2550\u2550\u2550 8. Interaction Energy Scaling: "
-               "R \u2192 1.0 (Perfect Coherence Limit) \u2550\u2550\u2550\u2557\n";
+  std::cout
+      << "\n\u2554\u2550\u2550\u2550 8. Interaction Energy Scaling: "
+         "R \u2192 1.0 (Perfect Coherence Limit) \u2550\u2550\u2550\u2557\n";
 
   const int N = 20;
   const double g = 0.3;
@@ -438,8 +440,8 @@ void test_interaction_energy_scaling() {
   for (int k = 1; k <= 10; ++k) {
     double R = k * 0.1;
     double E = interaction_energy(R, N, g);
-    std::cout << "    " << std::fixed << std::setprecision(1) << R
-              << "    " << std::setprecision(4) << E << "\n";
+    std::cout << "    " << std::fixed << std::setprecision(1) << R << "    "
+              << std::setprecision(4) << E << "\n";
     if (E < E_prev - TOL)
       monotone = false;
     E_prev = E;
@@ -482,8 +484,9 @@ void test_interaction_energy_scaling() {
 // metallic_oscillating_phases function must preserve this balance.
 // Multi-phase simulation stacks both transforms and verifies focal coherence.
 void test_silver_balance_symmetry() {
-  std::cout << "\n\u2554\u2550\u2550\u2550 9. Silver Balance Symmetry: Mirrored "
-               "Recursion + Compute Feedback \u2550\u2550\u2550\u2557\n";
+  std::cout
+      << "\n\u2554\u2550\u2550\u2550 9. Silver Balance Symmetry: Mirrored "
+         "Recursion + Compute Feedback \u2550\u2550\u2550\u2557\n";
 
   const int N = 20;
   const double ALPHA = 0.5;
@@ -494,9 +497,8 @@ void test_silver_balance_symmetry() {
   for (int j = 0; j < (N + 1) / 2; ++j)
     if (std::abs(ph_sym[j] + ph_sym[N - 1 - j]) > TOL)
       init_sym = false;
-  test_assert(init_sym,
-              "initial phases are mirror-symmetric around \u03c8=0 "
-              "(silver balance)");
+  test_assert(init_sym, "initial phases are mirror-symmetric around \u03c8=0 "
+                        "(silver balance)");
 
   // Feedback steps must preserve mirror symmetry
   PhaseBattery bat(N, 0.3, ph_sym);
@@ -532,9 +534,8 @@ void test_silver_balance_symmetry() {
   auto ph_multi = uniform_phases(N, 0.0, OHM_PI / 2.0);
   PhaseBattery bat_multi(N, 0.3, ph_multi);
   for (int iter = 0; iter < 10; ++iter) {
-    bat_multi.phases =
-        metallic_oscillating_phases(bat_multi.phases, bat_multi.mean_phase(),
-                                    ALPHA);
+    bat_multi.phases = metallic_oscillating_phases(
+        bat_multi.phases, bat_multi.mean_phase(), ALPHA);
     bat_multi.feedback_step(ALPHA);
     if (iter % 2 == 1)
       std::cout << "    iter " << std::setw(2) << (iter + 1)
