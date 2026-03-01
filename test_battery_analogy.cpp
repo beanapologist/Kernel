@@ -382,9 +382,8 @@ void test_silver_ratio_nodes() {
                "\u2550\u2550\u2550\u2557\n";
 
   // ── Reciprocal identity: δ_s × (1/δ_s) = 1
-  test_assert(
-      std::abs(SILVER_RATIO * SILVER_RATIO_RECIP - 1.0) < TOL,
-      "\u03b4_s \u00d7 (1/\u03b4_s) = 1 (reciprocal identity holds)");
+  test_assert(std::abs(SILVER_RATIO * SILVER_RATIO_RECIP - 1.0) < TOL,
+              "\u03b4_s \u00d7 (1/\u03b4_s) = 1 (reciprocal identity holds)");
 
   // ── SILVER_ANGLE_INC = 2π/δ_s²
   double expected_inc = 2.0 * OHM_PI / (SILVER_RATIO * SILVER_RATIO);
@@ -464,7 +463,8 @@ void test_silver_ratio_nodes() {
 //                         visiting all 8 directions in multiples of π/4
 //                         (equidistant unit vectors cancel).
 //
-//   Mirror symmetry     : reflecting each phase through 3π/4 (i.e. φ' = 3π/2 − φ)
+//   Mirror symmetry     : reflecting each phase through 3π/4 (i.e. φ' = 3π/2 −
+//   φ)
 //                         preserves frustration and circular_r — the
 //                         battery observables are invariant under this
 //                         reflection (rotational symmetry of the energy).
@@ -579,12 +579,10 @@ void test_metallic_mean_oscillation() {
   double inc1 = metallic_angle_inc(1); // golden   ~2.400 rad
   double inc2 = metallic_angle_inc(2); // silver   ~1.079 rad
   double inc3 = metallic_angle_inc(3); // bronze   ~0.576 rad
-  test_assert(inc1 > inc2,
-              "metallic_angle_inc: golden (n=1) > silver (n=2) "
-              "(increment decreases with n)");
-  test_assert(inc2 > inc3,
-              "metallic_angle_inc: silver (n=2) > bronze (n=3) "
-              "(increment decreases with n)");
+  test_assert(inc1 > inc2, "metallic_angle_inc: golden (n=1) > silver (n=2) "
+                           "(increment decreases with n)");
+  test_assert(inc2 > inc3, "metallic_angle_inc: silver (n=2) > bronze (n=3) "
+                           "(increment decreases with n)");
 
   // ── Golden/silver oscillation {1,2}: gaps alternate between inc1 and inc2
   const int N = 16;

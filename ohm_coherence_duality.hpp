@@ -377,16 +377,18 @@ private:
   }
 };
 
-// ── Silver Ratio constants ────────────────────────────────────────────────────
-// δ_s = 1 + √2 ≈ 2.41421356237  (silver ratio)
-// 1/δ_s = √2 − 1 ≈ 0.41421356237  (reciprocal; equals 1/SILVER_RATIO)
-// 2π/δ_s² ≈ 1.07914589 rad        (silver angle increment for spirals)
-// 3π/4 ≈ 2.35619449 rad           (balance angle — 8-fold symmetry pivot)
+// ── Silver Ratio constants
+// ──────────────────────────────────────────────────── δ_s = 1 + √2
+// ≈ 2.41421356237  (silver ratio) 1/δ_s = √2 − 1 ≈ 0.41421356237  (reciprocal;
+// equals 1/SILVER_RATIO) 2π/δ_s² ≈ 1.07914589 rad        (silver angle
+// increment for spirals) 3π/4 ≈ 2.35619449 rad           (balance angle —
+// 8-fold symmetry pivot)
 
-static constexpr double SILVER_RATIO       = 2.41421356237309504880; // 1+√2
-static constexpr double SILVER_RATIO_RECIP = 0.41421356237309504880; // √2−1 = 1/δ_s
-static constexpr double SILVER_ANGLE_INC   =
-    2.0 * OHM_PI / (SILVER_RATIO * SILVER_RATIO); // 2π/δ_s²
+static constexpr double SILVER_RATIO = 2.41421356237309504880; // 1+√2
+static constexpr double SILVER_RATIO_RECIP =
+    0.41421356237309504880; // √2−1 = 1/δ_s
+static constexpr double SILVER_ANGLE_INC =
+    2.0 * OHM_PI / (SILVER_RATIO * SILVER_RATIO);                  // 2π/δ_s²
 static constexpr double SILVER_BALANCE_ANGLE = 3.0 * OHM_PI / 4.0; // 3π/4
 
 // Generate N phases following the silver-ratio outward spiral (growth phase).
@@ -402,8 +404,8 @@ silver_growth_phases(int N, double base_angle = SILVER_BALANCE_ANGLE) {
 
 // Generate N phases with reciprocal folding (dual inward/outward spiral).
 // Even-indexed nodes follow the outward growth spiral (increment × 1).
-// Odd-indexed nodes are folded inward by 1/δ_s (increment × SILVER_RATIO_RECIP),
-// encoding the recursive shrinking phase driven by √2 − 1.
+// Odd-indexed nodes are folded inward by 1/δ_s (increment ×
+// SILVER_RATIO_RECIP), encoding the recursive shrinking phase driven by √2 − 1.
 inline std::vector<double>
 silver_folded_phases(int N, double base_angle = SILVER_BALANCE_ANGLE) {
   std::vector<double> ph(N);
@@ -414,8 +416,8 @@ silver_folded_phases(int N, double base_angle = SILVER_BALANCE_ANGLE) {
   return ph;
 }
 
-// ── Metallic Means — family containing the silver ratio and beyond ────────────
-// The nth metallic mean Mₙ = (n + √(n²+4)) / 2, n ≥ 1:
+// ── Metallic Means — family containing the silver ratio and beyond
+// ──────────── The nth metallic mean Mₙ = (n + √(n²+4)) / 2, n ≥ 1:
 //   n=1 → golden ratio φ  ≈ 1.61803398875 (angle inc 2π/φ²  ≈ 2.39996 rad)
 //   n=2 → silver ratio δ_s ≈ 2.41421356237 (angle inc 2π/δ_s² ≈ 1.07915 rad)
 //   n=3 → bronze ratio     ≈ 3.30277563773 (angle inc 2π/M₃² ≈ 0.57612 rad)
@@ -434,7 +436,9 @@ silver_folded_phases(int N, double base_angle = SILVER_BALANCE_ANGLE) {
 
 // Compute the nth metallic mean: Mₙ = (n + √(n²+4)) / 2
 inline double metallic_mean(int n) {
-  return (static_cast<double>(n) + std::sqrt(static_cast<double>(n * n) + 4.0)) * 0.5;
+  return (static_cast<double>(n) +
+          std::sqrt(static_cast<double>(n * n) + 4.0)) *
+         0.5;
 }
 
 // Angular increment for the nth metallic mean: 2π / Mₙ²
