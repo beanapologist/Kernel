@@ -392,8 +392,8 @@ struct PhaseBattery {
 
   // ── Debug / adaptive-α state ──────────────────────────────────────────────
   bool debug_mode = false; // master toggle: enables logging + history
-  double alpha_c1 = 0.0;   // α sensitivity coefficient for ΔE (frustration decay)
-  double alpha_c2 = 0.0;   // α sensitivity coefficient for ΔR (coherence gain)
+  double alpha_c1 = 0.0; // α sensitivity coefficient for ΔE (frustration decay)
+  double alpha_c2 = 0.0; // α sensitivity coefficient for ΔR (coherence gain)
 
   // Time-series histories (filled when debug_mode is true)
   std::vector<double> history_E;     // E(t) after each feedback_step
@@ -518,8 +518,8 @@ struct PhaseBattery {
       history_alpha.push_back(alpha_adaptive);
 
       std::cout << "[DEBUG] E_before=" << E_before << " E_after=" << E_after
-                << " R=" << R_after
-                << " alpha_adaptive=" << alpha_adaptive << "\n";
+                << " R=" << R_after << " alpha_adaptive=" << alpha_adaptive
+                << "\n";
       std::cout << "[DEBUG] per-node delta_theta:";
       for (int j = 0; j < N; ++j)
         std::cout << " " << delta_theta[static_cast<size_t>(j)];

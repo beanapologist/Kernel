@@ -680,9 +680,10 @@ void test_adaptive_alpha_near_critical() {
               "near-critical: all adaptive \u03b1 values remain in [0, 1]");
 }
 
-// ── 13. Debug CSV output ──────────────────────────────────────────────────────
-// Verify that write_debug_csv produces a well-formed file that can be read back,
-// and that the CSV column count and row count match the history vectors.
+// ── 13. Debug CSV output
+// ────────────────────────────────────────────────────── Verify that
+// write_debug_csv produces a well-formed file that can be read back, and that
+// the CSV column count and row count match the history vectors.
 void test_debug_csv_output() {
   std::cout << "\n\u2554\u2550\u2550\u2550 13. Debug CSV Output "
                "\u2550\u2550\u2550\u2557\n";
