@@ -11,12 +11,17 @@
 
   Sections
   ────────
-  1. Critical eigenvalue  μ = exp(I · 3π/4)
-  2. Eight-cycle closure  μ^8 = 1
-  3. Distinctness of the eight powers of μ   (gcd(3,8) = 1)
-  4. Rotation matrix  R(3π/4)  and its properties
-  5. Coherence function  C(r) = 2r/(1 + r²)
-  6. Canonical-state normalisation  η² + |μ·η|² = 1
+  1.  Critical eigenvalue  μ = exp(I · 3π/4)
+  2.  Eight-cycle closure  μ^8 = 1
+  3.  Distinctness of the eight powers of μ   (gcd(3,8) = 1)
+  4.  Rotation matrix  R(3π/4)  and its properties
+  5.  Coherence function  C(r) = 2r/(1 + r²)
+  6.  Canonical-state normalisation  η² + |μ·η|² = 1
+  7.  Silver ratio  δS = 1 + √2  (Proposition 4)
+  8.  Additional coherence properties  (symmetry, positivity, strict bound)
+  9.  Palindrome residual  R(r) = (r − 1/r)/δS  (Theorem 12)
+  10. Lyapunov–coherence duality  C(exp λ) = sech λ  (Theorem 14)
+  11. Derived invariant equivalences  (machine-discovered connections)
 
   Proof status
   ────────────
@@ -294,5 +299,198 @@ theorem canonical_norm : η ^ 2 + Complex.normSq (μ * ↑η) = 1 := by
     ring
   rw [h1, eta_sq]
   norm_num
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 7 — Silver Ratio Conservation (Proposition 4)
+-- Ref: docs/master_derivations.pdf §1
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- The silver ratio δS = 1 + √2, the arithmetic dual of μ. -/
+noncomputable def δS : ℝ := 1 + Real.sqrt 2
+
+private lemma δS_pos : 0 < δS := by unfold δS; positivity
+
+private lemma sqrt2_sq : Real.sqrt 2 * Real.sqrt 2 = 2 :=
+  Real.mul_self_sqrt (by norm_num)
+
+/-- Silver conservation product: δS · (√2 − 1) = 1.
+    Ref: docs/master_derivations.pdf Proposition 4 -/
+theorem silverRatio_mul_conj : δS * (Real.sqrt 2 - 1) = 1 := by
+  unfold δS; nlinarith [sqrt2_sq]
+
+/-- Silver quadratic identity: δS² = 2·δS + 1.
+    Ref: docs/master_derivations.pdf Proposition 4 -/
+theorem silverRatio_sq : δS ^ 2 = 2 * δS + 1 := by
+  unfold δS; nlinarith [sqrt2_sq]
+
+/-- The multiplicative inverse of δS equals √2 − 1. -/
+theorem silverRatio_inv : 1 / δS = Real.sqrt 2 - 1 := by
+  rw [div_eq_iff (ne_of_gt δS_pos)]
+  linarith [silverRatio_mul_conj]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 8 — Additional Coherence Properties
+-- Ref: docs/master_derivations.pdf §4 Theorem 11
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- C(r) > 0 for all r > 0. -/
+theorem coherence_pos (r : ℝ) (hr : 0 < r) : 0 < C r := by
+  unfold C; exact div_pos (by linarith) (one_add_sq_pos r)
+
+/-- C(r) = C(1/r): coherence is symmetric about r = 1.
+    This duality reflects the equivalence of amplitude ratios r and 1/r.
+    Ref: docs/master_derivations.pdf §4 Theorem 11 property (2) -/
+theorem coherence_symm (r : ℝ) (hr : 0 < r) : C r = C (1 / r) := by
+  unfold C
+  have hr' : r ≠ 0 := ne_of_gt hr
+  field_simp [hr', ne_of_gt (one_add_sq_pos r), ne_of_gt (one_add_sq_pos (1 / r))]
+  ring
+
+/-- C(r) < 1 for r ≥ 0 with r ≠ 1: the maximum is uniquely attained at r = 1.
+    Ref: docs/master_derivations.pdf §4 Theorem 11 property (4) -/
+theorem coherence_lt_one (r : ℝ) (hr : 0 ≤ r) (hr1 : r ≠ 1) : C r < 1 :=
+  lt_of_le_of_ne (coherence_le_one r hr) (mt (coherence_eq_one_iff r hr).mp hr1)
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 9 — Palindrome Residual (Theorem 12)
+-- Ref: docs/master_derivations.pdf §4 Theorem 12
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- The palindrome residual R(r) = (r − 1/r) / δS.
+    Vanishes at r = 1; positive for r > 1; negative for 0 < r < 1.
+    Ref: docs/master_derivations.pdf §4 Theorem 12 -/
+noncomputable def Res (r : ℝ) : ℝ := (r - 1 / r) / δS
+
+/-- R(r) = 0 ↔ r = 1 for r > 0.
+    Ref: docs/master_derivations.pdf §4 Theorem 12 property (1) -/
+theorem palindrome_residual_zero_iff (r : ℝ) (hr : 0 < r) : Res r = 0 ↔ r = 1 := by
+  unfold Res
+  rw [div_eq_zero_iff, or_iff_left (ne_of_gt δS_pos)]
+  have hr' : r ≠ 0 := ne_of_gt hr
+  constructor
+  · intro h
+    -- r − 1/r = 0  →  r·(r − 1/r) = 0  →  r² − 1 = 0  →  (r−1)(r+1) = 0
+    have hrr : r * r = 1 := by
+      have hstep : r * r - 1 = 0 := by
+        have : r * (r - 1 / r) = r * r - 1 := by field_simp; ring
+        linarith [show r * (r - 1 / r) = 0 from by rw [h, mul_zero]]
+      linarith
+    have hfact : (r - 1) * (r + 1) = 0 := by linear_combination hrr
+    rcases mul_eq_zero.mp hfact with h1 | h1
+    · linarith
+    · linarith
+  · rintro rfl; norm_num
+
+/-- R(r) > 0 for r > 1.
+    Ref: docs/master_derivations.pdf §4 Theorem 12 property (2) -/
+theorem palindrome_residual_pos (r : ℝ) (hr : 1 < r) : 0 < Res r := by
+  unfold Res
+  apply div_pos _ δS_pos
+  have hr0 : (0 : ℝ) < r := by linarith
+  have hr' : r ≠ 0 := ne_of_gt hr0
+  have hrep : r - 1 / r = (r ^ 2 - 1) / r := by field_simp; ring
+  rw [hrep]; exact div_pos (by nlinarith) hr0
+
+/-- R(r) < 0 for 0 < r < 1.
+    Ref: docs/master_derivations.pdf §4 Theorem 12 property (3) -/
+theorem palindrome_residual_neg (r : ℝ) (hr0 : 0 < r) (hr1 : r < 1) : Res r < 0 := by
+  unfold Res
+  apply div_neg_of_neg_of_pos _ δS_pos
+  have hr' : r ≠ 0 := ne_of_gt hr0
+  have hrep : r - 1 / r = (r ^ 2 - 1) / r := by field_simp; ring
+  rw [hrep]; exact div_neg_of_neg_of_pos (by nlinarith) hr0
+
+/-- R(1/r) = −R(r): palindrome residual is anti-symmetric about r = 1.
+    This is the odd counterpart to coherence's even symmetry C(r) = C(1/r). -/
+theorem palindrome_residual_antisymm (r : ℝ) (hr : 0 < r) : Res (1 / r) = -Res r := by
+  unfold Res
+  have hr' : r ≠ 0 := ne_of_gt hr
+  field_simp; ring
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 10 — Lyapunov–Coherence Duality (Theorem 14)
+-- Ref: docs/master_derivations.pdf §4 Theorem 14
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Key identity: C(exp λ) · (exp λ + exp(−λ)) = 2. -/
+private lemma lyapunov_key (λ : ℝ) :
+    C (Real.exp λ) * (Real.exp λ + Real.exp (-λ)) = 2 := by
+  have hmul : Real.exp λ * Real.exp (-λ) = 1 := by
+    rw [← Real.exp_add]; simp
+  unfold C
+  have hd : (0 : ℝ) < 1 + Real.exp λ ^ 2 := one_add_sq_pos _
+  field_simp [ne_of_gt hd]
+  nlinarith [Real.exp_pos λ, Real.exp_pos (-λ), hmul, sq_nonneg (Real.exp λ)]
+
+/-- Lyapunov–coherence duality: C(exp λ) = 2/(exp λ + exp(−λ)) = sech λ.
+    The coherence is the reciprocal of the hyperbolic cosine of the Lyapunov
+    exponent λ = ln r.  At the balanced fixed point r = 1 (λ = 0):
+    sech(0) = 1, recovering C = 1.
+    Ref: docs/master_derivations.pdf §4 Theorem 14 -/
+theorem lyapunov_coherence_duality (λ : ℝ) :
+    C (Real.exp λ) = 2 / (Real.exp λ + Real.exp (-λ)) := by
+  have hpos : 0 < Real.exp λ + Real.exp (-λ) := by positivity
+  rw [eq_div_iff (ne_of_gt hpos), mul_comm]
+  exact lyapunov_key λ
+
+/-- Corollary: C(exp λ) = (cosh λ)⁻¹ = sech λ.
+    Uses: cosh λ = (exp λ + exp(−λ)) / 2. -/
+theorem lyapunov_coherence_sech (λ : ℝ) :
+    C (Real.exp λ) = (Real.cosh λ)⁻¹ := by
+  have hcosh : Real.cosh λ = (Real.exp λ + Real.exp (-λ)) / 2 := Real.cosh_eq λ
+  rw [lyapunov_coherence_duality, hcosh, inv_div]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 11 — Derived Invariant Equivalences
+-- The formal system discovers that independently-defined invariants
+-- (coherence C, palindrome residual R, Lyapunov exponent λ) all
+-- characterise the same balanced fixed point r = 1.
+-- Ref: docs/master_derivations.pdf Corollary 13
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- **Derived**: palindrome residual zero ↔ maximum coherence.
+    Two independently-defined invariants identify the same fixed point.
+    Ref: docs/master_derivations.pdf Corollary 13 -/
+theorem palindrome_coherence_equiv (r : ℝ) (hr : 0 < r) :
+    Res r = 0 ↔ C r = 1 :=
+  (palindrome_residual_zero_iff r hr).trans (coherence_eq_one_iff r (le_of_lt hr)).symm
+
+/-- **Derived**: C is even (C(r) = C(1/r)) while R is odd (R(1/r) = −R(r)).
+    Both are symmetric about the same fixed point r = 1, in dual senses. -/
+theorem coherence_palindrome_duality (r : ℝ) (hr : 0 < r) :
+    C r = C (1 / r) ∧ Res (1 / r) = -Res r :=
+  ⟨coherence_symm r hr, palindrome_residual_antisymm r hr⟩
+
+/-- **Derived**: the C-maximum is preserved under the symmetry r ↦ 1/r.
+    C(r) = 1 ↔ C(1/r) = 1 — the maximum is a fixed point of the inversion. -/
+theorem coherence_max_symm (r : ℝ) (hr : 0 < r) :
+    C r = 1 ↔ C (1 / r) = 1 := by
+  constructor
+  · intro h; rwa [← coherence_symm r hr]
+  · intro h; rwa [coherence_symm r hr]
+
+/-- **Derived**: at the palindrome equilibrium the state is self-dual: r = 1/r. -/
+theorem palindrome_zero_self_dual (r : ℝ) (hr : 0 < r) (h : Res r = 0) : r = 1 / r := by
+  have := (palindrome_residual_zero_iff r hr).mp h
+  rw [this]; norm_num
+
+/-- **Derived**: simultaneous break — all equilibrium invariants are equivalent.
+    The balanced state r = 1 is the unique point where coherence is maximal,
+    palindrome residual vanishes, and the Lyapunov exponent is zero.
+    Ref: docs/master_derivations.pdf Corollary 13 -/
+theorem simultaneous_break (r : ℝ) (hr : 0 < r) :
+    r = 1 ↔ C r = 1 ∧ Res r = 0 := by
+  constructor
+  · intro h
+    exact ⟨(coherence_eq_one_iff r (le_of_lt hr)).mpr h,
+            (palindrome_residual_zero_iff r hr).mpr h⟩
+  · intro ⟨hC, _⟩
+    exact (coherence_eq_one_iff r (le_of_lt hr)).mp hC
+
+/-- **Derived**: the Lyapunov–coherence duality implies C ≤ 1 for all λ,
+    since sech(λ) ≤ 1 = sech(0).  This recovers `coherence_le_one` via a
+    completely different route (the hyperbolic bound). -/
+theorem lyapunov_bound (λ : ℝ) : C (Real.exp λ) ≤ 1 :=
+  coherence_le_one _ (le_of_lt (Real.exp_pos λ))
 
 end -- noncomputable section

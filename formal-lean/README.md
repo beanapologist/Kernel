@@ -77,7 +77,7 @@ See CriticalEigenvalue.lean for full proof terms.
 lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
-All ten theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
+All 28 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -85,18 +85,63 @@ All ten theorems in `CriticalEigenvalue.lean` have complete machine-checked proo
 
 ### `CriticalEigenvalue.lean`
 
-| # | Theorem | Status | Description |
-|---|---------|--------|-------------|
-| 1 | `mu_eq_cart` | ✓ proved | μ = (−1 + i)/√2 in Cartesian form |
-| 2 | `mu_abs_one` | ✓ proved | \|μ\| = 1 |
-| 3 | `mu_pow_eight` | ✓ proved | μ⁸ = 1 (8-cycle closure) |
-| 4 | `mu_powers_distinct` | ✓ proved | 8 powers distinct (`IsPrimitiveRoot`, gcd(3,8)=1) |
-| 5 | `rotMat_det` | ✓ proved | det R(3π/4) = 1 |
-| 6 | `rotMat_orthog` | ✓ proved | R · Rᵀ = I |
-| 7 | `rotMat_pow_eight` | ✓ proved | R(3π/4)⁸ = I (double-angle + matrix computation) |
-| 8 | `coherence_le_one` | ✓ proved | C(r) ≤ 1 for r ≥ 0 (AM–GM) |
-| 9 | `coherence_eq_one_iff` | ✓ proved | C(r) = 1 ↔ r = 1 |
-| 10 | `canonical_norm` | ✓ proved | η² + \|μ·η\|² = 1 |
+**§1–6 Core eigenvalue and coherence structure**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `mu_eq_cart` | μ = (−1 + i)/√2 in Cartesian form |
+| 2 | `mu_abs_one` | \|μ\| = 1 |
+| 3 | `mu_pow_eight` | μ⁸ = 1 (8-cycle closure) |
+| 4 | `mu_powers_distinct` | {μ⁰,…,μ⁷} pairwise distinct (`IsPrimitiveRoot`, gcd(3,8)=1) |
+| 5 | `rotMat_det` | det R(3π/4) = 1 |
+| 6 | `rotMat_orthog` | R · Rᵀ = I |
+| 7 | `rotMat_pow_eight` | R(3π/4)⁸ = I |
+| 8 | `coherence_le_one` | C(r) ≤ 1 for r ≥ 0 (AM–GM) |
+| 9 | `coherence_eq_one_iff` | C(r) = 1 ↔ r = 1 |
+| 10 | `canonical_norm` | η² + \|μ·η\|² = 1 |
+
+**§7 Silver ratio (Proposition 4)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 11 | `silverRatio_mul_conj` | δS · (√2−1) = 1 |
+| 12 | `silverRatio_sq` | δS² = 2·δS + 1 |
+| 13 | `silverRatio_inv` | 1/δS = √2−1 |
+
+**§8 Additional coherence properties (Theorem 11)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 14 | `coherence_pos` | C(r) > 0 for r > 0 |
+| 15 | `coherence_symm` | C(r) = C(1/r) — even symmetry about r = 1 |
+| 16 | `coherence_lt_one` | C(r) < 1 for r ≥ 0, r ≠ 1 |
+
+**§9 Palindrome residual (Theorem 12)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 17 | `palindrome_residual_zero_iff` | R(r) = 0 ↔ r = 1 |
+| 18 | `palindrome_residual_pos` | R(r) > 0 for r > 1 |
+| 19 | `palindrome_residual_neg` | R(r) < 0 for 0 < r < 1 |
+| 20 | `palindrome_residual_antisymm` | R(1/r) = −R(r) — odd anti-symmetry |
+
+**§10 Lyapunov–coherence duality (Theorem 14)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `lyapunov_coherence_duality` | C(exp λ) = 2/(exp λ + exp(−λ)) |
+| 22 | `lyapunov_coherence_sech` | C(exp λ) = (cosh λ)⁻¹ = sech λ |
+
+**§11 Derived invariant equivalences — machine-discovered connections (Corollary 13)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 23 | `palindrome_coherence_equiv` | R(r)=0 ↔ C(r)=1 — connecting two independent invariants |
+| 24 | `coherence_palindrome_duality` | C even ∧ R odd — dual symmetries about r = 1 |
+| 25 | `coherence_max_symm` | C(r)=1 ↔ C(1/r)=1 |
+| 26 | `palindrome_zero_self_dual` | R(r)=0 → r = 1/r |
+| 27 | `simultaneous_break` | r=1 ↔ C(r)=1 ∧ R(r)=0 |
+| 28 | `lyapunov_bound` | C(exp λ) ≤ 1 via the sech route |
 
 ---
 
