@@ -843,6 +843,76 @@ phase deviation of node $j$ from the collective mean, and
 $\operatorname{wrap}(a) = a - 2\pi\lfloor(a+\pi)/(2\pi)\rfloor$ folds any
 angle into $(-\pi,\pi]$.
 
+\begin{remark}[Universality of the source--medium--sink architecture]
+  \label{rem:sms-universal}
+  The three-essentials structure is not a metaphor restricted to chemistry: it
+  is the minimal ingredient list for any dissipative process that converts
+  stored potential into a coherent output signal.  The same abstract triple
+  $(S, M, K)$ — \emph{source} (potential), \emph{medium} (conductance), and
+  \emph{sink} (output accumulator) — recurs across domains:
+
+  \begin{center}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}lllll@{}}
+  \toprule
+  System & Source $S$ & Medium $M$ & Sink $K$ & Conserved\\
+  \midrule
+  Electrochemical cell
+    & Chemical potential
+    & Electrolyte resistance
+    & Electrode charge $Q$
+    & Total charge\\
+  RC circuit
+    & Voltage $V_0$
+    & Resistance $R$
+    & Capacitor charge $Q(t)$
+    & None (decays)\\
+  Thermal (Fourier)
+    & $T_{\mathrm{hot}}$
+    & Thermal conductance $\kappa/L$
+    & $T_{\mathrm{cold}}$ rise
+    & Total enthalpy\\
+  Quantum decay
+    & Excited population $\rho_{11}$
+    & Decay rate $\gamma$
+    & Ground-state population $\rho_{00}$
+    & $\rho_{00}+\rho_{11}=1$\\
+  \textbf{PhaseBattery}
+    & Phase frustration $E$
+    & $g = \operatorname{sech}(\lambda)$
+    & Coherence $R$
+    & Mean phase $\bar\psi$\\
+  \bottomrule
+  \end{tabular}
+  \end{center}
+
+  In every row the medium parameter is a single scalar that interpolates
+  between the open-circuit limit ($M\to 0$: nothing flows) and the
+  short-circuit limit ($M\to\infty$: instantaneous collapse).  The
+  Ohm--Coherence duality (Theorem~\ref{thm:14}) identifies this scalar as
+  $g = \Geff = \operatorname{sech}(\lambda)$, which takes values in $(0,1]$
+  for any real Lyapunov exponent $\lambda$ and thus \emph{always} stays in the
+  stable operating zone — a guarantee absent in generic RC or thermal systems.
+
+  Three universal laws hold across all instances of the triple:
+  \begin{enumerate}
+    \item \textbf{Source monotone decrease:} $S(t)$ is non-increasing under
+      any positive $M$.
+    \item \textbf{Sink monotone increase:} $K(t)$ is non-decreasing and
+      saturates at a fixed point when $S=0$.
+    \item \textbf{Conserved quantity:} there exists at least one invariant
+      (charge, enthalpy, mean phase) that the medium does not change, only
+      transfer from source to sink.
+  \end{enumerate}
+  In the PhaseBattery, law (3) corresponds to the invariance of
+  $\bar\psi = \arg\langle e^{i\hat\psi_j}\rangle$,
+  which follows directly from $\sum_j\delta\theta_j = 0$.
+  The Grover-analogy of the KernelSync EMA
+  (Proposition~\ref{prop:ks-grover}) is itself an instance of law (1): the
+  phase-deviation energy contracts by $(1-g)^2$ per step, mirroring the
+  amplitude contraction of Grover diffusion.
+\end{remark}
+
 \paragraph{Standard update rule (\texttt{step}).}
 One EMA contraction step toward the mean:
 \begin{equation}
