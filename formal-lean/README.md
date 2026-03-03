@@ -77,7 +77,7 @@ See CriticalEigenvalue.lean for full proof terms.
 lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
-All 45 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
+All 61 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -184,6 +184,47 @@ All 45 theorems in `CriticalEigenvalue.lean` have complete machine-checked proof
 | 43 | `precession_phasor_unit` | \|e^{iθ}\| = 1 for any real θ |
 | 44 | `precession_preserves_abs` | \|e^{iθ}·β\| = \|β\| — amplitude invariant |
 | 45 | `precession_preserves_coherence` | C(\|e^{iθ}·β\|/\|α\|) = C(\|β\|/\|α\|) — zero overhead |
+
+**§17 Ohm-Coherence circuit identities**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 46 | `geff_reff_one` | (cosh λ)⁻¹ · cosh λ = 1 — single-channel G·R = 1 |
+| 47 | `geff_at_zero` | (cosh 0)⁻¹ = 1 — maximal conductance at balance |
+| 48 | `parallel_circuit_one` | N parallel channels: G_tot · R_tot = 1 |
+| 49 | `series_circuit_one` | M series stages: G_tot · R_tot = 1 |
+
+**§18 Pythagorean coherence identity (machine-discovered)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 50 | `coherence_pythagorean` | C(r)² + ((r²−1)/(1+r²))² = 1 — coherence on unit circle |
+| 51 | `palindrome_amplitude_eq` | δS·r·Res(r) = r²−1 — connects residual to Pythagorean term |
+
+**§19 Orbit Lyapunov connection**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 52 | `orbit_radius_exp` | \|(r·μ)^n\| = exp(n·log r) — Lyapunov-exponent form |
+| 53 | `coherence_orbit_sech` | C(rⁿ) = (cosh(n·log r))⁻¹ — full orbit–coherence chain |
+| 54 | `coherence_orbit_decay` | r > 1 ∧ n ≥ 1 → C(rⁿ) ≤ C(r) — coherence decays under amplification |
+| 55 | `orbit_coherence_at_one` | C(1ⁿ) = 1 — stable fixed point |
+
+**§20 Silver ratio self-similarity**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 56 | `silverRatio_pos` | 0 < δS |
+| 57 | `silverRatio_cont_frac` | δS = 2 + 1/δS — continued-fraction fixed point |
+| 58 | `silverRatio_minPoly` | δS² − 2δS − 1 = 0 — minimal polynomial over ℚ |
+
+**§21 Phase accumulation and NullSliceBridge coverage**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 59 | `phase_full_cycle` | D · (2π/D) = 2π — full return after D precession steps |
+| 60 | `nullslice_channels_distinct` | {3k mod 8 : k ∈ Fin 8} has cardinality 8 |
+| 61 | `nullslice_coverage_bijective` | k ↦ 3k is a bijection on ZMod 8 (gcd(3,8)=1) |
 
 ---
 

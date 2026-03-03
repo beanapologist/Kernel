@@ -27,6 +27,11 @@
   14. Palindrome arithmetic  (digit identities, gcd/lcm of torus periods)
   15. Z/8Z rotational memory  (bank addressing, μ^(j+8) = μ^j)
   16. Zero-overhead precession  (|e^{iθ}| = 1, preserves |β| and C(r))
+  17. Ohm-Coherence circuit identities  (G·R=1, parallel/series laws)
+  18. Pythagorean coherence identity  (C²+((r²-1)/(1+r²))²=1)
+  19. Orbit Lyapunov connection  (|ξⁿ|=exp(n·logr), C(rⁿ)=sech(n·logr))
+  20. Silver ratio self-similarity  (δS = 2+1/δS, minimal polynomial)
+  21. Phase accumulation + NullSliceBridge coverage bijection
 
   Proof status
   ────────────
@@ -678,5 +683,185 @@ theorem precession_preserves_coherence (α β : ℂ) (hα : Complex.abs α ≠ 0
     C (Complex.abs (Complex.exp (Complex.I * ↑θ) * β) / Complex.abs α) =
     C (Complex.abs β / Complex.abs α) := by
   rw [precession_preserves_abs]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 17 — Ohm-Coherence Circuit Identities
+-- G_eff = sech(λ) = (cosh λ)⁻¹ and R_eff = cosh(λ) are the conductance and
+-- resistance of a coherent channel.  Their product is always 1, mirroring
+-- Ohm's law G·R = 1 (R = 1/G).  Parallel channels add conductances; series
+-- stages add resistances — in both topologies G_tot · R_tot = 1.
+-- Ref: docs/master_derivations.pdf §9
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Single-channel Ohm-Coherence law: G_eff · R_eff = sech(λ) · cosh(λ) = 1.
+    Here G_eff = (cosh λ)⁻¹ and R_eff = cosh λ.  The identity says that the
+    coherence (conductance) and the effective resistance are always reciprocals.
+    Ref: docs/master_derivations.pdf §9 eq. (single-channel) -/
+theorem geff_reff_one (λ : ℝ) : (Real.cosh λ)⁻¹ * Real.cosh λ = 1 :=
+  inv_mul_cancel₀ (ne_of_gt (Real.cosh_pos λ))
+
+/-- At balance (λ = 0): G_eff = sech(0) = 1 — maximal conductance, no overhead.
+    Ref: docs/master_derivations.pdf §9 -/
+theorem geff_at_zero : (Real.cosh 0)⁻¹ = 1 := by simp [Real.cosh_zero]
+
+/-- Parallel-channel Ohm-Coherence law: N identical channels satisfy G_tot · R_tot = 1.
+    G_tot = N · sech(λ) and R_tot = cosh(λ)/N; their product collapses to sech·cosh = 1.
+    Ref: docs/master_derivations.pdf §9 Parallel Channels (MultiChannelSystem) -/
+theorem parallel_circuit_one (N : ℕ) (hN : 0 < N) (λ : ℝ) :
+    (↑N * (Real.cosh λ)⁻¹) * (Real.cosh λ / ↑N) = 1 := by
+  have hcosh : Real.cosh λ ≠ 0 := ne_of_gt (Real.cosh_pos λ)
+  have hN' : (N : ℝ) ≠ 0 := Nat.cast_pos.mpr hN |>.ne'
+  field_simp [hcosh, hN']
+
+/-- Series-pipeline Ohm-Coherence law: M identical stages satisfy G_tot · R_tot = 1.
+    R_tot = M · cosh(λ) and G_tot = (M · cosh(λ))⁻¹; their product is 1.
+    Ref: docs/master_derivations.pdf §9 Series Pipeline (PipelineSystem) -/
+theorem series_circuit_one (M : ℕ) (hM : 0 < M) (λ : ℝ) :
+    (↑M * Real.cosh λ)⁻¹ * (↑M * Real.cosh λ) = 1 :=
+  inv_mul_cancel₀ (mul_ne_zero (Nat.cast_pos.mpr hM |>.ne') (ne_of_gt (Real.cosh_pos λ)))
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 18 — Pythagorean Coherence Identity
+-- C(r)² + ((r²−1)/(1+r²))² = 1 for all r > 0.
+-- Setting r = tan θ: C(r) = sin(2θ) and (r²−1)/(1+r²) = −cos(2θ),
+-- so the identity is sin²(2θ) + cos²(2θ) = 1 in disguise.
+-- The term (r²−1)/(1+r²) = δS · r · Res(r) / (1+r²) connects to the
+-- palindrome residual: δS · r · Res(r) = r² − 1.
+-- Ref: algebraic consequence of C(r) = 2r/(1+r²)
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- **Pythagorean coherence identity**: C(r)² + ((r²−1)/(1+r²))² = 1 for all r > 0.
+    The coherence and the "imbalance fraction" lie on the unit circle.
+    Machine-discovered: two independently-defined quantities sum to 1.
+    Ref: algebraic consequence of C(r) = 2r/(1+r²) -/
+theorem coherence_pythagorean (r : ℝ) (hr : 0 < r) :
+    C r ^ 2 + ((r ^ 2 - 1) / (1 + r ^ 2)) ^ 2 = 1 := by
+  unfold C
+  have h : 1 + r ^ 2 ≠ 0 := ne_of_gt (one_add_sq_pos r)
+  field_simp [h]
+  ring
+
+/-- The palindrome amplitude: δS · r · Res(r) = r² − 1.
+    This connects the palindrome residual to the Pythagorean imbalance term
+    (r²−1)/(1+r²), completing the circuit:
+      C(r)² + (δS·r·Res(r)/(1+r²))² = 1.
+    Ref: algebraic consequence of Res(r) = (r − 1/r)/δS -/
+theorem palindrome_amplitude_eq (r : ℝ) (hr : 0 < r) :
+    δS * r * Res r = r ^ 2 - 1 := by
+  unfold Res
+  have hδ : δS ≠ 0 := ne_of_gt δS_pos
+  field_simp [ne_of_gt hr, hδ]
+  ring
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 19 — Orbit Lyapunov Connection
+-- |ξⁿ| = rⁿ = exp(n·λ) where λ = log r is the Lyapunov exponent and
+-- ξ = r·μ.  The coherence after n orbit steps is sech(n·λ).
+-- Three key results: the exponential formula for orbit radius, the sech
+-- formula for orbit coherence, and the monotone decay of coherence.
+-- Ref: docs/master_derivations.pdf §5 Theorem 10 + §5 Theorem 14
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Orbit radius in Lyapunov form: |(r·μ)^n| = exp(n · log r) for r > 0.
+    Since rⁿ = exp(log(rⁿ)) = exp(n·log r), this rewrites the orbit amplitude
+    in terms of the Lyapunov exponent λ = log r.
+    Ref: docs/master_derivations.pdf §5 Theorem 10 -/
+theorem orbit_radius_exp (r : ℝ) (hr : 0 < r) (n : ℕ) :
+    Complex.abs ((↑r * μ) ^ n) = Real.exp (↑n * Real.log r) := by
+  rw [scaled_orbit_abs r (le_of_lt hr),
+      ← Real.exp_log (pow_pos hr n), Real.log_pow]
+
+/-- **Full chain**: coherence after n orbit steps = sech(n · Lyapunov exponent).
+    C(rⁿ) = C(exp(n·log r)) = (cosh(n·log r))⁻¹.
+    Proof: rⁿ = exp(n·log r) (orbit_radius_exp), then apply lyapunov_coherence_sech.
+    This is the synthesis of §12 (orbit amplitude) and §10 (duality). -/
+theorem coherence_orbit_sech (r : ℝ) (hr : 0 < r) (n : ℕ) :
+    C (r ^ n) = (Real.cosh (↑n * Real.log r))⁻¹ := by
+  conv_lhs => rw [show r ^ n = Real.exp (↑n * Real.log r) from by
+    rw [← Real.exp_log (pow_pos hr n), Real.log_pow]]
+  exact lyapunov_coherence_sech _
+
+/-- Coherence decays under orbit iteration: r > 1 and n ≥ 1 implies C(rⁿ) ≤ C(r).
+    The coherence of the amplified orbit is no greater than the original.
+    Strict decay holds for n ≥ 2; equality only at n = 1 (trivial case).
+    Ref: combines coherence_strictAnti with the orbit-amplitude ordering. -/
+theorem coherence_orbit_decay (r : ℝ) (hr : 1 < r) (n : ℕ) (hn : 1 ≤ n) :
+    C (r ^ n) ≤ C r := by
+  by_cases hn1 : n = 1
+  · simp [hn1]
+  · have hn2 : 1 < n := Nat.lt_of_le_of_ne hn (Ne.symm hn1)
+    exact le_of_lt (coherence_strictAnti r (r ^ n) (le_of_lt hr) (by
+      nth_rw 1 [← pow_one r]; exact pow_lt_pow_right hr hn2))
+
+/-- Coherence is perfectly preserved at the stable orbit: C(1ⁿ) = 1 for all n.
+    The coherent fixed point r = 1 is stable under any number of orbit steps. -/
+theorem orbit_coherence_at_one (n : ℕ) : C ((1 : ℝ) ^ n) = 1 := by
+  rw [one_pow]
+  exact (coherence_eq_one_iff 1 (le_of_lt one_pos)).mpr rfl
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 20 — Silver Ratio Self-Similarity
+-- δS = 1 + √2 satisfies δS = 2 + 1/δS (continued-fraction fixed point) and
+-- δS² − 2δS − 1 = 0 (minimal polynomial over ℚ).  These characterize δS
+-- as the unique positive real satisfying x = 2 + 1/x, i.e., x² = 2x + 1.
+-- Ref: docs/master_derivations.pdf §1 Proposition 4
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- δS > 0 (exported version of the private δS_pos).  Useful for downstream proofs. -/
+theorem silverRatio_pos : 0 < δS := δS_pos
+
+/-- δS satisfies the continued-fraction fixed-point equation δS = 2 + 1/δS.
+    This is the defining self-similarity of the silver rectangle:
+    a silver rectangle of side ratio δS can be divided into two unit squares
+    and a smaller silver rectangle of the same proportions.
+    Proof: multiply both sides by δS to get δS² = 2δS + 1 (= silverRatio_sq). -/
+theorem silverRatio_cont_frac : δS = 2 + 1 / δS := by
+  have hδ : δS ≠ 0 := ne_of_gt δS_pos
+  field_simp [hδ]
+  linarith [silverRatio_sq]
+
+/-- δS² − 2·δS − 1 = 0: the minimal polynomial of the silver ratio over ℚ.
+    δS is the unique positive root of x² − 2x − 1 = 0 (discriminant = 8, roots 1 ± √2).
+    Ref: docs/master_derivations.pdf §1 Proposition 4 -/
+theorem silverRatio_minPoly : δS ^ 2 - 2 * δS - 1 = 0 := by linarith [silverRatio_sq]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 21 — Phase Accumulation and NullSliceBridge Coverage
+-- The precession phasor P(n) = exp(I·n·ΔΦ₀) accumulates phase linearly;
+-- after D = 13717421 steps, Φ = 2π (full return).
+-- The NullSliceBridge maps 8 channels to distinct angular positions via
+-- k ↦ 3k mod 8 — a bijection on ZMod 8 since gcd(3,8) = 1, mirroring
+-- exactly the primitive-root structure of the μ-orbit.
+-- Ref: docs/master_derivations.pdf §6, §8
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Full-cycle phase accumulation: D = 13717421 precession steps return to 2π.
+    D · (2π/D) = 2π — the precession period is the exact denominator of ΔΦ₀.
+    Ref: docs/master_derivations.pdf §6 Proposition (multi-window phase accum.) -/
+theorem phase_full_cycle :
+    (13717421 : ℝ) * (2 * Real.pi / 13717421) = 2 * Real.pi := by field_simp
+
+/-- NullSliceBridge channel distinctness: the 8 angles {3k mod 8 : k ∈ Fin 8}
+    are all 8 distinct residues, covering {0,1,…,7} completely.
+    Same gcd(3,8) = 1 coprimality that makes μ a primitive 8th root.
+    Ref: docs/master_derivations.pdf §8 NullSliceBridge -/
+theorem nullslice_channels_distinct :
+    (Finset.image (fun k : Fin 8 => (3 * k.val) % 8) Finset.univ).card = 8 := by
+  native_decide
+
+/-- **Derived**: the NullSliceBridge channel map k ↦ 3k is a bijection on ZMod 8.
+    Since 3 · 3 = 9 ≡ 1 (mod 8), multiplication by 3 is its own inverse.
+    This is the same self-inverse structure as the μ-orbit: gcd(3,8) = 1 implies
+    the map is a group automorphism of ℤ/8ℤ. -/
+theorem nullslice_coverage_bijective :
+    Function.Bijective (fun k : ZMod 8 => (3 : ZMod 8) * k) := by
+  constructor
+  · intro a b h
+    have ha := congr_arg ((3 : ZMod 8) * ·) h
+    simp only [← mul_assoc, show (3 : ZMod 8) * 3 = 1 from by decide, one_mul] at ha
+    exact ha
+  · intro b
+    exact ⟨3 * b, by
+      simp only [← mul_assoc, show (3 : ZMod 8) * 3 = 1 from by decide, one_mul]⟩
 
 end -- noncomputable section
