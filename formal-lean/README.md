@@ -77,7 +77,7 @@ See CriticalEigenvalue.lean for full proof terms.
 lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
-All 28 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
+All 45 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -142,6 +142,48 @@ All 28 theorems in `CriticalEigenvalue.lean` have complete machine-checked proof
 | 26 | `palindrome_zero_self_dual` | R(r)=0 → r = 1/r |
 | 27 | `simultaneous_break` | r=1 ↔ C(r)=1 ∧ R(r)=0 |
 | 28 | `lyapunov_bound` | C(exp λ) ≤ 1 via the sech route |
+
+**§12 Orbit magnitude and trichotomy (Theorem 10)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 29 | `mu_pow_abs` | \|μ^n\| = 1 for all n |
+| 30 | `scaled_orbit_abs` | \|(r·μ)^n\| = r^n for r ≥ 0 — radial amplitude formula |
+| 31 | `trichotomy_unit_orbit` | r = 1: stable unit-circle orbit |
+| 32 | `trichotomy_grow` | r > 1: magnitudes strictly increasing (spiral outward) |
+| 33 | `trichotomy_shrink` | 0 < r < 1: magnitudes strictly decreasing (spiral inward) |
+
+**§13 Coherence monotonicity**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 34 | `coherence_strictMono` | 0 < r < s ≤ 1 → C(r) < C(s) — increasing toward r=1 |
+| 35 | `coherence_strictAnti` | 1 ≤ r < s → C(s) < C(r) — decreasing away from r=1 |
+
+**§14 Palindrome arithmetic**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 36 | `palindrome_comp` | 987654321 = 8 × 123456789 + 9 |
+| 37 | `precession_period_factor` | 9 × 13717421 = 123456789 |
+| 38 | `precession_gcd_one` | gcd(8, 13717421) = 1 — coprime periods |
+| 39 | `precession_lcm` | lcm(8, 13717421) = 8·13717421 — torus super-period |
+
+**§15 Z/8Z rotational memory**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 40 | `z8z_period` | (n + 8) % 8 = n % 8 |
+| 41 | `z8z_reconstruction` | addr % 8 + 8 * (addr / 8) = addr |
+| 42 | `mu_z8z_period` | μ^(j+8) = μ^j — orbit clock = memory clock |
+
+**§16 Zero-overhead precession**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 43 | `precession_phasor_unit` | \|e^{iθ}\| = 1 for any real θ |
+| 44 | `precession_preserves_abs` | \|e^{iθ}·β\| = \|β\| — amplitude invariant |
+| 45 | `precession_preserves_coherence` | C(\|e^{iθ}·β\|/\|α\|) = C(\|β\|/\|α\|) — zero overhead |
 
 ---
 

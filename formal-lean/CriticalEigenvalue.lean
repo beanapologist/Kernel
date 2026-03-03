@@ -22,6 +22,11 @@
   9.  Palindrome residual  R(r) = (r − 1/r)/δS  (Theorem 12)
   10. Lyapunov–coherence duality  C(exp λ) = sech λ  (Theorem 14)
   11. Derived invariant equivalences  (machine-discovered connections)
+  12. Orbit magnitude and trichotomy  |ξⁿ| = rⁿ  (Theorem 10)
+  13. Coherence monotonicity  (strictly increasing on (0,1], decreasing on [1,∞))
+  14. Palindrome arithmetic  (digit identities, gcd/lcm of torus periods)
+  15. Z/8Z rotational memory  (bank addressing, μ^(j+8) = μ^j)
+  16. Zero-overhead precession  (|e^{iθ}| = 1, preserves |β| and C(r))
 
   Proof status
   ────────────
@@ -492,5 +497,186 @@ theorem simultaneous_break (r : ℝ) (hr : 0 < r) :
     completely different route (the hyperbolic bound). -/
 theorem lyapunov_bound (λ : ℝ) : C (Real.exp λ) ≤ 1 :=
   coherence_le_one _ (le_of_lt (Real.exp_pos λ))
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 12 — Orbit Magnitude and Trichotomy (Theorem 10)
+-- |ξ^n| = r^n for ξ = r·μ.  The three cases r=1 / r>1 / r<1 determine
+-- whether the orbit is a closed 8-cycle, spirals outward, or collapses.
+-- Ref: docs/master_derivations.pdf §5 Theorem 10
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- |μ^n| = 1 for all n: the orbit of μ stays on the unit circle.
+    Follows immediately from |μ| = 1 and multiplicativity of the absolute value. -/
+theorem mu_pow_abs (n : ℕ) : Complex.abs (μ ^ n) = 1 := by
+  have h : Complex.abs (μ ^ n) = Complex.abs μ ^ n := map_pow Complex.abs μ n
+  rw [h, mu_abs_one, one_pow]
+
+/-- |(r·μ)^n| = r^n for r ≥ 0.
+    The amplitude of the orbit is purely radial; the phase factor μ contributes
+    no growth or decay.  This is the key quantitative form of Trichotomy. -/
+theorem scaled_orbit_abs (r : ℝ) (hr : 0 ≤ r) (n : ℕ) :
+    Complex.abs ((↑r * μ) ^ n) = r ^ n := by
+  have habsr : Complex.abs (↑r * μ) = r := by
+    rw [map_mul, Complex.abs_ofReal, abs_of_nonneg hr, mu_abs_one, mul_one]
+  calc Complex.abs ((↑r * μ) ^ n)
+      = Complex.abs (↑r * μ) ^ n := map_pow Complex.abs _ _
+    _ = r ^ n := by rw [habsr]
+
+/-- Trichotomy — r = 1: orbit has unit magnitude at every step (stable 8-cycle).
+    Ref: docs/master_derivations.pdf §5 Theorem 10 case (1) -/
+theorem trichotomy_unit_orbit (n : ℕ) : Complex.abs ((1 : ℂ) * μ ^ n) = 1 := by
+  simp [map_mul, mu_pow_abs]
+
+/-- Trichotomy — r > 1: magnitudes are strictly increasing (spiral outward).
+    |(r·μ)^n| < |(r·μ)^(n+1)| since r^n < r^(n+1) when r > 1.
+    Ref: docs/master_derivations.pdf §5 Theorem 10 case (2) -/
+theorem trichotomy_grow (r : ℝ) (hr : 1 < r) (n : ℕ) :
+    Complex.abs ((↑r * μ) ^ n) < Complex.abs ((↑r * μ) ^ (n + 1)) := by
+  simp only [scaled_orbit_abs r (le_of_lt (lt_trans one_pos hr))]
+  exact pow_lt_pow_right hr (Nat.lt_succ_self n)
+
+/-- Trichotomy — 0 < r < 1: magnitudes are strictly decreasing (spiral inward).
+    |(r·μ)^(n+1)| < |(r·μ)^n| since r^(n+1) < r^n when 0 < r < 1.
+    Ref: docs/master_derivations.pdf §5 Theorem 10 case (3) -/
+theorem trichotomy_shrink (r : ℝ) (hr0 : 0 < r) (hr1 : r < 1) (n : ℕ) :
+    Complex.abs ((↑r * μ) ^ (n + 1)) < Complex.abs ((↑r * μ) ^ n) := by
+  simp only [scaled_orbit_abs r (le_of_lt hr0)]
+  exact pow_lt_pow_of_lt_one (le_of_lt hr0) hr1 (Nat.lt_succ_self n)
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 13 — Coherence Monotonicity
+-- C(r) = 2r/(1+r²) is strictly increasing on (0,1] and strictly decreasing
+-- on [1,∞).  This is the "gradient flow toward balance" that the Kernel
+-- system exploits: any r≠1 can recover by moving r toward 1.
+-- Ref: docs/master_derivations.pdf §4 Theorem 11
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Factorisation of C(s) − C(r) useful for monotonicity proofs.
+    C(s) − C(r) = 2(s−r)(1−rs) / ((1+r²)(1+s²)).
+    The sign of the numerator 2(s−r)(1−rs) determines the direction of change. -/
+private lemma coherence_diff_factored (r s : ℝ) (hr : 0 < r) (hs : 0 < s) :
+    C s - C r = 2 * (s - r) * (1 - r * s) / ((1 + r ^ 2) * (1 + s ^ 2)) := by
+  have hr' : 1 + r ^ 2 ≠ 0 := ne_of_gt (one_add_sq_pos r)
+  have hs' : 1 + s ^ 2 ≠ 0 := ne_of_gt (one_add_sq_pos s)
+  unfold C; field_simp [hr', hs']; ring
+
+/-- C is strictly increasing on (0, 1]: for 0 < r < s ≤ 1, C(r) < C(s).
+    When both components are below balance (|β| < |α|), increasing |β|/|α|
+    toward 1 strictly improves coherence.
+    Ref: docs/master_derivations.pdf §4 Theorem 11 -/
+theorem coherence_strictMono (r s : ℝ) (hr : 0 < r) (hrs : r < s) (hs1 : s ≤ 1) :
+    C r < C s := by
+  rw [← sub_pos, coherence_diff_factored r s hr (lt_trans hr hrs)]
+  refine div_pos ?_ (mul_pos (one_add_sq_pos r) (one_add_sq_pos s))
+  have hsr : 0 < s - r := sub_pos.mpr hrs
+  have hr1 : r < 1 := lt_of_lt_of_le hrs hs1
+  have hrslt1 : r * s < 1 := by
+    calc r * s < 1 * s := mul_lt_mul_of_pos_right hr1 (lt_trans hr hrs)
+         _ = s := one_mul s
+         _ ≤ 1 := hs1
+  have h_pos : (s - r) * (1 - r * s) > 0 := mul_pos hsr (by linarith)
+  nlinarith
+
+/-- C is strictly decreasing on [1, ∞): for 1 ≤ r < s, C(s) < C(r).
+    When both components are above balance (|β| > |α|), increasing |β|/|α|
+    away from 1 strictly decreases coherence.
+    Ref: docs/master_derivations.pdf §4 Theorem 11 -/
+theorem coherence_strictAnti (r s : ℝ) (hr1 : 1 ≤ r) (hrs : r < s) :
+    C s < C r := by
+  have hr : 0 < r := lt_of_lt_of_le one_pos hr1
+  rw [← sub_neg, coherence_diff_factored r s hr (lt_trans hr hrs)]
+  refine div_neg_of_neg_of_pos ?_ (mul_pos (one_add_sq_pos r) (one_add_sq_pos s))
+  have hsr : 0 < s - r := sub_pos.mpr hrs
+  have hs1 : 1 < s := lt_of_le_of_lt hr1 hrs
+  have hrsgt1 : 1 < r * s := by nlinarith
+  have h_neg : (s - r) * (1 - r * s) < 0 :=
+    mul_neg_of_pos_of_neg hsr (by linarith)
+  nlinarith
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 14 — Palindrome Arithmetic (Proposition from §6 of master_derivations.pdf)
+-- The palindrome digit pair 987654321 / 123456789 encodes the 8-cycle period
+-- (integer quotient = 8) and slow-precession period D = 13717421.
+-- Ref: docs/master_derivations.pdf §6
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Two-palindrome complementarity: 987654321 = 8 × 123456789 + 9.
+    The integer part 8 equals the μ-rotation period; the remainder 9 connects
+    to the slow-precession denominator via 9 × D = 123456789.
+    Ref: docs/master_derivations.pdf §6 Proposition 5 -/
+theorem palindrome_comp : (987654321 : ℕ) = 8 * 123456789 + 9 := by norm_num
+
+/-- Precession period identity: 9 × D = 123456789 where D = 13717421.
+    D is the slow-precession period (denominator of ΔΦ₀ = 2π/D).
+    Ref: docs/master_derivations.pdf §6 -/
+theorem precession_period_factor : 9 * 13717421 = (123456789 : ℕ) := by norm_num
+
+/-- gcd(8, D) = 1: the fast 8-cycle period and slow-precession period are coprime.
+    Coprimality ensures the torus T² = S¹ × S¹ has no resonance between the
+    two winding numbers, so all 8·D orbit points are distinct. -/
+theorem precession_gcd_one : Nat.gcd 8 13717421 = 1 := by native_decide
+
+/-- lcm(8, D) = 8·D = 109739368: the joint orbit closes after 8·D steps.
+    Follows from gcd(8, D) = 1 and the formula lcm(a,b) = ab/gcd(a,b). -/
+theorem precession_lcm : Nat.lcm 8 13717421 = 8 * 13717421 := by
+  unfold Nat.lcm; rw [precession_gcd_one, Nat.div_one]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 15 — Z/8Z Rotational Memory (Proposition from §11 of master_derivations.pdf)
+-- Physical addresses decompose as (bank, offset) = (addr % 8, addr / 8).
+-- The μ-orbit provides a natural clock that aligns memory banks with the
+-- 8-cycle, so the group Z/8Z governs both phase rotation and bank addressing.
+-- Ref: docs/master_derivations.pdf §11
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Eight consecutive rotations return to the starting bank: (n + 8) % 8 = n % 8.
+    Ref: docs/master_derivations.pdf §11 Proposition Z/8Z -/
+theorem z8z_period (n : ℕ) : (n + 8) % 8 = n % 8 := by omega
+
+/-- Memory address reconstruction: addr % 8 + 8 * (addr / 8) = addr.
+    The (bank, offset) decomposition is lossless. -/
+theorem z8z_reconstruction (addr : ℕ) : addr % 8 + 8 * (addr / 8) = addr := by omega
+
+/-- **Derived**: the μ-orbit inherits Z/8Z periodicity: μ^(j+8) = μ^j.
+    The eigenvalue clock and the memory bank clock share the same period 8,
+    discovered by combining mu_pow_eight with the ring law for exponents. -/
+theorem mu_z8z_period (j : ℕ) : μ ^ (j + 8) = μ ^ j := by
+  rw [pow_add, mu_pow_eight, mul_one]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 16 — Zero-Overhead Precession (Theorem from §13 of master_derivations.pdf)
+-- The precession step β ↦ e^{iθ}·β rotates the phase without changing the
+-- amplitude |β|.  Consequently it preserves r = |β|/|α|, C(r), and all
+-- equilibrium invariants simultaneously — "zero overhead" in the sense of
+-- Theorem 5.1 (docs/master_derivations.pdf).
+-- Ref: docs/master_derivations.pdf §13 Theorem zero-overhead-prec
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Precession phasor e^{iθ} has unit absolute value for any real phase θ.
+    Proof: |exp(z)| = exp(Re z); Re(I·θ) = 0; exp(0) = 1.
+    Ref: docs/master_derivations.pdf §13 Theorem zero-overhead-prec -/
+theorem precession_phasor_unit (θ : ℝ) :
+    Complex.abs (Complex.exp (Complex.I * ↑θ)) = 1 := by
+  rw [Complex.abs_exp]
+  have hre : (Complex.I * ↑θ).re = 0 := by
+    simp [Complex.mul_re, Complex.I_re, Complex.I_im,
+          Complex.ofReal_re, Complex.ofReal_im]
+  rw [hre, Real.exp_zero]
+
+/-- Multiplying by a unit-norm phasor preserves the absolute value of any β ∈ ℂ.
+    This is the mathematical core of "zero overhead": the precession step
+    β ↦ e^{iθ}·β leaves |β| — and hence r = |β|/|α| — unchanged. -/
+theorem precession_preserves_abs (β : ℂ) (θ : ℝ) :
+    Complex.abs (Complex.exp (Complex.I * ↑θ) * β) = Complex.abs β := by
+  rw [map_mul, precession_phasor_unit, one_mul]
+
+/-- **Derived**: precession preserves the coherence ratio.
+    If α and β are the two state components and both are multiplied by the
+    same phasor e^{iθ}, the ratio |β|/|α| — and therefore C(r) — is invariant.
+    This formally proves that precession steps are "zero overhead" for coherence. -/
+theorem precession_preserves_coherence (α β : ℂ) (hα : Complex.abs α ≠ 0) (θ : ℝ) :
+    C (Complex.abs (Complex.exp (Complex.I * ↑θ) * β) / Complex.abs α) =
+    C (Complex.abs β / Complex.abs α) := by
+  rw [precession_preserves_abs]
 
 end -- noncomputable section
