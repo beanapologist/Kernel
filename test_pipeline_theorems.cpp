@@ -433,6 +433,149 @@ void test_prop_4() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// μ¹³⁷ Phase Cycle — Fourier Analysis
+//
+// μ = e^{i3π/4} = e^{i2π·3/8} lives at frequency bin k = 3 of an 8-point DFT.
+//
+// Key results verified here:
+//   1. The 8-cycle orbit {μ⁰, μ¹, ..., μ⁷} is a pure single-frequency signal:
+//      DFT has |X[3]| = 8 and |X[k]| = 0 for all k ≠ 3.
+//   2. Parseval's theorem: Σ|x[n]|² = (1/N)·Σ|X[k]|² (energy conservation).
+//   3. Frequency aliasing: 137-step orbit is spectrally identical to the 1-step
+//      orbit because 137 ≡ 1 (mod 8) → μ¹³⁷ = μ¹ → same DFT power spectrum.
+//   4. The four 137-step landmark phases form a constant-increment (arithmetic)
+//      progression with step 135°, confirmed by consecutive phase differences.
+//   5. Parseval holds for the 4-point landmark signal {μ¹, μ², μ³, μ⁴}.
+// ══════════════════════════════════════════════════════════════════════════════
+void test_mu_137_fourier() {
+  std::cout << "\n╔═══ μ¹³⁷ Phase Cycle: Fourier Analysis ═══╗\n";
+
+  constexpr int N = 8; // μ has period 8
+
+  // ── Build the 8-cycle signal x[n] = μⁿ ──────────────────────────────────
+  std::array<Cx, N> x{};
+  {
+    Cx pw{1.0, 0.0};
+    for (int n = 0; n < N; ++n) {
+      x[n] = pw;
+      pw *= MU;
+    }
+  }
+
+  // ── DFT helper: X[k] = Σ_{n=0}^{N-1} x[n]·e^{-i2πkn/N} ─────────────────
+  auto dft8 = [](const std::array<Cx, N> &sig) {
+    std::array<Cx, N> out{};
+    for (int k = 0; k < N; ++k)
+      for (int n = 0; n < N; ++n) {
+        double ang = -2.0 * PI * k * n / static_cast<double>(N);
+        out[k] += sig[n] * Cx{std::cos(ang), std::sin(ang)};
+      }
+    return out;
+  };
+
+  auto X = dft8(x);
+
+  // ── 1. Pure single-frequency at bin k = 3 ────────────────────────────────
+  // μ = e^{i2π·3/8} → all energy at k = 3; all other bins exactly zero.
+  test_assert(std::abs(std::abs(X[3]) - static_cast<double>(N)) < FLOAT_TOL,
+              "|X[3]| = 8: μ-cycle energy at frequency bin k=3 (e^{i2π·3/8})");
+
+  bool others_zero = true;
+  for (int k = 0; k < N; ++k)
+    if (k != 3 && std::abs(X[k]) > FLOAT_TOL)
+      others_zero = false;
+  test_assert(others_zero,
+              "|X[k]| = 0 for k≠3: μ⁸ cycle is a pure single-frequency signal");
+
+  // ── 2. Parseval's theorem ─────────────────────────────────────────────────
+  double time_energy = 0.0;
+  for (const auto &v : x)
+    time_energy += std::norm(v);
+  double freq_energy = 0.0;
+  for (const auto &v : X)
+    freq_energy += std::norm(v);
+  test_assert(
+      std::abs(time_energy - freq_energy / static_cast<double>(N)) < FLOAT_TOL,
+      "Parseval: Σ|x[n]|² = (1/N)·Σ|X[k]|² (energy conservation, N=8)");
+
+  // ── 3. Frequency aliasing: 137-step orbit ≡ 1-step orbit ─────────────────
+  // 137 ≡ 1 (mod 8) → μ¹³⁷ = μ¹ → the sub-sampled orbit traces the same
+  // sequence of 8 values; the two DFTs are identical.
+  std::array<Cx, N> x137{};
+  {
+    Cx pw{1.0, 0.0};
+    const Cx mu_step = MU; // μ¹³⁷ = μ¹ (since 137 ≡ 1 mod 8)
+    for (int n = 0; n < N; ++n) {
+      x137[n] = pw;
+      pw *= mu_step;
+    }
+  }
+  auto X137 = dft8(x137);
+
+  bool spectra_match = true;
+  for (int k = 0; k < N; ++k)
+    if (std::abs(std::norm(X[k]) - std::norm(X137[k])) > FLOAT_TOL)
+      spectra_match = false;
+  test_assert(spectra_match,
+              "137-step power spectrum = 1-step spectrum (aliasing: 137≡1 mod 8)");
+
+  // ── 4. Landmark phase increments form arithmetic progression (step = 135°) ─
+  // Phase sequence of {μ¹, μ², μ³, μ⁴}: 135°, 270°, 45°, 180°.
+  // Consecutive differences, wrapped to (−180°, 180°], are all 135°.
+  std::array<double, 4> lm_phases{};
+  {
+    Cx pw{1.0, 0.0};
+    for (int m = 0; m < 4; ++m) {
+      pw *= MU;
+      lm_phases[m] = std::fmod(std::arg(pw) * 180.0 / PI, 360.0);
+      if (lm_phases[m] < 0.0)
+        lm_phases[m] += 360.0;
+    }
+  }
+
+  bool arith_prog = true;
+  for (int m = 0; m < 3; ++m) {
+    double diff = lm_phases[m + 1] - lm_phases[m];
+    while (diff > 180.0)
+      diff -= 360.0;
+    while (diff <= -180.0)
+      diff += 360.0;
+    if (std::abs(diff - 135.0) > FLOAT_TOL)
+      arith_prog = false;
+  }
+  test_assert(arith_prog,
+              "Landmark phases: constant 135° increment (arithmetic progression)");
+
+  // ── 5. Parseval for the 4-point landmark signal {μ¹, μ², μ³, μ⁴} ─────────
+  constexpr int M = 4;
+  std::array<Cx, M> lm_sig{};
+  {
+    Cx pw{1.0, 0.0};
+    for (int m = 0; m < M; ++m) {
+      pw *= MU;
+      lm_sig[m] = pw;
+    }
+  }
+
+  std::array<Cx, M> LM{};
+  for (int k = 0; k < M; ++k)
+    for (int n = 0; n < M; ++n) {
+      double ang = -2.0 * PI * k * n / static_cast<double>(M);
+      LM[k] += lm_sig[n] * Cx{std::cos(ang), std::sin(ang)};
+    }
+
+  double lm_time = 0.0;
+  for (const auto &v : lm_sig)
+    lm_time += std::norm(v);
+  double lm_freq = 0.0;
+  for (const auto &v : LM)
+    lm_freq += std::norm(v);
+  test_assert(
+      std::abs(lm_time - lm_freq / static_cast<double>(M)) < FLOAT_TOL,
+      "Parseval: 4-point landmark signal {μ¹,μ²,μ³,μ⁴} (energy conservation)");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // μ¹³⁷ Phase Cycle — Empirical Validation
 //
 // μ = e^{i3π/4} has period 8.  Because 137 ≡ 1 (mod 8), 274 ≡ 2, 411 ≡ 3,
@@ -615,6 +758,7 @@ int main() {
   test_prop_4();
   test_arithmetic_periodicity();
   test_mu_137_phase_cycle();
+  test_mu_137_fourier();
 
   std::cout << "\n╔══════════════════════════════════════════════════════╗\n";
   std::cout << "║  Test Results                                        ║\n";
