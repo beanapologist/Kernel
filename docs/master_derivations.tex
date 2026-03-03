@@ -91,7 +91,7 @@
   Kernel Repository\\
   \href{https://github.com/beanapologist/Kernel}{github.com/beanapologist/Kernel}
 }
-\date{February 2026}
+\date{March 2026}
 
 % ============================================================================
 \begin{document}
@@ -805,6 +805,231 @@ $\{1,2\}$ has its own Lyapunov exponent:
   C_{\min} = \min_{p\in\{01,02,12\}}\operatorname{sech}(\lambda_p).
   \label{eq:qutrit}
 \end{equation}
+
+\subsection{PhaseBattery: Electrochemical Analogy of Phase Coherence}
+\label{sec:phase-battery}
+% Specification in docs/phase_battery_spec.md.
+% Implementation in ohm_coherence_duality.hpp (namespace kernel::ohm).
+% Empirical validation in test_battery_analogy.cpp (51 assertions).
+
+The \emph{PhaseBattery} model realises the Ohm--Coherence duality as a
+three-essentials electrochemical cell.  Every energy-conversion device
+requires a source, a medium, and a sink; the EMA phase-alignment loop
+maps onto all three precisely:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Battery concept & PhaseBattery equivalent & Formula\\
+\midrule
+Chemical potential  & Phase frustration
+  & $E = \frac{1}{N}\sum_j \delta\theta_j^2$\\
+Electrolyte / medium & EMA gain
+  & $g = G_{\mathrm{eff}} = \operatorname{sech}(\lambda)$\\
+Electrode potential & Mean circular phase
+  & $\bar\psi = \arg\langle e^{i\psi_j}\rangle$\\
+Terminal voltage & Circular coherence
+  & $R = \abs{\langle e^{i\psi_j}\rangle} \in [0,1]$\\
+Internal resistance & EMA gain reciprocal
+  & $\Reff = \cosh(\lambda) = 1/g$\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent
+Here $\delta\theta_j = \operatorname{wrap}(\hat\psi_j - \bar\psi)$ is the
+phase deviation of node $j$ from the collective mean, and
+$\operatorname{wrap}(a) = a - 2\pi\lfloor(a+\pi)/(2\pi)\rfloor$ folds any
+angle into $(-\pi,\pi]$.
+
+\begin{remark}[Universality of the source--medium--sink architecture]
+  \label{rem:sms-universal}
+  The three-essentials structure is not a metaphor restricted to chemistry: it
+  is the minimal ingredient list for any dissipative process that converts
+  stored potential into a coherent output signal.  The same abstract triple
+  $(S, M, K)$ — \emph{source} (potential), \emph{medium} (conductance), and
+  \emph{sink} (output accumulator) — recurs across domains:
+
+  \begin{center}
+  \renewcommand{\arraystretch}{1.2}
+  \begin{tabular}{@{}lllll@{}}
+  \toprule
+  System & Source $S$ & Medium $M$ & Sink $K$ & Conserved\\
+  \midrule
+  Electrochemical cell
+    & Chemical potential
+    & Electrolyte resistance
+    & Electrode charge $Q$
+    & Total charge\\
+  RC circuit
+    & Voltage $V_0$
+    & Resistance $R$
+    & Capacitor charge $Q(t)$
+    & None (decays)\\
+  Thermal (Fourier)
+    & $T_{\mathrm{hot}}$
+    & Thermal conductance $\kappa/L$
+    & $T_{\mathrm{cold}}$ rise
+    & Total enthalpy\\
+  Quantum decay
+    & Excited population $\rho_{11}$
+    & Decay rate $\gamma$
+    & Ground-state population $\rho_{00}$
+    & $\rho_{00}+\rho_{11}=1$\\
+  \textbf{PhaseBattery}
+    & Phase frustration $E$
+    & $g = \operatorname{sech}(\lambda)$
+    & Coherence $R$
+    & Mean phase $\bar\psi$\\
+  \bottomrule
+  \end{tabular}
+  \end{center}
+
+  In every row the medium parameter is a single scalar that interpolates
+  between the open-circuit limit ($M\to 0$: nothing flows) and the
+  short-circuit limit ($M\to\infty$: instantaneous collapse).  The
+  Ohm--Coherence duality (Theorem~\ref{thm:14}) identifies this scalar as
+  $g = \Geff = \operatorname{sech}(\lambda)$, which takes values in $(0,1]$
+  for any real Lyapunov exponent $\lambda$ and thus \emph{always} stays in the
+  stable operating zone — a guarantee absent in generic RC or thermal systems.
+
+  Three universal laws hold across all instances of the triple:
+  \begin{enumerate}
+    \item \textbf{Source monotone decrease:} $S(t)$ is non-increasing under
+      any positive $M$.
+    \item \textbf{Sink monotone increase:} $K(t)$ is non-decreasing and
+      saturates at a fixed point when $S=0$.
+    \item \textbf{Conserved quantity:} there exists at least one invariant
+      (charge, enthalpy, mean phase) that the medium does not change, only
+      transfer from source to sink.
+  \end{enumerate}
+  In the PhaseBattery, law (3) corresponds to the invariance of
+  $\bar\psi = \arg\langle e^{i\hat\psi_j}\rangle$,
+  which follows directly from $\sum_j\delta\theta_j = 0$.
+  The Grover-analogy of the KernelSync EMA
+  (Proposition~\ref{prop:ks-grover}) is itself an instance of law (1): the
+  phase-deviation energy contracts by $(1-g)^2$ per step, mirroring the
+  amplitude contraction of Grover diffusion.
+\end{remark}
+
+\paragraph{Standard update rule (\texttt{step}).}
+One EMA contraction step toward the mean:
+\begin{equation}
+  \hat\psi_j \;\leftarrow\; \hat\psi_j - g\,\delta\theta_j,
+  \qquad j = 0,\ldots,N-1,
+  \label{eq:battery-step}
+\end{equation}
+returning $\Delta E = E_{\mathrm{before}} - E_{\mathrm{after}} \ge 0$.
+
+\paragraph{Upgraded feedback update rule (\texttt{feedback\_step}).}
+The two-sub-step procedure with adaptive gain $\alpha_{\mathrm{adaptive}}$:
+\begin{align}
+  \text{Sub-step 1:} &\quad
+    \hat\psi_j \leftarrow \hat\psi_j - g\,\delta\theta_j,
+    \label{eq:fb-sub1}\\
+  \text{Adaptive gain:} &\quad
+    \alpha_{\mathrm{adaptive}} = \operatorname{clamp}(
+      \alpha + c_1\Delta E + c_2\Delta R,\; 0,\; 1),
+    \label{eq:fb-alpha}\\
+  \text{Feedback gain:} &\quad
+    g_{\mathrm{fb}} = g\cdot\alpha_{\mathrm{adaptive}}\cdot R_{\mathrm{mid}},
+    \label{eq:fb-gain}\\
+  \text{Sub-step 2:} &\quad
+    \hat\psi_j \leftarrow \hat\psi_j - g_{\mathrm{fb}}\,\delta\theta_j,
+    \label{eq:fb-sub2}
+\end{align}
+where $\Delta E = E_{\mathrm{before}} - E_{\mathrm{mid}}$ (frustration decay
+in sub-step 1), $\Delta R = R_{\mathrm{mid}} - R_{\mathrm{before}}$ (coherence
+gain in sub-step 1), $R_{\mathrm{mid}}$ is the circular coherence after
+sub-step 1, and $c_1, c_2 \ge 0$ are sensitivity parameters
+(default $c_1 = c_2 = 0$, reproducing fixed-$\alpha$ behaviour).
+
+\begin{proposition}[Feedback step stability]\label{prop:fb-stable}
+  For $g \in (0,1]$ and $\alpha_{\mathrm{adaptive}} \in (0,1]$:
+  \begin{enumerate}
+    \item $g_{\mathrm{fb}} = g\cdot\alpha_{\mathrm{adaptive}}\cdot R_{\mathrm{mid}}
+          \le g \le 1$, so both sub-steps are dissipative contractions.
+    \item \texttt{feedback\_step} converges at least as fast as \texttt{step}.
+    \item $R = 1$ is a fixed point: zero frustration implies all
+          $\delta\theta_j = 0$, leaving both sub-steps inert.
+  \end{enumerate}
+\end{proposition}
+
+\begin{proof}
+  Since $R_{\mathrm{mid}}\in[0,1]$, $\alpha_{\mathrm{adaptive}}\le1$, and
+  $g\le1$, the product $g_{\mathrm{fb}}\le1$.  Each sub-step is therefore a
+  contraction with factor $\abs{1-g_{\mathrm{fb}}}<1$ (resp.\ $\abs{1-g}<1$).
+  The second sub-step removes residual frustration left after sub-step 1;
+  hence total convergence is at least as fast.  At $R=1$ all phases equal
+  $\bar\psi$, so $\delta\theta_j=0$ for all $j$ and neither sub-step moves any
+  phase. \qed
+\end{proof}
+
+\begin{proposition}[Stability boundary]\label{prop:battery-stable}
+  The standard step \eqref{eq:battery-step} is stable (converging) when
+  $g \in (0,2)$, with per-node contraction factor $\abs{1-g}<1$.  The
+  frustration decays geometrically:
+  \begin{equation}
+    E(t) = E(0)\cdot(1-g)^{2t}.
+    \label{eq:battery-decay}
+  \end{equation}
+  Setting $g = \operatorname{sech}(\lambda)$ for any real $\lambda$ guarantees
+  $g \in (0,1]$, ensuring stability for all physically parametrised batteries.
+\end{proposition}
+
+\paragraph{Constructive-interference lensing (\texttt{metallic\_oscillating\_phases}).}
+Projects a phase ensemble toward a focal angle $\theta_{\mathrm{align}}$
+with lensing amplitude $\mathrm{amp} = R\cdot\alpha$:
+\begin{equation}
+  \psi_j^{\mathrm{out}}
+  = \psi_j - R\cdot\alpha\cdot
+    \operatorname{wrap}(\psi_j - \theta_{\mathrm{align}}).
+  \label{eq:lensing}
+\end{equation}
+Output phase spread $\le$ input phase spread (contraction); higher $R$ gives
+stronger lensing — a positive feedback between coherence and focusing power.
+
+\paragraph{Focal interaction energy (\texttt{interaction\_energy}).}
+The constructive-interference energy at the focal point:
+\begin{equation}
+  E_{\mathrm{interact}}(R,N,g) = R^2 \cdot N \cdot g.
+  \label{eq:focal-energy}
+\end{equation}
+At perfect coherence ($R=1$) this saturates at $N\cdot g$.  The $R^2$ factor
+mirrors the Born rule: energy/power scales as the square of the coherence
+amplitude.
+
+\noindent
+The key invariants of the PhaseBattery are summarised in
+Table~\ref{tab:battery-invariants}.
+
+\begin{table}[h]
+\centering
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lll@{}}
+\toprule
+Property & Condition & Note\\
+\midrule
+$\bar\psi$ conserved & any $g$
+  & $\sum_j\delta\theta_j = 0$ by definition\\
+$E(t)$ non-increasing & $g \in (0,1]$
+  & $(1-g)^2 < 1$\\
+$R(t)$ non-decreasing & $g \in (0,1]$
+  & phases converge toward $\bar\psi$\\
+$R=1 \Leftrightarrow E=0$ & $N \ge 1$
+  & all phases equal $\Leftrightarrow$ no frustration\\
+\texttt{feedback\_step} stable
+  & $g\in(0,1]$, $\alpha_{\mathrm{adaptive}}\in(0,1]$
+  & $g_{\mathrm{fb}}\le g\le 1$\\
+$E_{\mathrm{interact}}$ monotone in $R$
+  & any $N,g > 0$
+  & $R^2 N g$ strictly increasing in $R$\\
+\bottomrule
+\end{tabular}
+\caption{PhaseBattery invariants and guarantees.}
+\label{tab:battery-invariants}
+\end{table}
 
 %% ════════════════════════════════════════════════════════════════════════════
 \section{Coherence Invariants and Interrupt Recovery}
@@ -1553,6 +1778,18 @@ Prop.~\ref{prop:ks-grover}
 Conj.~\ref{conj:chiral-asym}
   & Chiral kick asymmetry (conjecture)
   & $90^\circ/270^\circ$ and $135^\circ/315^\circ$ pairs asymmetric\\
+Prop.~\ref{prop:fb-stable}
+  & Feedback step stability
+  & $g_{\mathrm{fb}}=g\cdot\alpha_{\mathrm{adaptive}}\cdot R_{\mathrm{mid}}\le g\le 1$\\
+Prop.~\ref{prop:battery-stable}
+  & PhaseBattery stability
+  & $E(t)=E(0)\cdot(1-g)^{2t}$; $g=\operatorname{sech}(\lambda)\in(0,1]$\\
+Eq.~\eqref{eq:lensing}
+  & Phase lensing contraction
+  & output spread $\le$ input spread; amp $= R\cdot\alpha$\\
+Eq.~\eqref{eq:focal-energy}
+  & Focal interaction energy
+  & $E_{\mathrm{interact}}=R^2 N g$; saturates at $Ng$ when $R=1$\\
 \bottomrule
 \end{tabular}
 \end{center}
