@@ -55,7 +55,8 @@ jobs:
             test_chiral_nonlinear_gate.cpp \
             MasterEigenOracle.hpp \
             test_master_eigen_oracle.cpp \
-            test_bft_stress.cpp
+            test_bft_stress.cpp \
+            test_bft_extended.cpp
 
   # ── Build & Test ─────────────────────────────────────────────────────────
   build-and-test:
@@ -145,6 +146,12 @@ jobs:
       - name: Run test_bft_stress
         run: ./test_bft_stress
 
+      - name: Build test_bft_extended
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o test_bft_extended test_bft_extended.cpp -lm
+
+      - name: Run test_bft_extended
+        run: ./test_bft_extended
+
   # ── Benchmarks ───────────────────────────────────────────────────────────
   benchmarks:
     name: Run benchmarks
@@ -206,6 +213,7 @@ jobs:
           g++ -std=c++17 -O0 --coverage -o test_chiral_nonlinear_gate test_chiral_nonlinear_gate.cpp -lm
           g++ -std=c++17 -O0 --coverage -o test_master_eigen_oracle     test_master_eigen_oracle.cpp     -lm
           g++ -std=c++17 -O0 --coverage -o test_bft_stress          test_bft_stress.cpp      -lm
+          g++ -std=c++17 -O0 --coverage -o test_bft_extended        test_bft_extended.cpp    -lm
 
       - name: Run tests to collect coverage data
         run: |
@@ -221,6 +229,7 @@ jobs:
           ./test_chiral_nonlinear_gate
           ./test_master_eigen_oracle
           ./test_bft_stress
+          ./test_bft_extended
 
       - name: Generate lcov report
         run: |
