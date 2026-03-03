@@ -62,6 +62,11 @@ multi_seed_ci.png
 norm_inspection.png
 fine_eps_transition.png
 
+# Lean 4 / Lake build artifacts
+formal-lean/.lake/
+formal-lean/build/
+formal-lean/lake-manifest.json
+
 # CMake build directories
 build/
 CMakeCache.txt
