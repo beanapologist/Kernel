@@ -73,14 +73,11 @@ See CriticalEigenvalue.lean for full proof terms.
 ## Testing
 
 ```bash
-# Build and check for proof errors (sorry warnings are expected for
-# the two placeholder proofs marked ⚠ in CriticalEigenvalue.lean)
+# Build and check for proof errors
 lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
-Proofs currently using `sorry` (tracked placeholders, not errors):
-- `mu_powers_distinct` — requires `IsPrimitiveRoot`; proof sketch included.
-- `rotMat_pow_eight`   — requires `Matrix` power lemmas; proof sketch included.
+All ten theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -93,10 +90,10 @@ Proofs currently using `sorry` (tracked placeholders, not errors):
 | 1 | `mu_eq_cart` | ✓ proved | μ = (−1 + i)/√2 in Cartesian form |
 | 2 | `mu_abs_one` | ✓ proved | \|μ\| = 1 |
 | 3 | `mu_pow_eight` | ✓ proved | μ⁸ = 1 (8-cycle closure) |
-| 4 | `mu_powers_distinct` | ⚠ sorry | 8 powers are pairwise distinct |
+| 4 | `mu_powers_distinct` | ✓ proved | 8 powers distinct (`IsPrimitiveRoot`, gcd(3,8)=1) |
 | 5 | `rotMat_det` | ✓ proved | det R(3π/4) = 1 |
 | 6 | `rotMat_orthog` | ✓ proved | R · Rᵀ = I |
-| 7 | `rotMat_pow_eight` | ⚠ sorry | R(3π/4)⁸ = I |
+| 7 | `rotMat_pow_eight` | ✓ proved | R(3π/4)⁸ = I (double-angle + matrix computation) |
 | 8 | `coherence_le_one` | ✓ proved | C(r) ≤ 1 for r ≥ 0 (AM–GM) |
 | 9 | `coherence_eq_one_iff` | ✓ proved | C(r) = 1 ↔ r = 1 |
 | 10 | `canonical_norm` | ✓ proved | η² + \|μ·η\|² = 1 |
