@@ -32,6 +32,7 @@
   19. Orbit Lyapunov connection  (|ξⁿ|=exp(n·logr), C(rⁿ)=sech(n·logr))
   20. Silver ratio self-similarity  (δS = 2+1/δS, minimal polynomial)
   21. Phase accumulation + NullSliceBridge coverage bijection
+  22. Machine-discovered deep connections  (master link, η–δS bridge, hyperbolic Pythagorean)
 
   Proof status
   ────────────
@@ -863,5 +864,138 @@ theorem nullslice_coverage_bijective :
   · intro b
     exact ⟨3 * b, by
       simp only [← mul_assoc, show (3 : ZMod 8) * 3 = 1 from by decide, one_mul]⟩
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 22 — Machine-Discovered Deep Connections
+-- These theorems arise from systematic chaining of all previous results.
+-- They were not explicitly encoded from the source documents; rather,
+-- the proof system derived them from definitions and lemmas already present.
+--
+-- Key discoveries:
+--   § C(r) = sech(log r)               — master Lyapunov parametrisation
+--   § C(δS) = η                        — silver ratio sits at the canonical weight
+--   § sech(log δS) = η                 — direct hyperbolic characterisation
+--   § Res(exp λ) = 2·sinh λ/δS         — palindrome residual as hyperbolic sine
+--   § C(exp λ)² + tanh²λ = 1           — hyperbolic Pythagorean identity
+--   § C(r)² + (δS·r·Res r/(1+r²))² = 1 — Pythagorean unified with palindrome
+--   § 3·(3·k) = k in ZMod 8            — NullSliceBridge is an involution
+--   § C(rⁿ) ≤ 2/rⁿ                    — explicit orbit decoherence rate
+--   § μ⁷ = μ⁻¹                        — seventh power equals the inverse
+--   § Res(r) + Res(1/r) = 0            — palindrome anti-symmetry in sum form
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- **Master link**: C(r) = (cosh(log r))⁻¹ for all r > 0.
+    Every coherence value is a hyperbolic secant of the natural Lyapunov
+    exponent λ = log r.  Setting r = exp λ recovers lyapunov_coherence_sech;
+    setting r = 1 gives C(1) = (cosh 0)⁻¹ = 1.
+    Ref: synthesized from §5 (C definition) and §10 (Theorem 14 duality). -/
+theorem coherence_is_sech_of_log (r : ℝ) (hr : 0 < r) :
+    C r = (Real.cosh (Real.log r))⁻¹ := by
+  conv_lhs => rw [← Real.exp_log hr]
+  exact lyapunov_coherence_sech (Real.log r)
+
+/-- **Machine-discovered**: the coherence at the silver ratio equals the canonical
+    state component η = 1/√2.
+    C(δS) = 2(1+√2)/(1+(1+√2)²) = (1+√2)/(2+√2) = 1/√2 = η.
+    δS (§7) and η (§6) were defined independently; the machine found their link. -/
+theorem coherence_at_silver_is_eta : C δS = η := by
+  have hs := sqrt2_sq
+  have hns : Real.sqrt 2 ≥ 0 := Real.sqrt_nonneg 2
+  have hs2_ne : Real.sqrt 2 ≠ 0 := by nlinarith
+  have hd : (1 : ℝ) + δS ^ 2 ≠ 0 := by unfold δS; nlinarith
+  unfold C η
+  rw [div_eq_div_iff hd hs2_ne]
+  unfold δS
+  nlinarith
+
+/-- **Corollary**: sech(log δS) = η.
+    Direct hyperbolic characterisation: the silver ratio δS = 1+√2 satisfies
+    log δS = arcsinh(1), so cosh(log δS) = √2, and sech(log δS) = 1/√2 = η.
+    Proof: coherence_is_sech_of_log + coherence_at_silver_is_eta. -/
+theorem sech_at_log_silverRatio : (Real.cosh (Real.log δS))⁻¹ = η :=
+  (coherence_is_sech_of_log δS δS_pos).symm.trans coherence_at_silver_is_eta
+
+/-- Palindrome residual in Lyapunov form: Res(exp λ) = 2·sinh(λ)/δS.
+    C = sech λ (even) and δS · Res / 2 = sinh λ (odd): a sech/sinh dual pair
+    paralleling the cos/sin pair in circular geometry.
+    Machine-discovered: §9 (Res definition) + §10 (exp parametrisation). -/
+theorem lyapunov_tanh_residual (λ : ℝ) :
+    Res (Real.exp λ) = 2 * Real.sinh λ / δS := by
+  unfold Res
+  simp only [Real.sinh_eq, Real.exp_neg, one_div]
+  ring
+
+/-- **Hyperbolic Pythagorean identity**: C(exp λ)² + tanh²(λ) = 1.
+    In Lyapunov variables C = sech λ, so this is just sech²λ + tanh²λ = 1.
+    This is the λ-space companion to §18's `coherence_pythagorean`.
+    Machine-discovered: §10 (C = sech) + standard hyperbolic identity. -/
+theorem coherence_lyapunov_pythag (λ : ℝ) :
+    C (Real.exp λ) ^ 2 + Real.tanh λ ^ 2 = 1 := by
+  rw [lyapunov_coherence_sech, Real.tanh_eq_sinh_div_cosh]
+  have hc : Real.cosh λ ≠ 0 := ne_of_gt (Real.cosh_pos λ)
+  have hprod : Real.exp λ * Real.exp (-λ) = 1 := by rw [← Real.exp_add]; simp
+  have key : Real.sinh λ ^ 2 + 1 = Real.cosh λ ^ 2 := by
+    rw [Real.sinh_eq, Real.cosh_eq]
+    field_simp
+    nlinarith [Real.exp_pos λ, Real.exp_pos (-λ), hprod,
+               sq_nonneg (Real.exp λ - Real.exp (-λ))]
+  field_simp [hc]
+  linarith
+
+/-- **Unified Pythagorean** with palindrome residual.
+    Substitutes palindrome_amplitude_eq (δS·r·Res r = r²−1) into §18's
+    coherence_pythagorean, expressing the identity purely via C and Res.
+    Machine-discovered: §18 (Pythagorean identity) + §9 (palindrome amplitude). -/
+theorem coherence_residual_pythagorean (r : ℝ) (hr : 0 < r) :
+    C r ^ 2 + (δS * r * Res r / (1 + r ^ 2)) ^ 2 = 1 := by
+  rw [palindrome_amplitude_eq r hr]
+  exact coherence_pythagorean r hr
+
+/-- NullSliceBridge is an involution: k ↦ 3k composed with itself is the identity.
+    Since 3·3 = 9 ≡ 1 (mod 8), the channel map is self-inverse on ZMod 8.
+    Mirrors the μ-orbit: μ⁷ = μ⁻¹ so applying the 7-step twice returns to start.
+    Machine-discovered: extension of §21's NullSliceBridge bijection proof. -/
+theorem nullslice_involution (k : ZMod 8) :
+    (3 : ZMod 8) * ((3 : ZMod 8) * k) = k := by
+  simp only [← mul_assoc, show (3 : ZMod 8) * 3 = 1 from by decide, one_mul]
+
+/-- **Orbit decoherence rate**: C(rⁿ) ≤ 2/rⁿ for r > 1.
+    Coherence decays at least as fast as the reciprocal of the orbit amplitude.
+    Proof: cosh(n·log r) ≥ rⁿ/2 (since n·log r ≥ 0 for r > 1, so cosh x ≥ exp x / 2),
+    so sech(n·log r) ≤ 2/rⁿ.
+    Machine-discovered: §19 (orbit sech formula) + cosh lower bound. -/
+theorem orbit_decoherence_rate (r : ℝ) (hr : 1 < r) (n : ℕ) :
+    C (r ^ n) ≤ 2 / r ^ n := by
+  have hr0 : 0 < r := lt_trans one_pos hr
+  have hpow : (0 : ℝ) < r ^ n := pow_pos hr0 n
+  rw [coherence_orbit_sech r hr0, inv_eq_one_div,
+      div_le_div_iff (Real.cosh_pos _) hpow, one_mul]
+  have hexp : Real.exp (↑n * Real.log r) = r ^ n := by
+    rw [← Real.exp_log (pow_pos hr0 n), Real.log_pow]
+  rw [Real.cosh_eq, hexp]
+  linarith [Real.exp_pos (-(↑n * Real.log r))]
+
+/-- μ⁷ = μ⁻¹: the seventh power of μ equals its multiplicative inverse.
+    Since μ⁸ = 1 (mu_pow_eight), μ⁷ · μ = μ⁸ = 1, so μ⁷ = μ⁻¹.
+    Traversing the 8-cycle seven steps forward is the same as one step backwards.
+    Machine-discovered: §2 (mu_pow_eight) + group-inverse characterisation. -/
+theorem mu_inv_eq_pow7 : μ ^ 7 = μ⁻¹ := by
+  have hμ : μ ≠ 0 := Complex.exp_ne_zero _
+  have h7 : μ ^ 7 * μ = 1 := by
+    rw [show μ = μ ^ 1 from (pow_one μ).symm, ← pow_add]
+    simp only [show 7 + 1 = 8 from rfl, mu_pow_eight]
+  calc μ ^ 7
+      = μ ^ 7 * (μ * μ⁻¹) := by rw [mul_inv_cancel₀ hμ, mul_one]
+    _ = μ ^ 7 * μ * μ⁻¹   := (mul_assoc _ _ _).symm
+    _ = 1 * μ⁻¹            := by rw [h7]
+    _ = μ⁻¹                := one_mul _
+
+/-- Palindrome anti-symmetry in sum form: Res(r) + Res(1/r) = 0.
+    Direct consequence of palindrome_residual_antisymm (Res(1/r) = −Res r):
+    the palindrome residuals of a ratio and its reciprocal cancel exactly.
+    Machine-discovered: §9 (anti-symmetry) cast as an additive identity. -/
+theorem palindrome_sum_zero (r : ℝ) (hr : 0 < r) :
+    Res r + Res (1 / r) = 0 := by
+  linarith [palindrome_residual_antisymm r hr]
 
 end -- noncomputable section

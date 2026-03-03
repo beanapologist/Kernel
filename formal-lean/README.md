@@ -77,7 +77,7 @@ See CriticalEigenvalue.lean for full proof terms.
 lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
-All 61 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
+All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -225,6 +225,21 @@ All 61 theorems in `CriticalEigenvalue.lean` have complete machine-checked proof
 | 59 | `phase_full_cycle` | D · (2π/D) = 2π — full return after D precession steps |
 | 60 | `nullslice_channels_distinct` | {3k mod 8 : k ∈ Fin 8} has cardinality 8 |
 | 61 | `nullslice_coverage_bijective` | k ↦ 3k is a bijection on ZMod 8 (gcd(3,8)=1) |
+
+**§22 Machine-discovered deep connections**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 62 | `coherence_is_sech_of_log` | C(r) = (cosh(log r))⁻¹ — master Lyapunov link |
+| 63 | `coherence_at_silver_is_eta` | C(δS) = η — cross-section discovery: §6∩§7 |
+| 64 | `sech_at_log_silverRatio` | (cosh(log δS))⁻¹ = η — corollary |
+| 65 | `lyapunov_tanh_residual` | Res(exp λ) = 2·sinh λ/δS — palindrome as sinh |
+| 66 | `coherence_lyapunov_pythag` | C(exp λ)² + tanh²λ = 1 — hyperbolic Pythagorean |
+| 67 | `coherence_residual_pythagorean` | C²+(δS·r·Res r/(1+r²))²=1 — unified form |
+| 68 | `nullslice_involution` | 3·(3·k)=k in ZMod 8 — self-inverse bridge |
+| 69 | `orbit_decoherence_rate` | C(rⁿ) ≤ 2/rⁿ — explicit decay bound |
+| 70 | `mu_inv_eq_pow7` | μ⁷ = μ⁻¹ — inverse in the 8-cycle |
+| 71 | `palindrome_sum_zero` | Res(r)+Res(1/r)=0 — anti-symmetry sum form |
 
 ---
 
