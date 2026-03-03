@@ -634,6 +634,54 @@ void test_mu_137_fourier() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// µ orbit Scale Invariants: |µ^k| = 1, C = 1, R = 0 for all orbit points
+// ══════════════════════════════════════════════════════════════════════════════
+void test_mu_137_scale_invariants() {
+  std::cout << "\n╔═══ µ orbit Scale Invariants ═══╗\n";
+
+  // The µ-orbit {µ⁰, µ¹, …, µ⁷} lies entirely on the unit circle.
+  // Three scale-invariant quantities are simultaneously preserved at every
+  // orbit point:
+  //   (a) |µ^k| = 1          — magnitude invariant (unit circle confinement)
+  //   (b) C(r) = 1            — coherence is maximal (balanced state)
+  //   (c) R(r) = 0            — palindrome residual vanishes (Theorem 12)
+  //
+  // These properties are independent of the rotation angle, so they hold for
+  // all eight powers k = 0..7 as well as all five µ¹³⁷-cycle landmarks.
+
+  constexpr int N = 8;
+  Cx mu_k{1.0, 0.0};
+  for (int k = 0; k < N; ++k) {
+    double mag = std::abs(mu_k);
+
+    // (a) Magnitude invariant: |µ^k| = 1
+    test_assert(std::abs(mag - 1.0) < TIGHT_TOL,
+                "|µ^" + std::to_string(k) + "| = 1  (unit circle invariant)");
+
+    // (b) Coherence at r = |µ^k| / 1 = 1 is maximal: C(1) = 1
+    test_assert(std::abs(coherence(mag) - 1.0) < TIGHT_TOL,
+                "C(|µ^" + std::to_string(k) + "|) = 1  (coherence scale invariant)");
+
+    // (c) Palindrome residual at r = 1 vanishes: R(1) = 0
+    test_assert(std::abs(palindrome_residual(mag)) < TIGHT_TOL,
+                "R(|µ^" + std::to_string(k) + "|) = 0  (palindrome residual invariant)");
+
+    mu_k *= MU;
+  }
+
+  // Orbit rotation does NOT change the magnitude: scaling µ^k by any unimodular
+  // factor leaves |µ^k| = 1 unchanged.  Verify this for a random phase factor.
+  double test_phase = PI / 7.0;  // arbitrary non-trivial phase
+  mu_k = Cx{1.0, 0.0};
+  for (int k = 0; k < N; ++k) {
+    Cx scaled = mu_k * Cx{std::cos(test_phase), std::sin(test_phase)};
+    test_assert(std::abs(std::abs(scaled) - 1.0) < TIGHT_TOL,
+                "unimodular scaling preserves |µ^" + std::to_string(k) + "| = 1");
+    mu_k *= MU;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Main test runner
 // ══════════════════════════════════════════════════════════════════════════════
 int main() {
@@ -655,6 +703,7 @@ int main() {
   test_arithmetic_periodicity();
   test_mu_137_phase_cycle();
   test_mu_137_fourier();
+  test_mu_137_scale_invariants();
 
   std::cout << "\n╔══════════════════════════════════════════════════════╗\n";
   std::cout << "║  Test Results                                        ║\n";

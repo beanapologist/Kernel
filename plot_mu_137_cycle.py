@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-plot_mu_137_cycle.py — Periodic-Cycle and Fourier Analysis Visualiser for µ¹³⁷
-================================================================================
+plot_mu_137_cycle.py — Periodic-Cycle, Fourier Analysis and Scale Invariants for µ¹³⁷
+=======================================================================================
 
-Visualises two complementary aspects of µ = e^{i3π/4} validated by the C++
-tests ``test_mu_137_phase_cycle`` and ``test_mu_137_fourier`` in
-``test_pipeline_theorems.cpp``:
+Visualises three complementary aspects of µ = e^{i3π/4} validated by the C++
+tests ``test_mu_137_phase_cycle``, ``test_mu_137_fourier``, and
+``test_mu_137_scale_invariants`` in ``test_pipeline_theorems.cpp``:
 
   Panel 1 — Unit Circle Landmarks
       µ has period 8.  Because 137 ≡ 1 (mod 8), successive multiples of 137
@@ -32,11 +32,24 @@ tests ``test_mu_137_phase_cycle`` and ``test_mu_137_fourier`` in
       DFT (frequency aliasing).  Parseval's theorem,
       Σ|x[k]|² = (1/N)·Σ|X[n]|², is annotated on the plot.
 
+  Panel 3 — Scale Invariants
+      Three scale-invariant quantities are simultaneously preserved at every
+      orbit point µ^k (k = 0…7):
+
+        (a) |µ^k| = 1                  — magnitude invariant (unit circle)
+        (b) C(r) = 2r/(1+r²)|_{r=1}=1 — coherence at its maximum
+        (c) R(r) = (1/δ_S)(r-1/r)|_{r=1}=0 — palindrome residual vanishes
+
+      Panel 3 makes these three invariants visible simultaneously:
+        - a bar chart of |µ^k| (all bars at 1.0) with a reference line
+        - the coherence function C(r) plotted for r ∈ [0.2, 3] with the
+          r = 1 operating point highlighted
+
 Usage (from the repo root):
     python3 plot_mu_137_cycle.py
 
 Output:
-    mu_137_cycle.png  — 1×2 panel figure (saved to current directory)
+    mu_137_cycle.png  — 1×3 panel figure (saved to current directory)
 """
 
 import cmath
@@ -68,6 +81,9 @@ LANDMARK_COLORS = ["#e41a1c", "#ff7f00", "#4daf4a", "#377eb8", "#984ea3"]
 
 # Radial scaling factor for landmark text labels (places them outside the unit circle)
 LABEL_RADIUS_SCALE = 1.28
+
+# Silver ratio δ_S = 1 + √2 (used in the palindrome residual R(r))
+DELTA_S = 1.0 + math.sqrt(2.0)
 
 
 def _mu_power(n: int) -> complex:
@@ -230,14 +246,95 @@ def plot_fourier_analysis(ax: "plt.Axes") -> None:
     ax.tick_params(axis="y", labelsize=8)
 
 
+# ── Panel 3: Scale Invariants ─────────────────────────────────────────────────
+def plot_scale_invariants(ax: "plt.Axes") -> None:
+    """
+    Panel showing the three scale invariants of the µ orbit.
+
+    Main area — bar chart of |µ^k| for k = 0..7 (all bars exactly 1.0),
+    demonstrating that the orbit lies entirely on the unit circle.
+
+    Inset — coherence C(r) = 2r/(1+r²) and palindrome residual
+    R(r) = (r − 1/r)/δ_S plotted against r ∈ [0.2, 3.0].  Both curves
+    are evaluated directly on the r axis (no offset); a vertical guide at
+    r = 1 marks the operating point where C = 1 (maximum) and R = 0.
+
+    At r = 1 all three quantities lock simultaneously:
+        |µ^k| = 1,   C(1) = 1  (maximum),   R(1) = 0.
+    """
+    N = MU_CYCLE
+    orbit_mags = np.array([abs(_mu_power(k)) for k in range(N)])
+
+    # ── Main: |µ^k| bar chart ─────────────────────────────────────────────────
+    ks = np.arange(N)
+    ax.bar(ks, orbit_mags, color="steelblue", alpha=0.7, width=0.5,
+           label=r"|µ$^k$| = 1  (unit circle invariant)")
+    ax.axhline(1.0, color="steelblue", lw=1.2, ls="--", alpha=0.7)
+    ax.set_ylim(0, 1.6)
+    ax.set_xlim(-0.6, N - 0.4)
+    ax.set_xlabel("Orbit index k", fontsize=9)
+    ax.set_ylabel(r"|µ$^k$|", fontsize=9)
+    ax.set_xticks(ks)
+    ax.tick_params(labelsize=8)
+    ax.text(N / 2 - 0.5, 1.09, "|µ^k| = 1  (unit circle)",
+            ha="center", va="bottom", fontsize=8, color="steelblue")
+
+    # ── Inset: C(r) and R(r) vs r (own x-axis, no shared-axis offset needed) ──
+    axins = ax.inset_axes([0.50, 0.40, 0.48, 0.54])
+    r = np.linspace(0.2, 3.0, 400)
+    C_r = 2.0 * r / (1.0 + r ** 2)
+    R_r = (r - 1.0 / r) / DELTA_S
+
+    axins.plot(r, C_r, color="C1", lw=1.6, label="C(r) = 2r/(1+r²)")
+    axins.plot(r, R_r, color="C2", lw=1.2, ls="--",
+               label="R(r) = (r − 1/r)/δ_S")
+
+    # r = 1 operating point: C(1)=1, R(1)=0
+    axins.scatter([1.0], [1.0], color="C1", s=60, zorder=5)
+    axins.scatter([1.0], [0.0], color="C2", s=60, zorder=5)
+    axins.axvline(1.0, color="gray", lw=0.8, ls=":", zorder=1)
+    axins.axhline(0.0, color="gray", lw=0.5, alpha=0.5)
+
+    axins.annotate("C(1) = 1\nR(1) = 0",
+                   xy=(1.0, 0.5), xytext=(1.6, 0.45),
+                   fontsize=7, color="#444444",
+                   arrowprops=dict(arrowstyle="->", color="#444444", lw=0.8))
+
+    axins.set_xlabel("r  =  |µ^k|", fontsize=7.5)
+    axins.set_xlim(0.2, 3.0)
+    axins.set_ylim(-0.9, 1.25)
+    axins.tick_params(labelsize=7)
+    axins.legend(fontsize=6.5, loc="upper right")
+
+    # ── Invariant summary box ──────────────────────────────────────────────────
+    ax.text(
+        0.02, 0.97,
+        "Scale invariants at r = |µ^k| = 1:\n"
+        "  |µ^k| = 1       (unit circle)\n"
+        "  C(1)  = 1       (max coherence)\n"
+        "  R(1)  = 0       (palindrome residual)",
+        transform=ax.transAxes,
+        ha="left", va="top", fontsize=7.5,
+        bbox=dict(boxstyle="round,pad=0.3", fc="lightyellow",
+                  ec="#ccaa00", alpha=0.9),
+    )
+
+    handles_l, labels_l = ax.get_legend_handles_labels()
+    ax.legend(handles_l, labels_l, fontsize=7.5, loc="upper center")
+    ax.set_title(
+        r"Scale Invariants: $|\mu^k|=1$,  $C(1)=1$,  $R(1)=0$",
+        fontsize=10,
+    )
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main(out_path: str = "mu_137_cycle.png") -> None:
-    """Generate and save the two-panel visualisation."""
+    """Generate and save the three-panel visualisation."""
     if not HAS_MPL:
         print("[error] matplotlib is required — install with: pip install matplotlib")
         sys.exit(1)
 
-    fig, axes = plt.subplots(1, 2, figsize=(13, 6))
+    fig, axes = plt.subplots(1, 3, figsize=(19, 6))
     fig.suptitle(
         r"Periodic Cycle of $\mu = e^{i3\pi/4}$ under Successive Powers"
         "\n"
@@ -248,6 +345,7 @@ def main(out_path: str = "mu_137_cycle.png") -> None:
 
     plot_unit_circle_landmarks(axes[0])
     plot_fourier_analysis(axes[1])
+    plot_scale_invariants(axes[2])
 
     fig.tight_layout(rect=[0, 0, 1, 0.93])
     fig.savefig(out_path, dpi=150)
