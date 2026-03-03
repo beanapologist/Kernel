@@ -125,14 +125,61 @@ failure (the failing assertion name is printed to stdout).
 A recovery is considered **successful** when `all_invariants()` returns true
 for a node — i.e. `|α|²+|β|²=1`, `R(r)≈0`, and `R_eff≈1` simultaneously.
 
+---
+
+## Extended BFT Tests (`test_bft_extended.cpp`)
+
+`test_bft_extended.cpp` builds upon the framework above to cover a wider range
+of adversarial scenarios and provides structured CSV metric output.
+
+### Additional Test Scenarios
+
+| # | Test | What it validates |
+|---|------|-------------------|
+| 10 | **Scale Testing** | Networks from 7 to 100 nodes; quorum thresholds and coherence fractions recorded per scale point. |
+| 11 | **Adversarial Beyond-Quorum** | Crashing more than f nodes causes quorum loss; a reduced-fault environment restores quorum. |
+| 12 | **Live Sepolia Integration** | `SepoliaHook` validates coherence weights using Sepolia beacon-chain data (or stub fallback in CI). |
+| 13 | **Cascading Faults** | Progressive per-wave crash injection; quorum maintained within BFT tolerance. |
+| 14 | **Oscillating Faults** | Periodic fault/recovery cycles; coherence restores fully every cycle. |
+| 15 | **Correlated Faults** | Simultaneous burst of crashes + phase faults; quorum recovery after repair. |
+| 16 | **Mixed Failure Modes** | Crash + phase + delay + amplitude faults combined; safety and liveness verified. |
+
+### CSV Metric Output
+
+Each run emits `METRIC,<key>,<value>` lines to stdout for downstream tooling:
+
+```
+METRIC,scale_N7_quorum_threshold,5
+METRIC,scale_N100_committed_rounds,10
+METRIC,cascade_wave1_coherent_frac,1.000000
+METRIC,mixed_N19_recovery_round_to_90pct,1
+METRIC,total_passed,50
+METRIC,elapsed_ms,0.500000
+```
+
+### Build
+
+```bash
+# Without libcurl (CI default — Sepolia stub fallback):
+g++ -std=c++17 -Wall -Wextra -O2 -o test_bft_extended test_bft_extended.cpp -lm
+
+# With libcurl (live Sepolia HTTP integration):
+g++ -std=c++17 -Wall -Wextra -O2 -DHAVE_CURL \
+    -o test_bft_extended test_bft_extended.cpp -lcurl -lm
+```
+
+Set `KERNEL_ETH_TESTNET_RPC=https://rpc.sepolia.org` to activate live beacon
+chain data when building with `-DHAVE_CURL`.
+
 ## CI Integration
 
-The test is registered in:
+Both test files are registered in:
 
-- **`CMakeLists.txt`** — added to `_kernel_tests` so `ctest` picks it up.
+- **`CMakeLists.txt`** — added to `_kernel_tests` so `ctest` picks them up.
 - **`.github/workflows/ci.yml`** — added to:
   - `lint`: clang-format compliance check.
   - `build-and-test`: compiled and executed on every push / PR.
   - `coverage`: compiled with `--coverage` and executed for lcov data.
 
-The test completes in under 5 ms and does not require OpenSSL or Eigen.
+The extended test suite completes in under 5 ms and does not require OpenSSL,
+Eigen, or libcurl for CI runs.
