@@ -77,7 +77,7 @@ See CriticalEigenvalue.lean for full proof terms.
 lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
-All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
+All 75 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -240,6 +240,15 @@ All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proof
 | 69 | `orbit_decoherence_rate` | C(rⁿ) ≤ 2/rⁿ — explicit decay bound |
 | 70 | `mu_inv_eq_pow7` | μ⁷ = μ⁻¹ — inverse in the 8-cycle |
 | 71 | `palindrome_sum_zero` | Res(r)+Res(1/r)=0 — anti-symmetry sum form |
+
+**§23 Critical point invariance at r = 1 (chi-square characterisation)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 72 | `critical_point_simultaneous` | C(1)=1 ∧ Res(1)=0 — simultaneous satisfaction at the critical point |
+| 73 | `critical_pythagorean_at_one` | Pythagorean identity at r=1 simplifies to 1²+0²=1 |
+| 74 | `critical_lyapunov_at_zero` | C(exp 0)=(cosh 0)⁻¹ — Lyapunov duality at the balanced state λ=0 |
+| 75 | `critical_recip_unique_fixpt` | r=1/r ↔ r=1 — r=1 is the unique fixed point of the reciprocal map |
 
 ---
 

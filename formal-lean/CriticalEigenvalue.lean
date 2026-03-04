@@ -33,6 +33,7 @@
   20. Silver ratio self-similarity  (δS = 2+1/δS, minimal polynomial)
   21. Phase accumulation + NullSliceBridge coverage bijection
   22. Machine-discovered deep connections  (master link, η–δS bridge, hyperbolic Pythagorean)
+  23. Critical point invariance at r = 1  (chi-square characterisation)
 
   Proof status
   ────────────
@@ -997,5 +998,63 @@ theorem mu_inv_eq_pow7 : μ ^ 7 = μ⁻¹ := by
 theorem palindrome_sum_zero (r : ℝ) (hr : 0 < r) :
     Res r + Res (1 / r) = 0 := by
   linarith [palindrome_residual_antisymm r hr]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 23 — Critical Point Invariance at r = 1 (chi-square characterisation)
+-- The four invariants that jointly identify r = 1 as the chi-square critical
+-- point: simultaneous coherence maximum and residual zero, the Pythagorean
+-- identity, Lyapunov exponent equivalence, and the unique fixed-point property
+-- of the reciprocal symmetry.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- At the critical point r = 1, maximum coherence and vanishing residual are
+    satisfied simultaneously: C(1) = 1 and Res(1) = 0.
+    This is the chi-square equilibrium condition: both the coherence function
+    and the palindrome deviation metric attain their extremal values together.
+    Corollary of simultaneous_break at r = 1.
+    Ref: docs/master_derivations.pdf Corollary 13 -/
+theorem critical_point_simultaneous : C 1 = 1 ∧ Res 1 = 0 :=
+  (simultaneous_break 1 one_pos).mp rfl
+
+/-- At r = 1 the Pythagorean coherence identity (coherence_pythagorean) simplifies
+    to 1² + 0² = 1: the imbalance fraction (r²−1)/(1+r²) vanishes at the critical
+    point, leaving only C(1)² = 1.
+    This is coherence_pythagorean specialised to the chi-square critical point.
+    Corollary of coherence_pythagorean at r = 1. -/
+theorem critical_pythagorean_at_one :
+    C 1 ^ 2 + ((1 ^ 2 - 1) / (1 + 1 ^ 2)) ^ 2 = 1 :=
+  coherence_pythagorean 1 one_pos
+
+/-- Lyapunov–coherence duality at the critical point λ = 0 (corresponding to r = 1 = exp 0):
+    C(exp 0) = (cosh 0)⁻¹.
+    Since exp 0 = 1 and cosh 0 = 1, this recovers C(1) = 1 via the hyperbolic
+    parametrisation, confirming λ = 0 as the Lyapunov exponent of the balanced state.
+    This is lyapunov_coherence_sech instantiated at λ = 0. -/
+theorem critical_lyapunov_at_zero :
+    C (Real.exp 0) = (Real.cosh 0)⁻¹ :=
+  lyapunov_coherence_sech 0
+
+/-- r = 1 is the unique positive-real fixed point of the reciprocal map r ↦ 1/r.
+    The coherence symmetry C(r) = C(1/r) (coherence_symm) maps every r to its
+    reciprocal image; r = 1/r is realised precisely at r = 1.
+    This confirms r = 1 as the chi-square critical point: the unique amplitude
+    ratio that equals its own reciprocal.
+    Ref: §8 (coherence_symm) + uniqueness of the positive square root of 1. -/
+theorem critical_recip_unique_fixpt (r : ℝ) (hr : 0 < r) :
+    r = 1 / r ↔ r = 1 := by
+  constructor
+  · intro h
+    have hr' : r ≠ 0 := ne_of_gt hr
+    have hrr : r * r = 1 := by
+      have heq : r * r = r * (1 / r) := congr_arg (r * ·) h
+      rw [mul_one_div, div_self hr'] at heq
+      exact heq
+    have hfact : (r - 1) * (r + 1) = 0 := by
+      have : (r - 1) * (r + 1) = r * r - 1 := by ring
+      linarith
+    rcases mul_eq_zero.mp hfact with h1 | h1
+    · linarith
+    · linarith
+  · rintro rfl; norm_num
 
 end -- noncomputable section
