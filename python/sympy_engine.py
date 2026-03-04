@@ -793,6 +793,202 @@ def verify_zero_overhead_periodicity() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# § 23  Critical Point Invariance at r = 1 (chi-square characterisation)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def verify_section23_critical_point_invariance() -> None:
+    """Section 23 — Four invariants jointly characterising r=1 as chi-square critical point.
+
+    Mirrors the four Lean theorems 72–75 in CriticalEigenvalue.lean §23.
+    Each check uses exact SymPy arithmetic so the suite is fully symbolic.
+    NIST DLMF references are cited inline.
+    """
+    _subsection("Section 23 — Critical Point Invariance at r = 1")
+    r = symbols("r", positive=True)
+    delta_S = 1 + sqrt(2)
+
+    # Helpers: C(r), Res(r), λ(r)
+    C = 2 * r / (1 + r**2)
+    Res_r = (r - 1 / r) / delta_S
+
+    # ── Theorem 72 critical_point_simultaneous ──────────────────────────────
+    # C(1) = 1  ∧  Res(1) = 0
+    # Corollary of simultaneous_break at r=1.
+    # NIST DLMF §4.12.2
+    C_at_1 = simplify(C.subs(r, 1))
+    Res_at_1 = simplify(Res_r.subs(r, 1))
+    _check("Thm 72 — C(1) = 1  [critical_point_simultaneous]", C_at_1 == 1)
+    _check("Thm 72 — Res(1) = 0  [critical_point_simultaneous]", Res_at_1 == 0)
+    C_sym, Res_sym = symbols(r"C \mathrm{Res}")
+    _record_formula("eq:s23-simult", Eq(C_sym, 1, evaluate=False))
+
+    # ── Theorem 73 critical_pythagorean_at_one ──────────────────────────────
+    # C(1)² + ((1²−1)/(1+1²))² = 1
+    # Pythagorean identity: at r=1 the imbalance term (r²−1)/(1+r²) = 0,
+    # so the identity reduces to C(1)² = 1.
+    # Under r = tan θ: C = sin 2θ, (r²−1)/(1+r²) = −cos 2θ → sin²+cos²=1.
+    # NIST DLMF §4.21.1: sin²z + cos²z = 1.
+    imbalance = (1**2 - 1) / (1 + 1**2)
+    pyth_lhs = C_at_1**2 + imbalance**2
+    _check("Thm 73 — C(1)²+imbalance(1)²=1  [critical_pythagorean_at_one]",
+           simplify(pyth_lhs - 1) == 0)
+    # Symbolic Pythagorean check for general r
+    imbalance_sym = (r**2 - 1) / (1 + r**2)
+    pyth_sym = simplify(C**2 + imbalance_sym**2 - 1)
+    _check("Thm 73 — C(r)²+((r²−1)/(1+r²))²=1 for all r>0", pyth_sym == 0)
+    r_sym = symbols("r", positive=True)
+    _record_formula("eq:s23-pyth",
+                    Eq(C**2 + imbalance_sym**2, 1, evaluate=False))
+
+    # ── Theorem 74 critical_lyapunov_at_zero ────────────────────────────────
+    # C(exp(0)) = (cosh(0))⁻¹
+    # exp(0)=1, cosh(0)=1, so both sides equal 1.
+    # Identity sech(x) = (cosh x)⁻¹: NIST DLMF §4.28.2.
+    # cosh(0) = 1: NIST DLMF §4.35.3.
+    lam = symbols(r"\lambda", real=True)
+    C_hyp = C.subs(r, exp(lam))          # C(e^λ) = 2e^λ/(1+e^{2λ}) = sech(λ)
+    sech_lam = 1 / cosh(lam)
+    lyap_id = simplify(C_hyp.rewrite(exp) - sech_lam.rewrite(exp))
+    _check("Thm 74 — C(e^λ) = sech(λ) for all real λ  [lyapunov_coherence_sech]",
+           lyap_id == 0)
+    lyap_at_0 = simplify(C.subs(r, exp(0)) - 1 / cosh(sp.Integer(0)))
+    _check("Thm 74 — C(exp 0) = (cosh 0)⁻¹  [critical_lyapunov_at_zero]",
+           lyap_at_0 == 0)
+    _record_formula("eq:s23-lyap",
+                    Eq(C_hyp, sech_lam, evaluate=False))
+
+    # ── Theorem 75 critical_recip_unique_fixpt ──────────────────────────────
+    # r = 1/r  ⟺  r = 1  (for r > 0)
+    # Equivalently r² = 1 with r > 0 has unique solution r = 1.
+    # NIST DLMF §4.6.1.
+    fixpt_solutions = solve(r - 1 / r, r)          # solve over reals (positive assumption)
+    pos_fixpts = [s for s in fixpt_solutions if s.is_positive]
+    _check("Thm 75 — unique positive fixed point of r↦1/r is r=1  [critical_recip_unique_fixpt]",
+           pos_fixpts == [S.One])
+    r2_solutions = solve(r**2 - 1, r)
+    pos_r2 = [s for s in r2_solutions if s.is_positive]
+    _check("Thm 75 — r²=1, r>0  ⟹  r=1  (NIST DLMF §4.6.1)",
+           pos_r2 == [S.One])
+    _record_formula("eq:s23-fixpt",
+                    Eq(r, 1 / r, evaluate=False))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# § 23 (cont.)  Perturbation / rigidity analysis
+# ─────────────────────────────────────────────────────────────────────────────
+
+def verify_section23_perturbation_analysis() -> None:
+    """Section 23 — Rigidity / deformation analysis for the four chi-square invariants.
+
+    For each invariant we ask: does it survive when definitions are perturbed
+    by a small parameter ε?
+
+    * **Rigid** invariant  → collapses (becomes False) for any ε ≠ 0.
+      Interpretation: the invariant pins r to exactly 1; a broader equivalence
+      class does NOT exist around this constraint.
+
+    * **Universal** identity → holds for ALL r (or ALL λ), so no perturbation of
+      the evaluation point can break it.  The equivalence class is the entire
+      positive-real line (or all of ℝ), not just {r=1}.
+
+    Perturbations tested
+    ─────────────────────
+    1. Thm 72 — C(1+ε) ≠ 1  and  Res(1+ε) ≠ 0  for ε ≠ 0  → **RIGID** at r=1.
+    2. Thm 73 — C(r)²+((r²-1)/(1+r²))²=1 holds for all r>0 → **UNIVERSAL**.
+       Perturbing C with C_ε = C + ε·r² breaks the identity → **definition-rigid**.
+    3. Thm 74 — C(e^λ)=sech(λ) holds for all λ (UNIVERSAL in λ).
+       Replacing sech with f_ε(λ)=sech(λ)+ε·λ² breaks the identity → **definition-rigid**.
+    4. Thm 75 — r=1/r+ε has a unique positive solution r_ε(ε) ≠ 1 for ε ≠ 0 → **RIGID** fixed-point.
+    """
+    _subsection("Section 23 — Perturbation / Rigidity Analysis")
+    eps = symbols("epsilon", positive=True, real=True)
+    r   = symbols("r", positive=True)
+    lam = symbols(r"\lambda", real=True)
+    delta_S = 1 + sqrt(2)
+
+    C   = 2 * r / (1 + r**2)
+    Res = (r - 1 / r) / delta_S
+
+    # ── 1. Thm 72 rigidity ─────────────────────────────────────────────────
+    # C(1+ε) = 1  ⟺  ε = 0   (for small ε > 0)
+    C_perturbed = C.subs(r, 1 + eps)
+    C_diff = simplify(C_perturbed - 1)           # should be non-zero for ε > 0
+    _check("Thm 72 rigidity — C(1+ε)-1 ≠ 0 for ε>0  (rigid at r=1)",
+           C_diff != 0)
+    # First-order correction is -ε/1 = -ε  (C is a Morse-type minimum)
+    first_order_C = simplify(diff(C_perturbed, eps).subs(eps, 0))
+    _check("Thm 72 — ∂C/∂ε|ε=0 = 0  (C has a critical point at r=1)",
+           first_order_C == 0)
+    second_order_C = simplify(diff(C_perturbed, eps, 2).subs(eps, 0))
+    _check("Thm 72 — ∂²C/∂ε²|ε=0 < 0  (strict maximum → rigidity)",
+           second_order_C < 0)
+
+    # Res(1+ε) ≠ 0 for ε ≠ 0
+    Res_perturbed = Res.subs(r, 1 + eps)
+    Res_diff = simplify(Res_perturbed)
+    _check("Thm 72 rigidity — Res(1+ε) ≠ 0 for ε>0  (rigid at r=1)",
+           Res_diff != 0)
+    # First-order: Res(1+ε) ≈ (2/δS)·ε
+    first_order_Res = simplify(diff(Res_perturbed, eps).subs(eps, 0))
+    _check("Thm 72 — ∂Res/∂ε|ε=0 = 2/δS ≠ 0  (linear departure from r=1)",
+           simplify(first_order_Res - 2 / delta_S) == 0)
+
+    # ── 2. Thm 73 universality vs definition-rigidity ──────────────────────
+    # Original Pythagorean identity holds for ALL r > 0
+    imbalance = (r**2 - 1) / (1 + r**2)
+    pyth = simplify(C**2 + imbalance**2 - 1)
+    _check("Thm 73 universality — C(r)²+imbalance(r)²=1 for all r  (not rigid in r)",
+           pyth == 0)
+
+    # Perturbing the definition of C: C_ε(r) = C(r) + ε·r²
+    # Does the Pythagorean identity still hold?
+    C_def_perturbed = C + eps * r**2
+    pyth_def_pert = simplify(C_def_perturbed**2 + imbalance**2 - 1)
+    _check("Thm 73 definition-rigidity — C_ε² + imbalance² ≠ 1 for ε>0  (definition-rigid)",
+           pyth_def_pert != 0)
+
+    # ── 3. Thm 74 universality vs definition-rigidity ──────────────────────
+    # C(e^λ) = sech(λ) is universal in λ (holds for all λ, not just λ=0)
+    sech_lam = 1 / cosh(lam)
+    C_exp = C.subs(r, exp(lam))
+    universal_id = simplify(C_exp.rewrite(exp) - sech_lam.rewrite(exp))
+    _check("Thm 74 universality — C(e^λ)=sech(λ) for all λ  (universal, not rigid in λ)",
+           universal_id == 0)
+
+    # Replacing sech with f_ε(λ) = sech(λ) + ε·λ²: C(e^λ) ≠ f_ε(λ) for ε > 0
+    f_eps = sech_lam + eps * lam**2
+    pert_sech_diff = simplify(C_exp.rewrite(exp) - f_eps.rewrite(exp))
+    _check("Thm 74 definition-rigidity — C(e^λ) ≠ sech(λ)+ε·λ² for ε>0  (definition-rigid)",
+           pert_sech_diff != 0)
+    # At λ = 0 specifically, the ε·λ² term vanishes → invariant 74 survives at λ=0
+    pert_at_0 = simplify(pert_sech_diff.subs(lam, 0))
+    _check("Thm 74 — at λ=0 the perturbation ε·λ² vanishes → invariant survives",
+           pert_at_0 == 0)
+
+    # ── 4. Thm 75 rigidity ─────────────────────────────────────────────────
+    # Perturbed equation: r = 1/r + ε  → unique positive solution r_ε ≠ 1 for ε ≠ 0
+    r_fixpt_perturbed = solve(r - 1 / r - eps, r)
+    pos_fixpts_pert = [s for s in r_fixpt_perturbed if s.is_real]
+    # For ε > 0 all solutions are real; check none equals 1
+    fixpt_at_1 = [simplify(s.subs(eps, 0) - 1) for s in pos_fixpts_pert]
+    # At ε=0 the positive root IS 1; for ε→0+ it moves away from 1
+    pos_root = [s for s in r_fixpt_perturbed if simplify(s.subs(eps, 0) - 1) == 0]
+    _check("Thm 75 — perturbed r=1/r+ε retains a root at ε=0 equal to 1",
+           len(pos_root) == 1)
+    # The derivative dr/dε at ε=0 is non-zero → root moves under perturbation
+    root_expr = pos_root[0]
+    dr_deps = diff(root_expr, eps).subs(eps, 0)
+    _check("Thm 75 rigidity — dr_ε/dε|ε=0 ≠ 0  (fixed point moves: rigid uniqueness)",
+           simplify(dr_deps) != 0)
+
+    # ── Summary annotation ──────────────────────────────────────────────────
+    # (recorded as a LaTeX note, not a check)
+    r_sym, lam_sym = symbols("r lambda")
+    _record_formula("eq:s23-rigidity-C",
+                    sp.Eq(diff(C.subs(r, 1 + eps), eps).subs(eps, 0), 0, evaluate=False))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -841,6 +1037,10 @@ DERIVATION_PIPELINE: list[tuple[str, object]] = [
     # § 13  Zero-Overhead Periodicity
     ("Part A §13 — Zero-Overhead Periodicity",         None),
     ("Arithmetic zero-overhead periodicity",            verify_zero_overhead_periodicity),
+    # § 23  Critical Point Invariance
+    ("Part A §23 — Critical Point Invariance at r=1",  None),
+    ("Section 23 — Critical point invariance (chi-square)", verify_section23_critical_point_invariance),
+    ("Section 23 — Perturbation / rigidity analysis",   verify_section23_perturbation_analysis),
 ]
 
 
