@@ -13,7 +13,8 @@ formal-lean/
 ├── lakefile.lean          # Lake project config; declares Mathlib dependency
 ├── lean-toolchain         # Pins the exact Lean 4 version
 ├── Main.lean              # Executable entry point (prints verified theorems)
-├── CriticalEigenvalue.lean # Formalized theorems (see §Contents below)
+├── CriticalEigenvalue.lean # 71 theorems on eigenvalue/coherence structure
+├── TimeCrystal.lean        # 20 theorems on discrete time crystal theory
 └── README.md              # This file
 ```
 
@@ -78,6 +79,7 @@ lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
 All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
+All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -240,6 +242,85 @@ All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proof
 | 69 | `orbit_decoherence_rate` | C(rⁿ) ≤ 2/rⁿ — explicit decay bound |
 | 70 | `mu_inv_eq_pow7` | μ⁷ = μ⁻¹ — inverse in the 8-cycle |
 | 71 | `palindrome_sum_zero` | Res(r)+Res(1/r)=0 — anti-symmetry sum form |
+
+---
+
+### `TimeCrystal.lean`
+
+Formalizes discrete time crystal theory: the phenomenon where a
+T-periodically driven quantum system exhibits stable oscillation with
+period 2T, spontaneously breaking discrete time-translation symmetry.
+
+**§1 Time evolution operator**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `timeEvolution_zero` | U(H, 0) = 1 — identity at t = 0 |
+| 2 | `timeEvolution_abs_one` | \|U(H,t)\| = 1 — unitarity |
+| 3 | `timeEvolution_add` | U(t+s) = U(t)·U(s) — group law |
+
+**§2 Floquet phase factor**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 4 | `floquetPhase_abs_one` | \|e^{−iφ}\| = 1 — unit circle |
+| 5 | `floquetPhase_add` | e^{−i(φ₁+φ₂)} = e^{−iφ₁}·e^{−iφ₂} — composition |
+| 6 | `floquetPhase_zero` | e^{−i·0} = 1 — trivial phase |
+| 7 | `floquetPhase_two_pi` | e^{−i·2π} = 1 — full cycle |
+| 8 | `floquetPhase_pi` | e^{−iπ} = −1 — Euler half-cycle |
+| 9 | `floquetPhase_pi_sq` | (e^{−iπ})² = 1 — period-2 Floquet factor |
+
+**§3 Floquet theorem**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 10 | `floquet_iterated` | ψ(t+n·T) = e^{−i·n·φ}·ψ(t) — iterated Floquet |
+| 11 | `floquet_norm_invariant` | \|ψ(t+T)\| = \|ψ(t)\| — norm conserved per period |
+| 12 | `floquet_norm_dynamical_invariant` | \|ψ(t+n·T)\| = \|ψ(t)\| — norm is dynamical invariant |
+
+**§4 Time crystal states**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 13 | `timeCrystal_period_double` | ψ(t+2T) = ψ(t) — 2T-periodicity |
+| 14 | `timeCrystal_symmetry_breaking` | T ≠ 2T (for T ≠ 0) — distinct periods |
+| 15 | `timeCrystal_not_T_periodic` | ψ(t₀+T) ≠ ψ(t₀) when ψ(t₀) ≠ 0 |
+
+**§5 Discrete time-translation symmetry breaking**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `timeCrystalState_breaks_symmetry` | non-trivial TC state satisfies DTTS-breaking |
+| 17 | `timeCrystal_phase_not_sync` | e^{−iπ} ≠ 1 — crystal phase ≠ drive phase |
+| 18 | `timeCrystal_period_ratio` | 2T/T = 2 — period-doubling ratio |
+
+**§6 Quasi-energy and period-doubling**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 19 | `timeCrystalQuasiEnergy_phase` | ε_F · T = π — quasi-energy reconstruction |
+| 20 | `timeCrystal_period_doubling_strict` | T > 0 → T < 2T — strict period doubling |
+
+**§7 Kernel eigenvalue recipe for a time crystal**
+
+Bridges `CriticalEigenvalue.lean` (μ, C, η, δS) with the Floquet framework to
+give a six-step recipe for constructing the Kernel discrete time crystal.
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `mu_isFloquetFactor` | \|μ\| = 1 — unitarity (restate from §2) |
+| 22 | `mu_Hamiltonian_recipe` | H·T = 5π/4 → U(H,T) = μ — drive prescription |
+| 23 | `mu_driven_iterated` | ψ(t+n·T) = μⁿ·ψ(t) — iterated μ-evolution |
+| 24 | `mu_driven_norm_invariant` | \|ψ(t+T)\| = \|ψ(t)\| — 1-step norm conservation |
+| 25 | `mu_driven_norm_n` | \|ψ(t+n·T)\| = \|ψ(t)\| — n-step norm conservation |
+| 26 | `mu_driven_8period` | ψ(t+8T) = ψ(t) — 8-fold periodicity from μ^8=1 |
+| 27 | `mu_ne_one` | μ ≠ 1 — non-trivial drive (uses mu_powers_distinct) |
+| 28 | `mu_driven_not_T_periodic` | ψ(t₀+T) ≠ ψ(t₀) — not T-periodic |
+| 29 | `mu_driven_breaks_symmetry` | (∃t, ψ(t+T)≠ψ(t)) ∧ (∀t, ψ(t+8T)=ψ(t)) |
+| 30 | `mu_crystal_max_coherence` | C(1) = 1 — maximal coherence at amplitude ratio 1 |
+| 31 | `mu_crystal_coherence_stability` | C(\|ψ(t+nT)\|/\|ψ(t)\|) = 1 — coherence maintained |
+| 32 | `mu_crystal_canonical_init` | η²+normSq(μ·η)=1 — canonical normalization |
+| 33 | `mu_crystal_silver_coherence` | C(δS) = η — silver ratio equals canonical amplitude |
 
 ---
 
