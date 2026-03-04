@@ -79,7 +79,7 @@ lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
 All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
-All 20 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
+All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -300,6 +300,27 @@ period 2T, spontaneously breaking discrete time-translation symmetry.
 |---|---------|-------------|
 | 19 | `timeCrystalQuasiEnergy_phase` | ε_F · T = π — quasi-energy reconstruction |
 | 20 | `timeCrystal_period_doubling_strict` | T > 0 → T < 2T — strict period doubling |
+
+**§7 Kernel eigenvalue recipe for a time crystal**
+
+Bridges `CriticalEigenvalue.lean` (μ, C, η, δS) with the Floquet framework to
+give a six-step recipe for constructing the Kernel discrete time crystal.
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `mu_isFloquetFactor` | \|μ\| = 1 — unitarity (restate from §2) |
+| 22 | `mu_Hamiltonian_recipe` | H·T = 5π/4 → U(H,T) = μ — drive prescription |
+| 23 | `mu_driven_iterated` | ψ(t+n·T) = μⁿ·ψ(t) — iterated μ-evolution |
+| 24 | `mu_driven_norm_invariant` | \|ψ(t+T)\| = \|ψ(t)\| — 1-step norm conservation |
+| 25 | `mu_driven_norm_n` | \|ψ(t+n·T)\| = \|ψ(t)\| — n-step norm conservation |
+| 26 | `mu_driven_8period` | ψ(t+8T) = ψ(t) — 8-fold periodicity from μ^8=1 |
+| 27 | `mu_ne_one` | μ ≠ 1 — non-trivial drive (uses mu_powers_distinct) |
+| 28 | `mu_driven_not_T_periodic` | ψ(t₀+T) ≠ ψ(t₀) — not T-periodic |
+| 29 | `mu_driven_breaks_symmetry` | (∃t, ψ(t+T)≠ψ(t)) ∧ (∀t, ψ(t+8T)=ψ(t)) |
+| 30 | `mu_crystal_max_coherence` | C(1) = 1 — maximal coherence at amplitude ratio 1 |
+| 31 | `mu_crystal_coherence_stability` | C(\|ψ(t+nT)\|/\|ψ(t)\|) = 1 — coherence maintained |
+| 32 | `mu_crystal_canonical_init` | η²+normSq(μ·η)=1 — canonical normalization |
+| 33 | `mu_crystal_silver_coherence` | C(δS) = η — silver ratio equals canonical amplitude |
 
 ---
 
