@@ -793,6 +793,87 @@ def verify_zero_overhead_periodicity() -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# § 23  Critical Point Invariance at r = 1 (chi-square characterisation)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def verify_section23_critical_point_invariance() -> None:
+    """Section 23 — Four invariants jointly characterising r=1 as chi-square critical point.
+
+    Mirrors the four Lean theorems 72–75 in CriticalEigenvalue.lean §23.
+    Each check uses exact SymPy arithmetic so the suite is fully symbolic.
+    NIST DLMF references are cited inline.
+    """
+    _subsection("Section 23 — Critical Point Invariance at r = 1")
+    r = symbols("r", positive=True)
+    delta_S = 1 + sqrt(2)
+
+    # Helpers: C(r), Res(r), λ(r)
+    C = 2 * r / (1 + r**2)
+    Res_r = (r - 1 / r) / delta_S
+
+    # ── Theorem 72 critical_point_simultaneous ──────────────────────────────
+    # C(1) = 1  ∧  Res(1) = 0
+    # Corollary of simultaneous_break at r=1.
+    # NIST DLMF §4.12.2
+    C_at_1 = simplify(C.subs(r, 1))
+    Res_at_1 = simplify(Res_r.subs(r, 1))
+    _check("Thm 72 — C(1) = 1  [critical_point_simultaneous]", C_at_1 == 1)
+    _check("Thm 72 — Res(1) = 0  [critical_point_simultaneous]", Res_at_1 == 0)
+    C_sym, Res_sym = symbols(r"C \mathrm{Res}")
+    _record_formula("eq:s23-simult", Eq(C_sym, 1, evaluate=False))
+
+    # ── Theorem 73 critical_pythagorean_at_one ──────────────────────────────
+    # C(1)² + ((1²−1)/(1+1²))² = 1
+    # Pythagorean identity: at r=1 the imbalance term (r²−1)/(1+r²) = 0,
+    # so the identity reduces to C(1)² = 1.
+    # Under r = tan θ: C = sin 2θ, (r²−1)/(1+r²) = −cos 2θ → sin²+cos²=1.
+    # NIST DLMF §4.21.1: sin²z + cos²z = 1.
+    imbalance = (1**2 - 1) / (1 + 1**2)
+    pyth_lhs = C_at_1**2 + imbalance**2
+    _check("Thm 73 — C(1)²+imbalance(1)²=1  [critical_pythagorean_at_one]",
+           simplify(pyth_lhs - 1) == 0)
+    # Symbolic Pythagorean check for general r
+    imbalance_sym = (r**2 - 1) / (1 + r**2)
+    pyth_sym = simplify(C**2 + imbalance_sym**2 - 1)
+    _check("Thm 73 — C(r)²+((r²−1)/(1+r²))²=1 for all r>0", pyth_sym == 0)
+    r_sym = symbols("r", positive=True)
+    _record_formula("eq:s23-pyth",
+                    Eq(C**2 + imbalance_sym**2, 1, evaluate=False))
+
+    # ── Theorem 74 critical_lyapunov_at_zero ────────────────────────────────
+    # C(exp(0)) = (cosh(0))⁻¹
+    # exp(0)=1, cosh(0)=1, so both sides equal 1.
+    # Identity sech(x) = (cosh x)⁻¹: NIST DLMF §4.28.2.
+    # cosh(0) = 1: NIST DLMF §4.35.3.
+    lam = symbols(r"\lambda", real=True)
+    C_hyp = C.subs(r, exp(lam))          # C(e^λ) = 2e^λ/(1+e^{2λ}) = sech(λ)
+    sech_lam = 1 / cosh(lam)
+    lyap_id = simplify(C_hyp.rewrite(exp) - sech_lam.rewrite(exp))
+    _check("Thm 74 — C(e^λ) = sech(λ) for all real λ  [lyapunov_coherence_sech]",
+           lyap_id == 0)
+    lyap_at_0 = simplify(C.subs(r, exp(0)) - 1 / cosh(sp.Integer(0)))
+    _check("Thm 74 — C(exp 0) = (cosh 0)⁻¹  [critical_lyapunov_at_zero]",
+           lyap_at_0 == 0)
+    _record_formula("eq:s23-lyap",
+                    Eq(C_hyp, sech_lam, evaluate=False))
+
+    # ── Theorem 75 critical_recip_unique_fixpt ──────────────────────────────
+    # r = 1/r  ⟺  r = 1  (for r > 0)
+    # Equivalently r² = 1 with r > 0 has unique solution r = 1.
+    # NIST DLMF §4.6.1.
+    fixpt_solutions = solve(r - 1 / r, r)          # solve over reals (positive assumption)
+    pos_fixpts = [s for s in fixpt_solutions if s.is_positive]
+    _check("Thm 75 — unique positive fixed point of r↦1/r is r=1  [critical_recip_unique_fixpt]",
+           pos_fixpts == [S.One])
+    r2_solutions = solve(r**2 - 1, r)
+    pos_r2 = [s for s in r2_solutions if s.is_positive]
+    _check("Thm 75 — r²=1, r>0  ⟹  r=1  (NIST DLMF §4.6.1)",
+           pos_r2 == [S.One])
+    _record_formula("eq:s23-fixpt",
+                    Eq(r, 1 / r, evaluate=False))
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Main runner
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -841,6 +922,9 @@ DERIVATION_PIPELINE: list[tuple[str, object]] = [
     # § 13  Zero-Overhead Periodicity
     ("Part A §13 — Zero-Overhead Periodicity",         None),
     ("Arithmetic zero-overhead periodicity",            verify_zero_overhead_periodicity),
+    # § 23  Critical Point Invariance
+    ("Part A §23 — Critical Point Invariance at r=1",  None),
+    ("Section 23 — Critical point invariance (chi-square)", verify_section23_critical_point_invariance),
 ]
 
 
