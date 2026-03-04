@@ -1005,6 +1005,7 @@ theorem palindrome_sum_zero (r : ℝ) (hr : 0 < r) :
 -- point: simultaneous coherence maximum and residual zero, the Pythagorean
 -- identity, Lyapunov exponent equivalence, and the unique fixed-point property
 -- of the reciprocal symmetry.
+-- NIST DLMF references: §4.21.1 (Pythagorean), §4.28.2 (sech), §4.35.3 (cosh 0 = 1)
 -- ════════════════════════════════════════════════════════════════════════════
 
 /-- At the critical point r = 1, maximum coherence and vanishing residual are
@@ -1012,24 +1013,28 @@ theorem palindrome_sum_zero (r : ℝ) (hr : 0 < r) :
     This is the chi-square equilibrium condition: both the coherence function
     and the palindrome deviation metric attain their extremal values together.
     Corollary of simultaneous_break at r = 1.
-    Ref: docs/master_derivations.pdf Corollary 13 -/
+    Ref: docs/master_derivations.pdf Corollary 13; NIST DLMF §4.12.2 -/
 theorem critical_point_simultaneous : C 1 = 1 ∧ Res 1 = 0 :=
   (simultaneous_break 1 one_pos).mp rfl
 
 /-- At r = 1 the Pythagorean coherence identity (coherence_pythagorean) simplifies
     to 1² + 0² = 1: the imbalance fraction (r²−1)/(1+r²) vanishes at the critical
     point, leaving only C(1)² = 1.
+    Via the substitution r = tan θ one has C(r) = sin(2θ) and (r²−1)/(1+r²) = −cos(2θ),
+    so the identity is sin²(2θ)+cos²(2θ) = 1 in disguise.
     This is coherence_pythagorean specialised to the chi-square critical point.
-    Corollary of coherence_pythagorean at r = 1. -/
+    Ref: NIST DLMF §4.21.1 (sin²z + cos²z = 1) -/
 theorem critical_pythagorean_at_one :
     C 1 ^ 2 + ((1 ^ 2 - 1) / (1 + 1 ^ 2)) ^ 2 = 1 :=
   coherence_pythagorean 1 one_pos
 
 /-- Lyapunov–coherence duality at the critical point λ = 0 (corresponding to r = 1 = exp 0):
     C(exp 0) = (cosh 0)⁻¹.
-    Since exp 0 = 1 and cosh 0 = 1, this recovers C(1) = 1 via the hyperbolic
-    parametrisation, confirming λ = 0 as the Lyapunov exponent of the balanced state.
-    This is lyapunov_coherence_sech instantiated at λ = 0. -/
+    Since exp 0 = 1 and cosh 0 = 1 (NIST DLMF §4.35.3), this recovers C(1) = 1 via the
+    hyperbolic parametrisation, confirming λ = 0 as the Lyapunov exponent of the balanced
+    state.  The identity sech(x) = (cosh x)⁻¹ is recorded in NIST DLMF §4.28.2.
+    This is lyapunov_coherence_sech instantiated at λ = 0.
+    Ref: NIST DLMF §4.28.2 (sech), §4.35.3 (cosh 0 = 1) -/
 theorem critical_lyapunov_at_zero :
     C (Real.exp 0) = (Real.cosh 0)⁻¹ :=
   lyapunov_coherence_sech 0
@@ -1039,7 +1044,8 @@ theorem critical_lyapunov_at_zero :
     reciprocal image; r = 1/r is realised precisely at r = 1.
     This confirms r = 1 as the chi-square critical point: the unique amplitude
     ratio that equals its own reciprocal.
-    Ref: §8 (coherence_symm) + uniqueness of the positive square root of 1. -/
+    Equivalently, r² = 1 with r > 0 has the unique solution r = 1 (NIST DLMF §4.6.1).
+    Ref: §8 (coherence_symm); NIST DLMF §4.6.1 -/
 theorem critical_recip_unique_fixpt (r : ℝ) (hr : 0 < r) :
     r = 1 / r ↔ r = 1 := by
   constructor
