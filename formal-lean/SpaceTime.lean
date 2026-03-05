@@ -20,6 +20,8 @@
     4.  Reality-grounded time crystal states
     5.  Consistency with the TimeCrystal Floquet framework
         (periodicity, symmetry breaking, quasi-energy)
+    6.  The positive imaginary axis as space — the spatial embedding
+        iSpace s = i·s, its geometry, algebra, and Floquet properties
 
   The key consistency results show that any reality-grounded time crystal state
   inherits the full suite of Floquet-theory guarantees proved in TimeCrystal.lean:
@@ -32,6 +34,8 @@
   2.  The reality function and its properties
   3.  Reality-grounded time crystal states
   4.  Quasi-energy and Floquet structure in the reality framework
+  5.  The observer's reality as a canonical map F(s, t) = t + i·s
+  6.  The positive imaginary axis as space
 
   Proof status
   ────────────
@@ -348,6 +352,137 @@ theorem F_timeEvolution_unitary (H s t : ℝ) :
 theorem F_floquetPhase_unit (s t : ℝ) :
     Complex.abs (floquetPhase (F s t).im) = 1 := by
   rw [F_im]
+  exact floquetPhase_abs_one s
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 6 — The Positive Imaginary Axis as Space
+-- The spatial embedding iSpace s = i·s places every physical coordinate s > 0
+-- on the positive imaginary axis of ℂ, the unique ray orthogonal to the time
+-- axis.  This section develops the geometry and algebra of that ray and
+-- connects it to the Floquet phase structure.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- The positive imaginary axis in ℂ: complex numbers with zero real part and
+    strictly positive imaginary part.
+
+    This is the image of spaceDomain under the spatial embedding s ↦ i·s.
+    It is the unique ray in ℂ that is orthogonal to the negative real axis
+    (the time axis) and carries only positive imaginary values. -/
+def posImagAxis : Set ℂ := {z | z.re = 0 ∧ 0 < z.im}
+
+/-- The spatial embedding: every physical spatial coordinate s > 0 is placed
+    on the positive imaginary axis as the complex number i·s.
+
+        iSpace s  =  i · s  ∈  ℂ
+
+    Multiplying by i is a 90° rotation in ℂ: it carries the positive real line
+    (raw spatial magnitudes) onto the positive imaginary axis, making space and
+    time maximally orthogonal within the complex plane. -/
+def iSpace (s : ℝ) : ℂ := Complex.I * ↑s
+
+/-- The real part of the spatial embedding is zero: i·s has no time component.
+    Space and time do not interfere in the real direction. -/
+theorem iSpace_re (s : ℝ) : (iSpace s).re = 0 := by
+  simp [iSpace, Complex.mul_re, Complex.I_re, Complex.I_im,
+        Complex.ofReal_re, Complex.ofReal_im]
+
+/-- The imaginary part of the spatial embedding equals the coordinate: Im(i·s) = s.
+    The imaginary axis carries the spatial coordinate exactly and faithfully. -/
+theorem iSpace_im (s : ℝ) : (iSpace s).im = s := by
+  simp [iSpace, Complex.mul_im, Complex.I_re, Complex.I_im,
+        Complex.ofReal_re, Complex.ofReal_im]
+
+/-- The modulus of the spatial embedding equals the norm of the coordinate:
+        |i·s| = ‖s‖.
+    Multiplying by i is an isometry — it preserves lengths. -/
+theorem iSpace_abs (s : ℝ) : Complex.abs (iSpace s) = ‖s‖ := by
+  simp only [iSpace, map_mul, Complex.abs_I, Complex.abs_ofReal, one_mul, Real.norm_eq_abs]
+
+/-- For a spatial coordinate s ∈ spaceDomain (s > 0), the modulus of the
+    spatial embedding equals s itself: |i·s| = s. -/
+theorem iSpace_abs_pos (s : ℝ) (hs : s ∈ spaceDomain) :
+    Complex.abs (iSpace s) = s := by
+  rw [iSpace_abs, Real.norm_eq_abs, abs_of_pos hs]
+
+/-- The spatial embedding preserves positivity: s ∈ spaceDomain → Im(i·s) > 0.
+    Every physical spatial coordinate maps to the strictly positive imaginary
+    half-axis. -/
+theorem iSpace_pos_im (s : ℝ) (hs : s ∈ spaceDomain) : 0 < (iSpace s).im := by
+  rw [iSpace_im]; exact hs
+
+/-- Every spatial coordinate maps into the positive imaginary axis:
+        s ∈ spaceDomain  →  i·s ∈ posImagAxis. -/
+theorem iSpace_mem_posImagAxis (s : ℝ) (hs : s ∈ spaceDomain) :
+    iSpace s ∈ posImagAxis :=
+  ⟨iSpace_re s, iSpace_pos_im s hs⟩
+
+/-- The spatial embedding is injective: i·s₁ = i·s₂ → s₁ = s₂.
+    Distinct spatial positions map to distinct points on the imaginary axis. -/
+theorem iSpace_injective (s₁ s₂ : ℝ) (h : iSpace s₁ = iSpace s₂) : s₁ = s₂ := by
+  have him : (iSpace s₁).im = (iSpace s₂).im := by rw [h]
+  rwa [iSpace_im, iSpace_im] at him
+
+/-- The spatial embedding is additive: i·(s₁ + s₂) = i·s₁ + i·s₂.
+    Two spatial coordinates combine linearly under the embedding. -/
+theorem iSpace_add (s₁ s₂ : ℝ) : iSpace (s₁ + s₂) = iSpace s₁ + iSpace s₂ := by
+  simp [iSpace, ofReal_add, mul_add]
+
+/-- The spatial embedding respects real scaling: i·(r·s) = r·(i·s).
+    Scaling a spatial coordinate scales its embedded image by the same factor. -/
+theorem iSpace_smul (r s : ℝ) : iSpace (r * s) = ↑r * iSpace s := by
+  unfold iSpace; push_cast; ring
+
+/-- The space domain is closed under addition: s₁, s₂ > 0 → s₁ + s₂ > 0.
+    Combining two physical spatial extents gives a physical spatial extent. -/
+theorem spaceDomain_add (s₁ s₂ : ℝ) (h₁ : s₁ ∈ spaceDomain) (h₂ : s₂ ∈ spaceDomain) :
+    s₁ + s₂ ∈ spaceDomain :=
+  add_pos h₁ h₂
+
+/-- The space domain is closed under positive scaling: r > 0, s > 0 → r·s > 0.
+    Scaling a physical spatial extent by a positive factor stays physical. -/
+theorem spaceDomain_smul (r s : ℝ) (hr : 0 < r) (hs : s ∈ spaceDomain) :
+    r * s ∈ spaceDomain :=
+  mul_pos hr hs
+
+/-- Every element of the space domain is non-zero: s ∈ spaceDomain → s ≠ 0. -/
+theorem spaceDomain_ne_zero (s : ℝ) (hs : s ∈ spaceDomain) : s ≠ 0 :=
+  hs.ne'
+
+/-- The spatial embedding of a spatial coordinate is non-zero:
+        s ∈ spaceDomain  →  i·s ≠ 0.
+    Physical spatial position is never the zero complex number. -/
+theorem iSpace_ne_zero (s : ℝ) (hs : s ∈ spaceDomain) : iSpace s ≠ 0 := by
+  intro h
+  have : (iSpace s).im = 0 := by rw [h]; simp
+  rw [iSpace_im] at this
+  exact absurd this hs.ne'
+
+/-- The observer's reality decomposes into independent time and space parts:
+        F(s, t)  =  ↑t  +  iSpace s.
+
+    The real part ↑t is the pure time contribution; the imaginary part iSpace s
+    is the pure space contribution.  They sum without cross-contamination. -/
+theorem F_decomp (s t : ℝ) : F s t = ↑t + iSpace s := by
+  simp [F, reality, iSpace]
+
+/-- Time and space are orthogonal within F: the space component has zero real
+    part and the time component has zero imaginary part.
+
+        Re(iSpace s) = 0   and   Im(↑t) = 0.
+
+    The two axes of observer reality are mutually transparent to each other. -/
+theorem space_time_orthogonal (s t : ℝ) :
+    (iSpace s).re = 0 ∧ ((↑t : ℂ)).im = 0 :=
+  ⟨iSpace_re s, Complex.ofReal_im t⟩
+
+/-- The Floquet phase factor at the imaginary part of the spatial embedding
+    has unit modulus: |e^{−i·Im(i·s)}| = |e^{−is}| = 1.
+
+    Space enters Floquet dynamics entirely as a pure phase rotation.  The
+    observer's position in space never changes the amplitude of any state. -/
+theorem iSpace_floquetPhase_unit (s : ℝ) :
+    Complex.abs (floquetPhase (iSpace s).im) = 1 := by
+  rw [iSpace_im]
   exact floquetPhase_abs_one s
 
 end
