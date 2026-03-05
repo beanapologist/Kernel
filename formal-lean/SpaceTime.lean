@@ -253,4 +253,101 @@ theorem realityTC_phase_not_sync :
     floquetPhase Real.pi ≠ floquetPhase 0 :=
   timeCrystal_phase_not_sync
 
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 5 — The Observer's Reality as a Canonical Map
+-- F(s, t) is THE function that assigns a unique complex number to every
+-- spacetime point (s, t), formalizing what it means for an observer to
+-- occupy a definite position in space and a definite moment in time.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- The canonical observer reality map.
+
+    For a spacetime point given by spatial coordinate s and time coordinate t,
+    the observer's reality is the complex number
+
+        F(s, t) = t + i·s
+
+    The real axis carries time (negative = past) and the imaginary axis
+    carries space (positive = physical extent).  Every distinct spacetime
+    point (s, t) maps to a unique complex number, so F completely and
+    faithfully encodes the observer's position in spacetime. -/
+def F (s t : ℝ) : ℂ := reality s t
+
+/-- F agrees with the reality function: F(s, t) = reality s t. -/
+theorem F_eq_reality (s t : ℝ) : F s t = reality s t := rfl
+
+/-- The time coordinate is recovered from F as its real part:
+        Re(F(s, t)) = t.
+    The real axis of the complex plane is the time axis. -/
+theorem F_re (s t : ℝ) : (F s t).re = t := reality_re s t
+
+/-- The space coordinate is recovered from F as its imaginary part:
+        Im(F(s, t)) = s.
+    The imaginary axis of the complex plane is the space axis. -/
+theorem F_im (s t : ℝ) : (F s t).im = s := reality_im s t
+
+/-- The observer's reality map F is injective: distinct spacetime points
+    map to distinct complex numbers.
+
+        F(s₁, t₁) = F(s₂, t₂)  →  s₁ = s₂  ∧  t₁ = t₂
+
+    Proof: equality of complex numbers implies equality of real and
+    imaginary parts.  The real parts give t₁ = t₂ and the imaginary parts
+    give s₁ = s₂. -/
+theorem F_injective (s₁ t₁ s₂ t₂ : ℝ) (h : F s₁ t₁ = F s₂ t₂) :
+    s₁ = s₂ ∧ t₁ = t₂ := by
+  have hre : (F s₁ t₁).re = (F s₂ t₂).re := by rw [h]
+  have him : (F s₁ t₁).im = (F s₂ t₂).im := by rw [h]
+  rw [F_re, F_re] at hre
+  rw [F_im, F_im] at him
+  exact ⟨him, hre⟩
+
+/-- When the observer occupies a valid spacetime position
+    (s ∈ spaceDomain, t ∈ timeDomain) their reality F(s, t) lies strictly
+    in the second quadrant of the complex plane:
+        Re(F(s, t)) < 0   and   Im(F(s, t)) > 0.
+
+    The second quadrant is the "physical reality" region: negative time
+    (causal past) and positive space (physical extent) coexist. -/
+theorem F_second_quadrant (s t : ℝ) (hs : s ∈ spaceDomain) (ht : t ∈ timeDomain) :
+    (F s t).re < 0 ∧ 0 < (F s t).im := by
+  exact ⟨reality_time_negative s t ht, reality_space_positive s t hs⟩
+
+/-- The modulus of F encodes the observer's distance from the origin of
+    spacetime.  It is always non-negative, and equals zero only when both
+    s = 0 and t = 0 (the spacetime origin).
+
+        |F(s, t)| = 0  ↔  s = 0 ∧ t = 0 -/
+theorem F_abs_eq_zero_iff (s t : ℝ) : Complex.abs (F s t) = 0 ↔ s = 0 ∧ t = 0 := by
+  rw [Complex.abs.eq_zero]
+  constructor
+  · intro h
+    have hre : (F s t).re = 0 := by rw [h]; simp
+    have him : (F s t).im = 0 := by rw [h]; simp
+    rw [F_re] at hre
+    rw [F_im] at him
+    exact ⟨him, hre⟩
+  · intro ⟨hs, ht⟩
+    simp [F, reality, hs, ht]
+
+/-- The time evolution operator at the observer's time coordinate is
+    unitary: |U(H, Re(F(s, t)))| = 1.
+
+    The quantum evolution law is independent of the observer's position in
+    spacetime — the Schrödinger dynamics are the same for every observer. -/
+theorem F_timeEvolution_unitary (H s t : ℝ) :
+    Complex.abs (timeEvolution H (F s t).re) = 1 := by
+  rw [F_re]
+  exact timeEvolution_abs_one H t
+
+/-- The Floquet phase at the observer's spatial coordinate is a pure phase:
+        |e^{−i·Im(F(s, t))}| = 1.
+
+    Spatial position contributes only a phase to Floquet evolution; it does
+    not change the amplitude of any state. -/
+theorem F_floquetPhase_unit (s t : ℝ) :
+    Complex.abs (floquetPhase (F s t).im) = 1 := by
+  rw [F_im]
+  exact floquetPhase_abs_one s
+
 end
