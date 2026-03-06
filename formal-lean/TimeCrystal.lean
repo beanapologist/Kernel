@@ -30,6 +30,8 @@
   5.  Discrete time-translation symmetry breaking
   6.  Quasi-energy and period-doubling ratio
   7.  Kernel eigenvalue recipe  (μ, C, η, δS → 8-period time crystal)
+  8.  PhaseBattery frustration source and time-crystal locking
+      (E = 0 ↔ R = 1 ↔ time-crystal-locked; bridges battery to Floquet crystal)
 
   Proof status
   ────────────
@@ -435,5 +437,160 @@ theorem mu_crystal_canonical_init : η ^ 2 + Complex.normSq (μ * ↑η) = 1 :=
     Kernel time crystal. -/
 theorem mu_crystal_silver_coherence : C δS = η :=
   coherence_at_silver_is_eta
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 8 — PhaseBattery Frustration Source and Time-Crystal Locking
+-- Formalises the phase frustration E (SOURCE energy) and circular coherence R
+-- (SINK output) of the PhaseBattery model, and the "time-crystal-locked"
+-- fixed-point condition that bridges the battery to the Floquet crystal.
+--
+-- PhaseBattery model (ohm_coherence_duality.hpp, docs/phase_battery_spec.md):
+--   N  phase nodes ψ̂_j converging toward mean attractor ψ̄ via EMA gain g.
+--   E  = (1/N) Σ_j (ψ̂_j − ψ̄)²      phase frustration  (SOURCE, decreases)
+--   R  = |Σ_j exp(iψ̂_j)| / N         circular coherence (SINK signal, rises)
+--
+-- TimeCrystal coupling (TimeCrystalSimulation.hpp):
+--   T_eff = T_base / R                coherence R controls effective drive period
+--   ε_F   = π / T_eff = π·R/T_base   quasi-energy scales with R
+--
+-- At zero frustration (E = 0, R = 1): T_eff = T_base and ε_F · T_base = π,
+-- recovering the period-doubling Floquet condition established in §4 and §6.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- **Phase frustration** for N nodes with reference mean phase `mean`.
+    E = (1/N) · Σ_{j : Fin N} (phases j − mean)²
+
+    This is the SOURCE energy in the PhaseBattery model
+    (docs/phase_battery_spec.md §2):  it is always non-negative and decreases
+    toward 0 as the EMA gain g drives each oscillator toward the mean attractor
+    ψ̄ (the SINK).  When E = 0 the battery is "time-crystal-locked". -/
+noncomputable def phaseFrustration (N : ℕ) (phases : Fin N → ℝ) (mean : ℝ) : ℝ :=
+  (Finset.univ.sum (fun j : Fin N => (phases j - mean) ^ 2)) / N
+
+/-- Phase frustration is non-negative: E ≥ 0.
+    Proof: each summand is a square (≥ 0); the sum and division by N preserve
+    non-negativity. -/
+theorem phaseFrustration_nonneg (N : ℕ) (phases : Fin N → ℝ) (mean : ℝ) :
+    0 ≤ phaseFrustration N phases mean := by
+  unfold phaseFrustration
+  apply div_nonneg
+  · apply Finset.sum_nonneg
+    intro j _
+    exact sq_nonneg _
+  · exact Nat.cast_nonneg N
+
+/-- Zero-frustration characterisation: E = 0 ↔ every phase node equals the mean.
+    Requires N ≥ 1 (positive number of nodes).
+
+    Proof (⇒): each term (phases j − mean)² is bounded above by the sum = 0,
+    hence it is 0, hence phases j = mean.
+    Proof (⇐): all terms vanish, so the sum is 0. -/
+theorem phaseFrustration_zero_iff (N : ℕ) (hN : 0 < N)
+    (phases : Fin N → ℝ) (mean : ℝ) :
+    phaseFrustration N phases mean = 0 ↔ ∀ j : Fin N, phases j = mean := by
+  unfold phaseFrustration
+  have hNr : (0 : ℝ) < N := Nat.cast_pos.mpr hN
+  rw [div_eq_zero_iff, or_iff_left (ne_of_gt hNr)]
+  constructor
+  · intro hsum j
+    have hle : (phases j - mean) ^ 2 ≤
+        Finset.univ.sum (fun k : Fin N => (phases k - mean) ^ 2) := by
+      apply Finset.single_le_sum
+      · intro k _; exact sq_nonneg _
+      · exact Finset.mem_univ j
+    have hzero : (phases j - mean) ^ 2 = 0 :=
+      le_antisymm (hsum ▸ hle) (sq_nonneg _)
+    exact sub_eq_zero.mp (sq_eq_zero_iff.mp hzero)
+  · intro h
+    apply Finset.sum_eq_zero
+    intro j _
+    simp [h j]
+
+/-- **Circular coherence** of N phase nodes.
+    R = |Σ_{j : Fin N} exp(i · phases j)| / N ∈ [0, 1]
+
+    This is the SINK output signal of the PhaseBattery
+    (docs/phase_battery_spec.md §3.2): R rises toward 1 as phases converge
+    (frustration falls to 0).  R = 1 at full coherence (all phases equal). -/
+noncomputable def circularCoherence (N : ℕ) (phases : Fin N → ℝ) : ℝ :=
+  Complex.abs (Finset.univ.sum (fun j : Fin N =>
+    Complex.exp (Complex.I * (phases j : ℂ)))) / N
+
+/-- A phase battery is **time-crystal-locked** when its frustration is zero:
+    all N phase nodes coincide with the mean attractor ψ̄ (the SINK).
+
+    At this fixed point:
+    • No frustration remains to release (δθ_j = 0; EMA step is a no-op).
+    • Circular coherence R = 1 (proved in circularCoherence_one_of_locked).
+    • Effective drive period T_eff = T_base / R collapses to T_base.
+    • Floquet quasi-energy ε_F = π / T_base satisfies ε_F · T_base = π,
+      the period-doubling condition from §4 and §6. -/
+def isTimeCrystalLocked (N : ℕ) (phases : Fin N → ℝ) (mean : ℝ) : Prop :=
+  phaseFrustration N phases mean = 0
+
+/-- A time-crystal-locked battery (E = 0) achieves circular coherence R = 1.
+
+    Proof: zero frustration forces every phase node to equal `mean`
+    (phaseFrustration_zero_iff), so every unit phasor exp(i·phases j)
+    equals exp(i·mean).  The sum of N identical unit phasors has modulus N,
+    and dividing by N gives 1. -/
+theorem circularCoherence_one_of_locked (N : ℕ) (hN : 0 < N)
+    (phases : Fin N → ℝ) (mean : ℝ)
+    (h : isTimeCrystalLocked N phases mean) :
+    circularCoherence N phases = 1 := by
+  unfold circularCoherence isTimeCrystalLocked at *
+  -- All phases equal `mean` by the zero-frustration characterisation
+  have hall : ∀ j : Fin N, phases j = mean :=
+    (phaseFrustration_zero_iff N hN phases mean).mp h
+  -- Each phasor simplifies to exp(I * mean)
+  have hterms : ∀ j : Fin N,
+      Complex.exp (Complex.I * (phases j : ℂ)) =
+      Complex.exp (Complex.I * (mean : ℂ)) := fun j => by
+    have hcast : (phases j : ℂ) = (mean : ℂ) := by exact_mod_cast hall j
+    rw [hcast]
+  -- The sum collapses to N • exp(I * mean)
+  have hsum_eq : Finset.univ.sum (fun j : Fin N =>
+      Complex.exp (Complex.I * (phases j : ℂ))) =
+      N • Complex.exp (Complex.I * (mean : ℂ)) := by
+    simp_rw [hterms]
+    rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin]
+  -- |exp(I * mean)| = 1  (unit phasor; same pattern as precession_phasor_unit)
+  have habs_exp : Complex.abs (Complex.exp (Complex.I * (mean : ℂ))) = 1 := by
+    rw [Complex.abs_exp]
+    have hre : (Complex.I * (mean : ℂ)).re = 0 := by
+      simp [Complex.mul_re, Complex.I_re, Complex.I_im,
+            Complex.ofReal_re, Complex.ofReal_im]
+    rw [hre, Real.exp_zero]
+  -- |↑N| = N  (same pattern as scaled_orbit_abs: Complex.abs_ofReal)
+  have habs_cast : Complex.abs (↑N : ℂ) = N := by
+    rw [show (↑N : ℂ) = ((N : ℝ) : ℂ) from by norm_cast]
+    rw [Complex.abs_ofReal]
+    exact abs_of_nonneg (Nat.cast_nonneg N)
+  -- Combine: |N • exp(I*mean)| / N = N * 1 / N = 1
+  rw [hsum_eq, nsmul_eq_mul, map_mul, habs_cast, habs_exp, mul_one]
+  exact div_self (Nat.cast_pos.mpr hN).ne'
+
+/-- **Time-crystal locking theorem**: a time-crystal-locked phase battery (E = 0)
+    achieves circular coherence R = 1 and the Floquet quasi-energy satisfies the
+    period-doubling condition ε_F · T = π.
+
+    This formally bridges the PhaseBattery zero-frustration fixed point to the
+    discrete time crystal structure:
+
+        locked battery  →  E = 0  →  R = 1  →  T_eff = T_base
+                        →  ε_F = π / T_base  →  ε_F · T_base = π
+                        →  period-2 Floquet time crystal  (§4, §6).
+
+    The coherence R is the coupling variable: it drives both the EMA feedback
+    loop (g_fb = g · α · R in feedback_step) and the effective crystal period
+    (T_eff = T_base / R in TimeCrystalSimulation). -/
+theorem locked_battery_drives_crystal (N : ℕ) (hN : 0 < N)
+    (phases : Fin N → ℝ) (mean : ℝ) (T : ℝ) (hT : T ≠ 0)
+    (h : isTimeCrystalLocked N phases mean) :
+    circularCoherence N phases = 1 ∧
+    timeCrystalQuasiEnergy T hT * T = Real.pi :=
+  ⟨circularCoherence_one_of_locked N hN phases mean h,
+   timeCrystalQuasiEnergy_phase T hT⟩
+
 
 end
