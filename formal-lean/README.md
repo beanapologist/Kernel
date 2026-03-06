@@ -14,7 +14,7 @@ formal-lean/
 ├── lean-toolchain         # Pins the exact Lean 4 version
 ├── Main.lean              # Executable entry point (prints verified theorems)
 ├── CriticalEigenvalue.lean # 71 theorems on eigenvalue/coherence structure
-├── TimeCrystal.lean        # 20 theorems on discrete time crystal theory
+├── TimeCrystal.lean        # 37 theorems on discrete time crystal theory
 └── README.md              # This file
 ```
 
@@ -79,7 +79,7 @@ lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
 All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
-All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
+All 37 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -321,6 +321,22 @@ give a six-step recipe for constructing the Kernel discrete time crystal.
 | 31 | `mu_crystal_coherence_stability` | C(\|ψ(t+nT)\|/\|ψ(t)\|) = 1 — coherence maintained |
 | 32 | `mu_crystal_canonical_init` | η²+normSq(μ·η)=1 — canonical normalization |
 | 33 | `mu_crystal_silver_coherence` | C(δS) = η — silver ratio equals canonical amplitude |
+
+**§8 PhaseBattery frustration source and time-crystal locking**
+
+Formalises the frustration source E and circular coherence R of the
+`PhaseBattery` model (`ohm_coherence_duality.hpp`), and proves the
+`isTimeCrystalLocked` fixed-point condition that bridges the battery to
+the Floquet crystal structure.  The coupling variable is coherence R:
+it drives both the EMA feedback gain (`g_fb = g·α·R`) and the effective
+crystal period (`T_eff = T_base / R` in `TimeCrystalSimulation.hpp`).
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 34 | `phaseFrustration_nonneg` | E ≥ 0 — frustration is non-negative |
+| 35 | `phaseFrustration_zero_iff` | E = 0 ↔ ∀ j, phases j = mean — zero-frustration characterisation |
+| 36 | `circularCoherence_one_of_locked` | E = 0 → R = 1 — locked battery achieves full coherence |
+| 37 | `locked_battery_drives_crystal` | E = 0 → R = 1 ∧ ε_F·T = π — bridges battery to period-2 crystal |
 
 ---
 

@@ -67,6 +67,7 @@ if(KERNEL_BUILD_TESTS)
         test_palindrome_precession
         test_pipeline_theorems
         test_qudit_kernel
+        test_time_crystal_simulation
     )
 
     foreach(_test IN LISTS _kernel_tests)
@@ -86,6 +87,7 @@ set(_kernel_headers
     MasterEigenOracle.hpp
     PalindromePrecession.hpp
     SpectralBridge.hpp
+    TimeCrystalSimulation.hpp
     ohm_coherence_duality.hpp
 )
 

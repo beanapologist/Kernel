@@ -486,14 +486,137 @@ for (int iter = 0; iter < 10; ++iter) {
 // R converges to > 0.99 within ~4 iterations for moderate spread
 ```
 
+
 ---
 
-## 9. Related Documents
+## 10. TimeCrystal Integration
+
+`TimeCrystalSimulation` (declared in `TimeCrystalSimulation.hpp`) couples the
+`PhaseBattery` coherence engine with a discrete-time Floquet model of a time
+crystal.  The key architectural insight is:
+
+> **PhaseBattery coherence R drives the TimeCrystal's effective drive period T.**
+
+### 10.1 Coupling Rule
+
+```
+T_eff = T_base / R
+```
+
+| Scenario              | R     | T_eff            | Effect on crystal         |
+|-----------------------|-------|------------------|---------------------------|
+| Full coherence        | 1.0   | T_base           | Natural drive; period-2 crystal |
+| Partial coherence     | 0.5   | 2 · T_base       | Period elongated; phase slows   |
+| Incoherent (no lock)  | ≈ 0   | → ∞              | Drive stalls completely         |
+
+The Floquet quasi-energy scales with R:
+
+```
+ε_F = π / T_eff = π · R / T_base
+```
+
+### 10.2 Simulation Step
+
+At each discrete step the simulation:
+
+1. **Adaptive feedback** — `PhaseBattery.feedback_step(α)` runs the two-sub-step
+   update (standard EMA + coherence-amplified pass), releasing frustration `E`
+   and building coherence `R`.
+
+2. **Period recomputation** — `T_eff = T_base / R` is updated from the new `R`.
+
+3. **Floquet advance** — the crystal state `ψ ∈ ℂ` advances by:
+   ```
+   φ_eff = ε_F · T_step = π · T_step / T_eff
+   ψ ← exp(−i · φ_eff) · ψ
+   ```
+
+4. **Debug output** (when `verbose = true`) — prints `step`, `R`, `E`,
+   `T_eff`, `ε_F`, `|ψ|`, and `arg(ψ)/π` to stdout.
+
+### 10.3 Period-Doubling Time Crystal
+
+At full coherence (`R = 1`, `T_base = 1`, `T_step = 1`):
+
+```
+φ_eff = π  →  ψ ← exp(−iπ) · ψ = −ψ   (sign flip per step)
+          →  ψ(t + 2) = ψ(t)           (period-2 time crystal)
+```
+
+This is exactly the Floquet period-doubling described in `TimeCrystal.lean §4`:
+`floquetPhase_pi : floquetPhase π = −1`.
+
+### 10.4 Adaptive Amplification Link
+
+The adaptive-α mechanism in `feedback_step` provides a self-reinforcing
+coherence → period feedback:
+
+```
+α_adaptive = clamp(α + c1·ΔE + c2·ΔR,  0, 1)
+g_fb       = g · α_adaptive · R           ← scales with R
+```
+
+- As `R` rises, `g_fb` grows → sub-step 2 becomes more aggressive.
+- This accelerates convergence toward `R = 1`.
+- As `R → 1`, `T_eff → T_base` and the crystal settles at its natural period.
+
+### 10.5 Usage Example
+
+```cpp
+#include "TimeCrystalSimulation.hpp"
+using namespace kernel::ohm;
+
+// 16 oscillators, g=0.3, spread ±π/3, T_base=1.0, α=0.5, verbose output
+std::vector<double> init(16);
+for (int j = 0; j < 16; ++j)
+    init[j] = (j - 7.5) * OHM_PI / 16.0;
+
+TimeCrystalSimulation sim(16, 0.3, init, 1.0, 0.5, true);
+sim.battery.set_alpha_sensitivity(0.2, 0.1);  // adaptive α tuning
+
+TimeCrystalSimulation::print_header();
+sim.run(20);  // 20 steps: R → 1, T_eff → 1.0, period-2 crystal emerges
+
+// Final state
+double R_final   = sim.coherence();        // ≈ 1.0
+double E_final   = sim.frustration();      // ≈ 0.0
+double T_final   = sim.effective_period(); // ≈ T_base = 1.0
+double eps_F     = sim.quasi_energy();     // ≈ π / T_base
+```
+
+Console output format (one line per step):
+```
+  step    R           E           T_eff       eps_F       |psi|       arg(psi)/pi
+--------------------------------------------------------------------------------
+   1  0.812345  0.234567  1.231012  2.550123  1.000000  -0.500000
+   2  0.895678  0.143210  1.116543  2.813456  1.000000  -1.000000
+  ...
+  20  0.999912  0.000043  1.000088  3.141274  1.000000   0.000000
+```
+
+### 10.6 Key Parameter Summary
+
+| Parameter | Symbol | Meaning | Link |
+|-----------|--------|---------|------|
+| EMA gain  | `g`    | G_eff = sech(λ); rate of frustration dissipation | `g ∈ (0,1]` → stable; `g > 1` → unstable |
+| Coherence | `R`    | `|⟨e^{iψ_j}⟩|`; rises toward 1 | Drives `T_eff = T_base/R` |
+| Frustration | `E`  | `(1/N) Σ δθ_j²`; falls toward 0 | Source energy; released per step |
+| Adaptive ampl. | `α` | base feedback gain; `g_fb = g·α_adaptive·R` | `α_adaptive` scales with `ΔE`, `ΔR` via `c1`, `c2` |
+| Base period | `T_base` | Natural drive period at R=1 | Sets quasi-energy `ε_F = π/T_base` |
+| Eff. period | `T_eff` | `T_base/R`; coherence-driven | `T_eff → T_base` as `R → 1` |
+| Quasi-energy | `ε_F` | `π/T_eff`; Floquet eigenvalue | `ε_F·T_eff = π` (period-doubling condition) |
+
+---
+
+## 11. Related Documents
 
 | Document | Relation |
 |---|---|
 | `ohm_coherence_duality.hpp` | Source implementation of `PhaseBattery` (incl. debug mode, adaptive α, CSV export), `metallic_oscillating_phases`, `interaction_energy` |
+| `TimeCrystalSimulation.hpp` | Integration of PhaseBattery R with TimeCrystal Floquet dynamics |
 | `test_battery_analogy.cpp` | 51-assertion empirical proof suite (tests 1–6: base model; tests 7–9: feedback + lensing; tests 10–13: adaptive α + debug) |
+| `test_time_crystal_simulation.cpp` | 38-assertion suite validating R → T_eff coupling and period-doubling |
+| `formal-lean/TimeCrystal.lean` | Lean 4 formal proofs: Floquet theorem, period-doubling, quasi-energy (ε_F·T = π) |
 | `experiments/kernelsync_demo/grover_analogy.md` | Grover-diffusion interpretation of the EMA update |
 | `docs/scaling_laws.md` | Lyapunov exponent scaling and channel capacity |
 | `docs/B11_palindrome_precession.md` | Conserved-quantity analysis pattern reference |
