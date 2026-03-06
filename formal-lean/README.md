@@ -15,6 +15,8 @@ formal-lean/
 ├── Main.lean              # Executable entry point (prints verified theorems)
 ├── CriticalEigenvalue.lean # 71 theorems on eigenvalue/coherence structure
 ├── TimeCrystal.lean        # 20 theorems on discrete time crystal theory
+├── SpaceTime.lean          # 43 theorems on space-time unification
+├── Turbulence.lean         # 29 theorems on Navier-Stokes turbulence theory
 └── README.md              # This file
 ```
 
@@ -80,6 +82,8 @@ lake build 2>&1 | grep -E "error|warning|sorry"
 
 All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
+All 43 theorems in `SpaceTime.lean` have complete machine-checked proofs (no `sorry`).
+All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -337,9 +341,80 @@ lake build
 
 ---
 
+### `Turbulence.lean`
+
+**§1 Turbulence scale hierarchy**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `microScale_nonempty` | 1/2 ∈ microScaleDomain |
+| 2 | `mesoScale_nonempty` | 10 ∈ mesoScaleDomain |
+| 3 | `macroScale_nonempty` | 1000 ∈ macroScaleDomain |
+| 4 | `micro_lt_meso` | η ∈ micro ∧ ℓ ∈ meso → η < ℓ |
+| 5 | `meso_lt_macro` | ℓ ∈ meso ∧ L ∈ macro → ℓ < L |
+| 6 | `micro_lt_macro` | η ∈ micro ∧ L ∈ macro → η < L |
+
+**§2 Reynolds decomposition**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `reynolds_fluct_formula` | u′(t) = u(t) − ū |
+| 8 | `reynolds_decomp_canonical` | u(t) = ū + (u(t) − ū) for any ū |
+| 9 | `reynolds_decomp_unique` | same mean ū → fluctuations agree pointwise |
+| 10 | `reynolds_reconstruction` | ū + u′(t) = u(t) |
+
+**§3 Turbulent kinetic energy**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 11 | `turbulentKE_nonneg` | k(t) = ½(u′)² ≥ 0 |
+| 12 | `turbulentKE_zero_iff` | k(t) = 0 ↔ u′(t) = 0 |
+| 13 | `turbulentKE_scale` | k(c·u′) = c²·k(u′) — quadratic scaling |
+
+**§4 Multi-scale coherence**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 14 | `turbulenceCoherence_kernel_max` | C(1) = 1 — kernel scale is maximally coherent |
+| 15 | `turbulenceCoherence_micro_lt_one` | C(η) < 1 for η ∈ microScaleDomain |
+| 16 | `turbulenceCoherence_macro_lt_one` | C(L) < 1 for L ∈ macroScaleDomain |
+| 17 | `turbulenceCoherence_micro_strictMono` | 0 < η₁ < η₂ ≤ 1 → C(η₁) < C(η₂) |
+| 18 | `turbulenceCoherence_macro_strictAnti` | 1 ≤ L₁ < L₂ → C(L₂) < C(L₁) |
+
+**§5 Navier-Stokes viscous dissipation**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 19 | `viscousDissipation_nonneg` | ε(ν,g) ≥ 0 for ν ≥ 0 |
+| 20 | `viscousDissipation_zero_iff` | ε(ν,g) = 0 ↔ g = 0 (for ν > 0) |
+| 21 | `viscousDissipation_pos` | ε(ν,g) > 0 for ν > 0 and g ≠ 0 |
+| 22 | `viscousDissipation_mono_viscosity` | ν₁ < ν₂ ∧ g ≠ 0 → ε(ν₁,g) < ε(ν₂,g) |
+
+**§6 Eigenvector hypothesis**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 23 | `turbulence_rotation_unitary` | \|μ\| = 1 — turbulent rotation is unitary |
+| 24 | `turbulence_precession_8period` | μ^8 = 1 — 8-periodic turbulent precession |
+| 25 | `turbulence_eigenstate_orbit_stability` | \|(1·μ^n)\| = 1 — stable unit-amplitude orbit |
+| 26 | `turbulence_eigenstate_orbit_coherence` | C(\|1·μ\|^n) = 1 — maximum coherence on orbit |
+
+**§7 Cross-scale consistency**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 27 | `turbulence_micro_below_kernel` | C(η) < C(1) for η ∈ microScaleDomain |
+| 28 | `turbulence_macro_below_kernel` | C(L) < C(1) for L ∈ macroScaleDomain |
+| 29 | `turbulence_coherence_universal_bound` | C(r) ≤ C(1) = 1 for all r ≥ 0 |
+
+---
+
 ## References
 
 - [Lean 4 documentation](https://leanprover.github.io/lean4/doc/)
 - [Mathlib4 documentation](https://leanprover-community.github.io/mathlib4_docs/)
 - [Mathlib4 on GitHub](https://github.com/leanprover-community/mathlib4)
 - [`../docs/master_derivations.pdf`](../docs/master_derivations.pdf) — mathematical background
+- Reynolds, O. (1895). On the dynamical theory of incompressible viscous fluids. *Phil. Trans. R. Soc. A* 186, 123–164.
+- Kolmogorov, A. N. (1941). The local structure of turbulence in incompressible viscous fluid. *Dokl. Akad. Nauk SSSR* 30, 301–305.
+- Pope, S. B. (2000). *Turbulent Flows*. Cambridge University Press.
