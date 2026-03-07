@@ -14,7 +14,14 @@ formal-lean/
 ├── lean-toolchain         # Pins the exact Lean 4 version
 ├── Main.lean              # Executable entry point (prints verified theorems)
 ├── CriticalEigenvalue.lean # 71 theorems on eigenvalue/coherence structure
-├── TimeCrystal.lean        # 20 theorems on discrete time crystal theory
+├── TimeCrystal.lean        # 33 theorems on discrete time crystal theory
+├── SpaceTime.lean          # 43 theorems on space-time unification
+├── Turbulence.lean         # 29 theorems on Navier-Stokes turbulence theory
+├── FineStructure.lean      # 30 theorems on the fine structure constant α_FS
+├── ParticleMass.lean       # 38 theorems on Koide formula, proton/electron mass ratio, coherence triality
+├── OhmTriality.lean        # 24 theorems on Ohm–Coherence duality at triality scales
+├── SilverCoherence.lean    # 27 theorems: C(δS)=√2/2; uniqueness; Im(μ)=C(δS); 45°-physics
+├── KernelAxle.lean         # 20 theorems: the axle μ — gear ratio 3:8, cross-section, engine loop
 └── README.md              # This file
 ```
 
@@ -80,10 +87,15 @@ lake build 2>&1 | grep -E "error|warning|sorry"
 
 All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
+All 43 theorems in `SpaceTime.lean` have complete machine-checked proofs (no `sorry`).
+All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `sorry`).
+All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no `sorry`).
+All 38 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
+All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `sorry`).
+All 27 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
+All 20 theorems in `KernelAxle.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
-
-## Contents
 
 ### `CriticalEigenvalue.lean`
 
@@ -337,9 +349,425 @@ lake build
 
 ---
 
+### `Turbulence.lean`
+
+**§1 Turbulence scale hierarchy**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `microScale_nonempty` | 1/2 ∈ microScaleDomain |
+| 2 | `mesoScale_nonempty` | 10 ∈ mesoScaleDomain |
+| 3 | `macroScale_nonempty` | 1000 ∈ macroScaleDomain |
+| 4 | `micro_lt_meso` | η ∈ micro ∧ ℓ ∈ meso → η < ℓ |
+| 5 | `meso_lt_macro` | ℓ ∈ meso ∧ L ∈ macro → ℓ < L |
+| 6 | `micro_lt_macro` | η ∈ micro ∧ L ∈ macro → η < L |
+
+**§2 Reynolds decomposition**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `reynolds_fluct_formula` | u′(t) = u(t) − ū |
+| 8 | `reynolds_decomp_canonical` | u(t) = ū + (u(t) − ū) for any ū |
+| 9 | `reynolds_decomp_unique` | same mean ū → fluctuations agree pointwise |
+| 10 | `reynolds_reconstruction` | ū + u′(t) = u(t) |
+
+**§3 Turbulent kinetic energy**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 11 | `turbulentKE_nonneg` | k(t) = ½(u′)² ≥ 0 |
+| 12 | `turbulentKE_zero_iff` | k(t) = 0 ↔ u′(t) = 0 |
+| 13 | `turbulentKE_scale` | k(c·u′) = c²·k(u′) — quadratic scaling |
+
+**§4 Multi-scale coherence**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 14 | `turbulenceCoherence_kernel_max` | C(1) = 1 — kernel scale is maximally coherent |
+| 15 | `turbulenceCoherence_micro_lt_one` | C(η) < 1 for η ∈ microScaleDomain |
+| 16 | `turbulenceCoherence_macro_lt_one` | C(L) < 1 for L ∈ macroScaleDomain |
+| 17 | `turbulenceCoherence_micro_strictMono` | 0 < η₁ < η₂ ≤ 1 → C(η₁) < C(η₂) |
+| 18 | `turbulenceCoherence_macro_strictAnti` | 1 ≤ L₁ < L₂ → C(L₂) < C(L₁) |
+
+**§5 Navier-Stokes viscous dissipation**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 19 | `viscousDissipation_nonneg` | ε(ν,g) ≥ 0 for ν ≥ 0 |
+| 20 | `viscousDissipation_zero_iff` | ε(ν,g) = 0 ↔ g = 0 (for ν > 0) |
+| 21 | `viscousDissipation_pos` | ε(ν,g) > 0 for ν > 0 and g ≠ 0 |
+| 22 | `viscousDissipation_mono_viscosity` | ν₁ < ν₂ ∧ g ≠ 0 → ε(ν₁,g) < ε(ν₂,g) |
+
+**§6 Eigenvector hypothesis**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 23 | `turbulence_rotation_unitary` | \|μ\| = 1 — turbulent rotation is unitary |
+| 24 | `turbulence_precession_8period` | μ^8 = 1 — 8-periodic turbulent precession |
+| 25 | `turbulence_eigenstate_orbit_stability` | \|(1·μ^n)\| = 1 — stable unit-amplitude orbit |
+| 26 | `turbulence_eigenstate_orbit_coherence` | C(\|1·μ\|^n) = 1 — maximum coherence on orbit |
+
+**§7 Cross-scale consistency**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 27 | `turbulence_micro_below_kernel` | C(η) < C(1) for η ∈ microScaleDomain |
+| 28 | `turbulence_macro_below_kernel` | C(L) < C(1) for L ∈ macroScaleDomain |
+| 29 | `turbulence_coherence_universal_bound` | C(r) ≤ C(1) = 1 for all r ≥ 0 |
+
+---
+
+### `FineStructure.lean`
+
+**§1 Fine structure constant  (α_FS = 1/137)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `α_FS_pos` | 0 < α_FS |
+| 2 | `α_FS_lt_one` | α_FS < 1 — weak electromagnetic coupling |
+| 3 | `α_FS_lt_one_over_hundred` | α_FS < 1/100 — perturbation theory converges |
+| 4 | `α_FS_mem_unit` | 0 < α_FS ∧ α_FS < 1 |
+| 5 | `α_FS_sq_lt` | α_FS² < α_FS — higher-order corrections are smaller |
+| 6 | `α_FS_sq_pos` | 0 < α_FS² |
+
+**§2 Fine structure energy splitting  (Δε = α_FS² · ε)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `fineStructureShift_nonneg` | Δε ≥ 0 for ε ≥ 0 |
+| 8 | `fineStructureShift_pos` | Δε > 0 for ε > 0 |
+| 9 | `fineStructureShift_lt_base` | Δε < ε — shift is a small correction |
+| 10 | `fineEnergy_gt_base` | ε_fine > ε_base for ε > 0 |
+| 11 | `fineEnergy_factor` | ε_fine = (1 + α_FS²) · ε |
+
+**§3 Rydberg (Bohr) energy levels  (E_n = −1/n²)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 12 | `rydbergEnergy_neg` | E_n < 0 — all levels are bound states |
+| 13 | `rydbergEnergy_ground_state_lowest` | E_1 ≤ E_n for all n ≥ 1 |
+| 14 | `rydbergEnergy_strictMono` | E_n < E_{n+1} — levels increase toward zero |
+| 15 | `rydbergFineEnergy_gt_base` | E_n^fine > E_n — fine structure lifts levels |
+
+**§4 Electromagnetic coherence  (C_EM(r) = (1 − α_FS) · C(r))**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `coherenceEM_le_coherence` | C_EM(r) ≤ C(r) — EM coupling reduces coherence |
+| 17 | `coherenceEM_nonneg` | C_EM(r) ≥ 0 for r ≥ 0 |
+| 18 | `coherenceEM_kernel` | C_EM(1) = 1 − α_FS — EM-corrected kernel coherence |
+| 19 | `coherenceEM_lt_kernel` | C_EM(r) < 1 − α_FS for r ≠ 1 |
+| 20 | `coherenceEM_micro_below_kernel` | C_EM(η) < C_EM(1) for η ∈ microScaleDomain |
+
+**§5 Floquet quasi-energy fine structure**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `floquetFineEnergy_gt_base` | ε_F^fine > ε_F for T > 0 |
+| 22 | `floquetFineEnergy_pos` | ε_F^fine > 0 for T > 0 |
+| 23 | `fineStructure_preserves_mu_period` | μ^8 = 1 — 8-cycle unaffected by α_FS |
+| 24 | `floquetFineEnergy_phase` | ε_F^fine · T = π · (1 + α_FS²) |
+
+**§6 Fine structure and turbulence  (MHD dissipation)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 25 | `fineStructureDissipation_nonneg` | ε_EM ≥ 0 for ε_visc ≥ 0 |
+| 26 | `fineStructureDissipation_pos` | ε_EM > 0 for ε_visc > 0 |
+| 27 | `fineStructureDissipation_lt_viscous` | ε_EM < ε_visc — EM is a minority dissipation |
+| 28 | `totalMHDDissipation_gt_viscous` | ε_total > ε_visc |
+| 29 | `totalMHDDissipation_factor` | ε_total = (1 + α_FS) · ε_visc |
+| 30 | `MHDDissipation_from_NS` | ε_total = (1 + α_FS) · ν · g² |
+
+---
+
+### `ParticleMass.lean`
+
+**Central result:** `koide_coherence_bridge : C(φ²) = 2/3` — the Koide lepton mass ratio equals the Kernel coherence function at the golden ratio scale (the μ-cycle trick).
+
+**§1 Koide quotient  (1/3 ≤ Q ≤ 1)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `koideQuotient_denom_pos` | denominator > 0 when m₁ > 0 |
+| 2 | `koideQuotient_nonneg` | Q ≥ 0 for non-negative masses |
+| 3 | `koideQuotient_lower_bound` | Q ≥ 1/3  (Cauchy-Schwarz) |
+| 4 | `koideQuotient_upper_bound` | Q ≤ 1  (non-negative cross terms) |
+
+**§2 Extremal masses**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 5 | `koideQuotient_equal_masses` | Q(m,m,m) = 1/3 — lower bound attained |
+| 6 | `koide_lower_attained` | ∃ triple (1,1,1) with Q = 1/3 |
+
+**§3 Golden ratio  φ = (1+√5)/2**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `goldenRatio_pos` | φ > 0 |
+| 8 | `goldenRatio_gt_one` | φ > 1 |
+| 9 | `goldenRatio_sq` | φ² = φ + 1 — defining equation |
+| 10 | `goldenRatio_sq_pos` | φ² > 0 |
+| 11 | `goldenRatio_fourth` | φ⁴ = 3φ + 2 |
+
+**§4 Koide-coherence bridge (μ-cycle trick)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 12 | `one_add_goldenRatio_fourth` | 1 + φ⁴ = 3φ² — key bridge identity |
+| 13 | `koide_coherence_bridge` | **C(φ²) = 2/3** — Koide value from μ-cycle coherence |
+| 14 | `koide_coherence_two_thirds_of_max` | C(φ²) = (2/3)·C(1) |
+| 15 | `koide_coherence_reciprocal` | C(1/φ²) = 2/3 — coherence symmetry |
+
+**§5 μ-orbit Koide connection**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `goldenRatio_sq_ne_one` | φ² ≠ 1 |
+| 17 | `goldenRatio_sq_meso` | φ² ∈ mesoScaleDomain [1, 100] |
+| 18 | `koide_coherence_pos` | 0 < C(φ²) = 2/3 |
+| 19 | `koide_below_mu_orbit_peak` | C(φ²) < C(1) = 1 |
+| 20 | `koide_coherence_strictly_between` | 0 < C(φ²) < 1 |
+| 21 | `mu_orbit_exceeds_koide` | C(\|μⁿ\|) = 1 > 2/3 for all n |
+
+**§6 Proton/electron mass ratio  R = 1836**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 22 | `protonElectronRatio_gt_one` | R > 1 |
+| 23 | `protonElectronRatio_gt_α_FS_inv` | 1/α_FS = 137 < R = 1836 |
+| 24 | `protonElectronRatio_gt_8cycle` | R > 8 (exceeds the μ-orbit period) |
+| 25 | `reducedMassFactor_mem_unit` | 0 < R/(R+1) < 1 |
+| 26 | `reducedMassEnergy_neg` | E_n^red < 0 — still a bound state |
+| 27 | `reducedMassEnergy_gt_rydberg` | E_n < E_n^red — recoil lifts levels |
+| 28 | `reducedMassCorrection_lt_α_FS` | 1/(R+1) < α_FS — recoil < EM coupling |
+
+**§7 Coherence Triality  (1/φ² < 1 < φ²)**
+
+The three triality scales are strictly ordered with the kernel at the geometric mean.
+Physical interpretation: **kernel @ r=1** (μ-orbit, C=1), **leptons @ r=φ²** (Koide 2/3, meso domain), **hadronic mirror @ r=1/φ²** (same coherence 2/3, micro domain).
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 29 | `goldenRatio_sq_recip_pos` | 1/φ² > 0 |
+| 30 | `goldenRatio_sq_recip_lt_one` | 1/φ² < 1 (hadronic wing below kernel) |
+| 31 | `goldenRatio_sq_recip_micro` | 1/φ² ∈ microScaleDomain (0, 1) |
+| 32 | `triality_scale_ordering` | 1/φ² < 1 < φ² — strict scale ordering |
+| 33 | `triality_geometric_mean` | (1/φ²) · φ² = 1 — kernel is the geometric mean |
+| 34 | `triality_wings_equal_coherence` | C(1/φ²) = C(φ²) = 2/3 — wings are coherence mirrors |
+| 35 | `triality_recip_below_kernel` | C(1/φ²) < C(1) = 1 |
+| 36 | `coherence_triality` | **C(1)=1  ∧  C(φ²)=2/3  ∧  C(1/φ²)=2/3** — full triality |
+| 37 | `triality_kernel_strict_max` | C(1/φ²) < C(1) ∧ C(φ²) < C(1) — kernel dominates both wings |
+| 38 | `mu_orbit_exceeds_triality_wings` | C(1/φ²) < C(\|μⁿ\|) = 1 for all n |
+
+---
+
+### `OhmTriality.lean`
+
+Applies the **Ohm–Coherence duality** (G_eff = C(r), R_eff = 1/C(r), G·R = 1) to the three triality scales simultaneously, connecting the circuit interpretation of the coherence function to the kernel/lepton/hadronic structure.
+
+All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Ohm conductance at triality scales  (G_eff = C)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `ohm_conductance_kernel` | G(1) = C(1) = 1 — perfectly conducting |
+| 2 | `ohm_conductance_lepton` | G(φ²) = C(φ²) = 2/3 — Koide coupling |
+| 3 | `ohm_conductance_hadronic` | G(1/φ²) = C(1/φ²) = 2/3 |
+| 4 | `ohm_conductance_wings_equal` | G(φ²) = G(1/φ²) — wings share conductance |
+
+**§2 Ohm resistance at triality scales  (R_eff = 1/C)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 5 | `ohm_resistance_kernel` | R(1) = (C 1)⁻¹ = 1 — unit resistance |
+| 6 | `ohm_resistance_lepton` | R(φ²) = (C φ²)⁻¹ = 3/2 |
+| 7 | `ohm_resistance_hadronic` | R(1/φ²) = (C 1/φ²)⁻¹ = 3/2 |
+| 8 | `ohm_triality_resistance` | **R_kernel=1  ∧  R_lepton=3/2  ∧  R_hadronic=3/2** |
+
+**§3 Ohm's law G·R = 1 at each triality scale**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `ohm_law_kernel` | C(1) · (C 1)⁻¹ = 1 |
+| 10 | `ohm_law_lepton` | C(φ²) · (C φ²)⁻¹ = 1 |
+| 11 | `ohm_law_hadronic` | C(1/φ²) · (C 1/φ²)⁻¹ = 1 |
+| 12 | `ohm_triality_gr` | **G·R=1 at all three triality scales** |
+
+**§4 Wing symmetry and kernel minimality**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 13 | `ohm_wings_equal_resistance` | R(φ²) = R(1/φ²) — wings have equal resistance |
+| 14 | `ohm_kernel_minimal_resistance` | R(1) = 1 < 3/2 = R(wing) — kernel is minimally resistive |
+| 15 | `ohm_kernel_maximal_conductance` | G(φ²) < G(1) — kernel maximally conducting |
+
+**§5 Lyapunov exponent at triality scales  (λ = log r)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `ohm_lyapunov_kernel` | log 1 = 0 (no decoherence at kernel) |
+| 17 | `ohm_lyapunov_lepton_pos` | 0 < log(φ²) (lepton in positive-λ regime) |
+| 18 | `ohm_lyapunov_wing_symmetry` | log(1/φ²) = −log(φ²) — symmetric wings |
+| 19 | `ohm_lyapunov_wings_same_magnitude` | \|log(φ²)\| = \|log(1/φ²)\| |
+| 20 | `ohm_lepton_lyapunov_resistance` | R(φ²) = cosh(log φ²) — Lyapunov form of resistance |
+| 21 | `ohm_lyapunov_cosh_wing_symmetry` | cosh(log 1/φ²) = cosh(log φ²) — cosh even ⟹ equal R |
+
+**§6 μ-Orbit Ohm identity**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 22 | `ohm_mu_orbit_conductance` | C(\|μⁿ\|) = 1 — perfect conductance at every orbit step |
+| 23 | `ohm_mu_orbit_unit_resistance` | (C \|μⁿ\|)⁻¹ = 1 — unit resistance throughout orbit |
+| 24 | `ohm_mu_orbit_exceeds_wings` | G_wing < C(\|μⁿ\|) = 1 — μ-orbit dominates both wings |
+
+---
+
+### `SilverCoherence.lean`
+
+A machine-checked answer to the question: **"Is there a scale `r` already present in the Kernel framework at which C(r) = 1/√2 = |Im(μ)|?"** Answer: yes — uniquely at r = δS = 1+√2, the silver ratio from the palindrome residual (§9 of `CriticalEigenvalue.lean`).
+
+All 27 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Silver-ratio coherence**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `silver_coherence` | **C(δS) = √2/2** — the main result |
+
+**§2 Algebraic consequences**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 2 | `silver_coherence_sq` | C(δS)² = 1/2 |
+| 3 | `silver_coherence_eq_imbalance` | C(δS) = (δS²−1)/(1+δS²) — isotropic/diagonal |
+| 4 | `silver_pythagorean` | 2·C(δS)² = 1 — the "45-degree point" |
+
+**§3 Connection to μ**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 5 | `mu_imaginary_part` | Im(μ) = sin(3π/4) = √2/2 |
+| 6 | `mu_im_eq_silver_coherence` | **Im(μ) = C(δS)** — bridge theorem |
+| 7 | `mu_real_part` | Re(μ) = −√2/2 |
+| 8 | `mu_re_abs_eq_silver_coherence` | \|Re(μ)\| = C(δS) — both components captured |
+
+**§4 Ohm–Coherence at the silver scale**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `silver_ohm_conductance` | G_eff(δS) = C(δS) = √2/2 |
+| 10 | `silver_ohm_resistance` | R_eff(δS) = (C δS)⁻¹ = √2 |
+| 11 | `silver_ohm_law` | C(δS) · (C δS)⁻¹ = 1 |
+
+**§5 Position in the coherence ordering**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 12 | `koide_below_silver` | C(φ²) = 2/3 < √2/2 = C(δS) |
+| 13 | `silver_below_kernel` | C(δS) < 1 = C(1) |
+| 14 | `koide_silver_kernel_ordering` | C(φ²) < C(δS) < C(1) — strict three-level ordering |
+| 15 | `mu_orbit_exceeds_silver` | C(δS) < C(\|μⁿ\|) = 1 for all n |
+
+**§6 Scale placement and symmetry**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `silver_gt_one` | 1 < δS = 1+√2 |
+| 17 | `silver_le_hundred` | δS ≤ 100 |
+| 18 | `silver_in_meso` | δS ∈ mesoScaleDomain [1, 100] |
+| 19 | `silver_mirror_coherence` | C(1/δS) = C(δS) = √2/2 |
+| 20 | `silver_lt_golden_sq` | δS ≈ 2.414 < φ² ≈ 2.618 |
+
+**§7 Uniqueness**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `silver_coherence_iff_quadratic` | C(r) = √2/2 ↔ √2r²−4r+√2=0  (r > 0) |
+| 22 | `silver_coherence_unique` | **C(r) = √2/2 ↔ r = δS ∨ r = 1/δS** — only two solutions |
+
+**§8 Physics at 45°**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 23 | `silver_eq_sin_45` | C(δS) = sin(π/4) = √2/2 — amplitude at 45° elastic scattering |
+| 24 | `silver_unitarity_elastic_sq` | sin²(π/4) = C(δS)² — Im(f) = |f|² (elastic unitarity at 45°) |
+| 25 | `silver_schwinger_bound` | α_FS/(2π) < C(δS)² — Schwinger loop sub-threshold |
+| 26 | `silver_em_stays_above_koide` | coherenceEM(δS) > C(φ²) — EM-corrected silver exceeds Koide |
+| 27 | `silver_phase_complement` | π/4 + 3π/4 = π — silver and eigenvalue phases supplementary |
+
+---
+
+### `KernelAxle.lean`
+
+The **axle of the Kernel engine** — a formalization of what μ is as a rotating element, computing the gear ratio, cross-section, and closure of the engine loop.
+
+All 20 theorems in `KernelAxle.lean` have complete machine-checked proofs (no `sorry`).
+
+The central calculation: **8 × (3π/4) = 3 × (2π)** — the axle makes exactly 3 full rotations per 8-step orbit. Gear ratio 3:8 with gcd(3,8)=1.
+
+**§1 The axle angular step: ω = 3π/4**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `axle_step_cos` | cos(3π/4) = Re(μ) — cosine of axle step |
+| 2 | `axle_step_sin` | sin(3π/4) = Im(μ) — sine of axle step |
+| 3 | `axle_euler_form` | μ = cos(3π/4) + i·sin(3π/4) — Euler form |
+
+**§2 The gear ratio: 3 complete turns per 8-step orbit**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 4 | `axle_gear_ratio` | **8 × (3π/4) = 3 × (2π)** ← THE AXLE CALCULATION |
+| 5 | `axle_gear_fraction` | 8 × (3π/4) / (2π) = 3 — 3 turns per orbit |
+| 6 | `axle_gear_coprime` | gcd(3, 8) = 1 — ratio in lowest terms |
+| 7 | `axle_orbit_primitive` | μ^j ≠ μ^k for j ≠ k < 8 — visits all 8 positions |
+| 8 | `axle_orbit_closes` | μ^8 = 1 — gear lock after 8 steps |
+
+**§3 The axle cross-section: isotropic at 45°**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `axle_rigid` | \|μ\| = 1 — rigid axle, no radial motion |
+| 10 | `axle_cross_section_isotropic` | \|Re(μ)\| = Im(μ) — circular cross-section |
+| 11 | `axle_cross_section_value` | Im(μ) = √2/2 — cross-section radius |
+| 12 | `axle_cross_section_silver` | Im(μ) = C(δS) — silver bridge |
+| 13 | `axle_unit_constraint` | Re(μ)² + Im(μ)² = 1 — Pythagorean identity |
+
+**§4 Axle dynamics: coherence along the μ-orbit**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 14 | `axle_orbit_unit` | \|μ^n\| = 1 for all n — orbit on unit circle |
+| 15 | `axle_maximum_coherence` | C(\|μ^n\|) = 1 for all n — maximum coherence at every step |
+| 16 | `axle_kernel_equilibrium` | C(1) = 1 — kernel fixed point |
+
+**§5 The engine loop: how μ connects all modules**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 17 | `axle_silver_supplementary` | 3π/4 + π/4 = π — axle ⊕ silver = π (supplementary) |
+| 18 | `axle_triality_3_scales` | C(1)=1 ∧ C(φ²)=2/3 ∧ C(1/φ²)=2/3 — triality connection |
+| 19 | `axle_gear_numerator` | ∃n=3, n×(2π) = 8×(3π/4) — exactly 3 full turns |
+| 20 | `axle_closes_loop` | \|μ\|=1 ∧ μ^8=1 ∧ C(\|μⁿ\|)=1 ∧ Im(μ)=C(δS) ∧ 8×(3π/4)=3×(2π) |
+
+---
+
 ## References
 
 - [Lean 4 documentation](https://leanprover.github.io/lean4/doc/)
 - [Mathlib4 documentation](https://leanprover-community.github.io/mathlib4_docs/)
 - [Mathlib4 on GitHub](https://github.com/leanprover-community/mathlib4)
 - [`../docs/master_derivations.pdf`](../docs/master_derivations.pdf) — mathematical background
+- Reynolds, O. (1895). On the dynamical theory of incompressible viscous fluids. *Phil. Trans. R. Soc. A* 186, 123–164.
+- Kolmogorov, A. N. (1941). The local structure of turbulence in incompressible viscous fluid. *Dokl. Akad. Nauk SSSR* 30, 301–305.
+- Pope, S. B. (2000). *Turbulent Flows*. Cambridge University Press.
+- Sommerfeld, A. (1916). Zur Quantentheorie der Spektrallinien. *Ann. Phys.* 51, 1–94.
+- Bethe, H. A., & Salpeter, E. E. (1977). *Quantum Mechanics of One- and Two-Electron Atoms*. Springer.
+- Davidson, P. A. (2001). *An Introduction to Magnetohydrodynamics*. Cambridge University Press.
+- CODATA 2018. Fine structure constant α = 7.2973525693 × 10⁻³ (NIST).
+- Koide, Y. (1982). A fermion-boson composite model of quarks and leptons. *Phys. Lett. B* 120, 161–165.
+- Livio, M. (2002). *The Golden Ratio*. Broadway Books.
+- Mohr, P. J. et al. (2016). CODATA recommended values. *Rev. Mod. Phys.* 88, 035009.
