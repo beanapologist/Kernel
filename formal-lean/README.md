@@ -20,7 +20,7 @@ formal-lean/
 ├── FineStructure.lean      # 30 theorems on the fine structure constant α_FS
 ├── ParticleMass.lean       # 38 theorems on Koide formula, proton/electron mass ratio, coherence triality
 ├── OhmTriality.lean        # 24 theorems on Ohm–Coherence duality at triality scales
-├── SilverCoherence.lean    # 20 theorems: C(δS)=√2/2; Im(μ)=C(δS); silver-scale coherence
+├── SilverCoherence.lean    # 27 theorems: C(δS)=√2/2; uniqueness; Im(μ)=C(δS); 45°-physics
 └── README.md              # This file
 ```
 
@@ -91,7 +91,7 @@ All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `s
 All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no `sorry`).
 All 38 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
 All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `sorry`).
-All 20 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
+All 27 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -627,7 +627,7 @@ All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `
 
 A machine-checked answer to the question: **"Is there a scale `r` already present in the Kernel framework at which C(r) = 1/√2 = |Im(μ)|?"** Answer: yes — uniquely at r = δS = 1+√2, the silver ratio from the palindrome residual (§9 of `CriticalEigenvalue.lean`).
 
-All 20 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
+All 27 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
 
 **§1 Silver-ratio coherence**
 
@@ -678,6 +678,23 @@ All 20 theorems in `SilverCoherence.lean` have complete machine-checked proofs (
 | 18 | `silver_in_meso` | δS ∈ mesoScaleDomain [1, 100] |
 | 19 | `silver_mirror_coherence` | C(1/δS) = C(δS) = √2/2 |
 | 20 | `silver_lt_golden_sq` | δS ≈ 2.414 < φ² ≈ 2.618 |
+
+**§7 Uniqueness**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `silver_coherence_iff_quadratic` | C(r) = √2/2 ↔ √2r²−4r+√2=0  (r > 0) |
+| 22 | `silver_coherence_unique` | **C(r) = √2/2 ↔ r = δS ∨ r = 1/δS** — only two solutions |
+
+**§8 Physics at 45°**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 23 | `silver_eq_sin_45` | C(δS) = sin(π/4) = √2/2 — amplitude at 45° elastic scattering |
+| 24 | `silver_unitarity_elastic_sq` | sin²(π/4) = C(δS)² — Im(f) = |f|² (elastic unitarity at 45°) |
+| 25 | `silver_schwinger_bound` | α_FS/(2π) < C(δS)² — Schwinger loop sub-threshold |
+| 26 | `silver_em_stays_above_koide` | coherenceEM(δS) > C(φ²) — EM-corrected silver exceeds Koide |
+| 27 | `silver_phase_complement` | π/4 + 3π/4 = π — silver and eigenvalue phases supplementary |
 
 ---
 

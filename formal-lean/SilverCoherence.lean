@@ -47,10 +47,12 @@
   4.  Ohm–Coherence at the silver scale  (G = √2/2, R = √2, G·R = 1)
   5.  Position in the coherence ordering  (Koide < silver < kernel)
   6.  Scale placement and symmetry
+  7.  Uniqueness  (only r = δS or r = 1/δS satisfies C(r) = √2/2)
+  8.  Physics at 45°  (scattering amplitude, Schwinger bound, EM coherence)
 
   Proof status
   ────────────
-  All 20 theorems have complete machine-checked proofs.
+  All 27 theorems have complete machine-checked proofs.
   No `sorry` placeholders remain.
 -/
 
@@ -289,4 +291,129 @@ theorem mu_real_part : Complex.re μ = -(Real.sqrt 2 / 2) := by
 theorem mu_re_abs_eq_silver_coherence : |Complex.re μ| = C δS := by
   rw [mu_real_part, abs_neg, abs_of_nonneg (by positivity),
       silver_coherence]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 7 — Uniqueness
+-- The only r > 0 with C(r) = √2/2 are r = δS and r = 1/δS.
+-- Proof: C(r) = √2/2 rearranges to √2·r² − 4r + √2 = 0, which factors as
+--   √2·(r − δS)·(r − (√2−1)) = 0.  Since √2 ≠ 0, exactly r = δS (= 1+√2) or
+--   r = √2−1 = 1/δS.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- **Algebraic rearrangement**: C(r) = √2/2 iff √2·r² − 4r + √2 = 0  (for r > 0).
+
+    Proof: 2r/(1+r²) = √2/2 ↔ 4r = √2(1+r²) ↔ √2·r² − 4r + √2 = 0. -/
+theorem silver_coherence_iff_quadratic (r : ℝ) (hr : 0 < r) :
+    C r = Real.sqrt 2 / 2 ↔ Real.sqrt 2 * r ^ 2 - 4 * r + Real.sqrt 2 = 0 := by
+  unfold C
+  have hpos : (0 : ℝ) < 1 + r ^ 2 := by positivity
+  have hsq : Real.sqrt 2 * Real.sqrt 2 = 2 := sqrt2_mul_self
+  constructor
+  · intro h
+    have heq : 2 * r = Real.sqrt 2 / 2 * (1 + r ^ 2) :=
+      (div_eq_iff (ne_of_gt hpos)).mp h
+    nlinarith [Real.sqrt_nonneg 2]
+  · intro h
+    rw [div_eq_iff (ne_of_gt hpos)]
+    nlinarith [Real.sqrt_nonneg 2]
+
+/-- **Uniqueness theorem**: for r > 0, C(r) = √2/2  if and only if  r = δS  or  r = 1/δS.
+
+    Both solutions come from the quadratic √2·r²−4r+√2 = 0, which factors as
+    √2·(r − δS)·(r − (√2−1)) = 0.  Since √2 ≠ 0, the roots are exactly
+    r = 1+√2 = δS  (meso, r > 1)  and  r = √2−1 = 1/δS  (micro, r < 1). -/
+theorem silver_coherence_unique (r : ℝ) (hr : 0 < r) :
+    C r = Real.sqrt 2 / 2 ↔ r = δS ∨ r = 1 / δS := by
+  rw [silver_coherence_iff_quadratic r hr]
+  have hsq : Real.sqrt 2 * Real.sqrt 2 = 2 := sqrt2_mul_self
+  have h2pos : (0 : ℝ) < Real.sqrt 2 := by positivity
+  have hδinv : 1 / δS = Real.sqrt 2 - 1 := silverRatio_inv
+  constructor
+  · intro h
+    -- Rearrange: √2·(r − δS)·(r − (√2−1)) = 0
+    have hfact : Real.sqrt 2 * (r - δS) * (r - (Real.sqrt 2 - 1)) = 0 := by
+      unfold δS; nlinarith [Real.sqrt_nonneg 2]
+    rcases mul_eq_zero.mp hfact with h12 | hr2
+    · rcases mul_eq_zero.mp h12 with h1 | hr1
+      · exact absurd h1 (ne_of_gt h2pos)
+      · left; linarith
+    · right; rw [hδinv]; linarith
+  · intro h
+    cases h with
+    | inl h =>
+      subst h; unfold δS
+      nlinarith [Real.sqrt_nonneg 2]
+    | inr h =>
+      rw [hδinv] at h
+      nlinarith [Real.sqrt_nonneg 2]
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 8 — Physics at 45°
+-- The silver scale δS arises naturally in scattering theory and EM corrections:
+--
+--   C(δS) = sin(π/4) = √2/2  — amplitude at 45° elastic scattering phase
+--   sin²(π/4) = C(δS)² = 1/2 — elastic unitarity: Im(f) = |f|² at 45° phase
+--   α_FS/(2π) < C(δS)²       — Schwinger loop contribution sub-threshold
+--   coherenceEM(δS) > C(φ²)  — EM-corrected silver coherence stays above Koide
+--   π/4 + 3π/4 = π            — silver phase + eigenvalue phase = supplementary
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- **Scattering phase**: C(δS) = sin(π/4) = √2/2.
+
+    In partial-wave scattering, C(δS) equals the amplitude |f_l| = |sin(δ_l)|
+    at the 45° elastic phase shift δ_l = π/4.  The silver scale is the coherence
+    function evaluated at the standard "45-degree" scattering point. -/
+theorem silver_eq_sin_45 : C δS = Real.sin (Real.pi / 4) := by
+  rw [Real.sin_pi_div_four, silver_coherence]
+
+/-- **Elastic unitarity at 45°**: sin²(π/4) = C(δS)² = 1/2.
+
+    At the 45° phase shift (δ = π/4), the imaginary part of the partial-wave
+    amplitude equals |f|²: Im(f_l) = sin²(δ_l) = 1/2 = C(δS)².
+    This is the unitarity condition for maximally coherent elastic scattering. -/
+theorem silver_unitarity_elastic_sq : Real.sin (Real.pi / 4) ^ 2 = C δS ^ 2 := by
+  rw [← silver_eq_sin_45]
+
+/-- **Schwinger term below 45°-threshold**: α_FS/(2π) < C(δS)².
+
+    The Schwinger one-loop QED contribution to the anomalous magnetic moment is
+    α_FS/(2π) ≈ 0.00116 ≪ 1/2 = C(δS)².  Fine-structure corrections lie far below
+    the 45°-phase coherence threshold.
+
+    Proof: α_FS/(2π) < 1/2 ↔ α_FS < π ↔ 1/137 < π.  Since π > 3 > 1/137. -/
+theorem silver_schwinger_bound : α_FS / (2 * Real.pi) < C δS ^ 2 := by
+  rw [silver_coherence_sq]
+  unfold α_FS
+  have hπ : (3 : ℝ) < Real.pi := Real.pi_gt_three
+  rw [div_lt_iff (by positivity : (0 : ℝ) < 2 * Real.pi)]
+  linarith
+
+/-- **EM-corrected silver coherence exceeds Koide**: coherenceEM(δS) > C(φ²).
+
+    Even after electromagnetic coupling reduces coherence by factor (1−α_FS),
+    the silver-scale coherence (1−α_FS)·C(δS) = (136/137)·(√2/2) ≈ 0.702
+    remains strictly above the Koide value 2/3 ≈ 0.667.
+
+    Proof: (136/137)·√2/2 > 2/3 ↔ 408·√2 > 548, verified by 408²·2 > 548². -/
+theorem silver_em_stays_above_koide : coherenceEM δS > C (φ ^ 2) := by
+  rw [show coherenceEM δS = (1 - α_FS) * C δS from by unfold coherenceEM,
+      koide_coherence_bridge, silver_coherence]
+  unfold α_FS
+  have hsq : Real.sqrt 2 * Real.sqrt 2 = 2 := sqrt2_mul_self
+  have h2pos : (0 : ℝ) < Real.sqrt 2 := by positivity
+  -- Key: 408·√2 > 548, proved via 408²·2 = 332928 > 300304 = 548²
+  have hkey : (548 : ℝ) < 408 * Real.sqrt 2 := by
+    have : (408 * Real.sqrt 2 + 548) * (408 * Real.sqrt 2 - 548) = 32624 := by
+      nlinarith [hsq]
+    nlinarith
+  linarith
+
+/-- **Supplementary phases**: the silver 45° phase and the eigenvalue 135° phase sum to π.
+
+    The critical eigenvalue μ = exp(I·3π/4) carries phase 3π/4 (135°).
+    The silver scale corresponds to the 45° scattering phase (π/4).
+    Together: π/4 + 3π/4 = π — they are supplementary, pairing as
+    particle/antiparticle amplitudes in 2-body scattering kinematics. -/
+theorem silver_phase_complement : Real.pi / 4 + 3 * Real.pi / 4 = Real.pi := by ring
+
 end -- noncomputable section
