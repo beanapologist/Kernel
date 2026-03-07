@@ -126,7 +126,8 @@ theorem meso_lt_macro (ℓ L : ℝ) (hℓ : ℓ ∈ mesoScaleDomain) (hL : L ∈
     Proof: η < 1 < L (since L > 100 > 1). -/
 theorem micro_lt_macro (η L : ℝ) (hη : η ∈ microScaleDomain) (hL : L ∈ macroScaleDomain) :
     η < L :=
-  lt_trans hη.2 (by linarith [hL])
+  have h100 : (1 : ℝ) < 100 := by norm_num
+  lt_trans hη.2 (lt_trans h100 hL)
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 2 — Reynolds Decomposition
@@ -163,8 +164,8 @@ theorem reynolds_decomp_canonical (u : ℝ → ℝ) (u_mean : ℝ) :
     same mean ū agree pointwise.
 
     This says that once the mean is fixed, the Reynolds splitting is determined. -/
-theorem reynolds_decomp_unique (u : ℝ → ℝ) (ū : ℝ) (u₁ u₂ : ℝ → ℝ)
-    (h₁ : isReynoldsDecomp u ū u₁) (h₂ : isReynoldsDecomp u ū u₂) (t : ℝ) :
+theorem reynolds_decomp_unique (u : ℝ → ℝ) (u_mean : ℝ) (u₁ u₂ : ℝ → ℝ)
+    (h₁ : isReynoldsDecomp u u_mean u₁) (h₂ : isReynoldsDecomp u u_mean u₂) (t : ℝ) :
     u₁ t = u₂ t := by
   have e₁ := h₁ t; have e₂ := h₂ t; linarith
 
@@ -172,9 +173,9 @@ theorem reynolds_decomp_unique (u : ℝ → ℝ) (ū : ℝ) (u₁ u₂ : ℝ →
 
     The original velocity field is fully recovered by summing its mean and
     fluctuation components. -/
-theorem reynolds_reconstruction (u : ℝ → ℝ) (ū : ℝ) (u′ : ℝ → ℝ)
-    (h : isReynoldsDecomp u ū u′) (t : ℝ) :
-    ū + u′ t = u t := by
+theorem reynolds_reconstruction (u : ℝ → ℝ) (u_mean : ℝ) (u_fluct : ℝ → ℝ)
+    (h : isReynoldsDecomp u u_mean u_fluct) (t : ℝ) :
+    u_mean + u_fluct t = u t := by
   have := h t; linarith
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -264,7 +265,8 @@ theorem turbulenceCoherence_micro_lt_one (η : ℝ) (hη : η ∈ microScaleDoma
 theorem turbulenceCoherence_macro_lt_one (L : ℝ) (hL : L ∈ macroScaleDomain) :
     turbulenceCoherence L < 1 := by
   unfold turbulenceCoherence
-  exact coherence_lt_one L (by linarith [hL]) (ne_of_gt (by linarith [hL]))
+  have hL' : (100 : ℝ) < L := hL
+  exact coherence_lt_one L (by linarith) (ne_of_gt (by linarith))
 
 /-- Coherence is strictly monotone increasing through the micro-scale range (0, 1]:
     for 0 < η₁ < η₂ ≤ 1, turbulenceCoherence(η₁) < turbulenceCoherence(η₂).
