@@ -20,6 +20,7 @@ formal-lean/
 ├── FineStructure.lean      # 30 theorems on the fine structure constant α_FS
 ├── ParticleMass.lean       # 38 theorems on Koide formula, proton/electron mass ratio, coherence triality
 ├── OhmTriality.lean        # 24 theorems on Ohm–Coherence duality at triality scales
+├── SilverCoherence.lean    # 20 theorems: C(δS)=√2/2; Im(μ)=C(δS); silver-scale coherence
 └── README.md              # This file
 ```
 
@@ -90,10 +91,9 @@ All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `s
 All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no `sorry`).
 All 38 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
 All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `sorry`).
+All 20 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
-
-## Contents
 
 ### `CriticalEigenvalue.lean`
 
@@ -620,6 +620,64 @@ All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `
 | 22 | `ohm_mu_orbit_conductance` | C(\|μⁿ\|) = 1 — perfect conductance at every orbit step |
 | 23 | `ohm_mu_orbit_unit_resistance` | (C \|μⁿ\|)⁻¹ = 1 — unit resistance throughout orbit |
 | 24 | `ohm_mu_orbit_exceeds_wings` | G_wing < C(\|μⁿ\|) = 1 — μ-orbit dominates both wings |
+
+---
+
+### `SilverCoherence.lean`
+
+A machine-checked answer to the question: **"Is there a scale `r` already present in the Kernel framework at which C(r) = 1/√2 = |Im(μ)|?"** Answer: yes — uniquely at r = δS = 1+√2, the silver ratio from the palindrome residual (§9 of `CriticalEigenvalue.lean`).
+
+All 20 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Silver-ratio coherence**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `silver_coherence` | **C(δS) = √2/2** — the main result |
+
+**§2 Algebraic consequences**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 2 | `silver_coherence_sq` | C(δS)² = 1/2 |
+| 3 | `silver_coherence_eq_imbalance` | C(δS) = (δS²−1)/(1+δS²) — isotropic/diagonal |
+| 4 | `silver_pythagorean` | 2·C(δS)² = 1 — the "45-degree point" |
+
+**§3 Connection to μ**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 5 | `mu_imaginary_part` | Im(μ) = sin(3π/4) = √2/2 |
+| 6 | `mu_im_eq_silver_coherence` | **Im(μ) = C(δS)** — bridge theorem |
+| 7 | `mu_real_part` | Re(μ) = −√2/2 |
+| 8 | `mu_re_abs_eq_silver_coherence` | \|Re(μ)\| = C(δS) — both components captured |
+
+**§4 Ohm–Coherence at the silver scale**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `silver_ohm_conductance` | G_eff(δS) = C(δS) = √2/2 |
+| 10 | `silver_ohm_resistance` | R_eff(δS) = (C δS)⁻¹ = √2 |
+| 11 | `silver_ohm_law` | C(δS) · (C δS)⁻¹ = 1 |
+
+**§5 Position in the coherence ordering**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 12 | `koide_below_silver` | C(φ²) = 2/3 < √2/2 = C(δS) |
+| 13 | `silver_below_kernel` | C(δS) < 1 = C(1) |
+| 14 | `koide_silver_kernel_ordering` | C(φ²) < C(δS) < C(1) — strict three-level ordering |
+| 15 | `mu_orbit_exceeds_silver` | C(δS) < C(\|μⁿ\|) = 1 for all n |
+
+**§6 Scale placement and symmetry**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `silver_gt_one` | 1 < δS = 1+√2 |
+| 17 | `silver_le_hundred` | δS ≤ 100 |
+| 18 | `silver_in_meso` | δS ∈ mesoScaleDomain [1, 100] |
+| 19 | `silver_mirror_coherence` | C(1/δS) = C(δS) = √2/2 |
+| 20 | `silver_lt_golden_sq` | δS ≈ 2.414 < φ² ≈ 2.618 |
 
 ---
 
