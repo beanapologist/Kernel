@@ -21,6 +21,7 @@ import OhmTriality
 import SilverCoherence
 import KernelAxle
 
+set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
   IO.println "==================================================="
   IO.println " Kernel — Lean 4 Formal Verification"
@@ -153,6 +154,7 @@ def printCriticalEigenvalue : IO Unit := do
   IO.println "See CriticalEigenvalue.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
 def printTimeCrystal : IO Unit := do
   IO.println "==================================================="
   IO.println " TimeCrystal.lean — Discrete Time Crystal Theory"
@@ -219,6 +221,7 @@ def printTimeCrystal : IO Unit := do
   IO.println "See TimeCrystal.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
 def printSpaceTime : IO Unit := do
   IO.println "==================================================="
   IO.println " SpaceTime.lean — Space-Time Unification via Reality"
@@ -290,6 +293,7 @@ def printSpaceTime : IO Unit := do
   IO.println "See SpaceTime.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
 def printTurbulence : IO Unit := do
   IO.println "==================================================="
   IO.println " Turbulence.lean — Navier-Stokes Turbulence Theory"
@@ -350,6 +354,7 @@ def printTurbulence : IO Unit := do
   IO.println "See Turbulence.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
 def printFineStructure : IO Unit := do
   IO.println "==================================================="
   IO.println " FineStructure.lean — Fine Structure Constant α_FS"
@@ -408,6 +413,7 @@ def printFineStructure : IO Unit := do
   IO.println "See FineStructure.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
 def printParticleMass : IO Unit := do
   IO.println "==================================================="
   IO.println " ParticleMass.lean — Koide Formula & Mass Ratios"
@@ -480,6 +486,7 @@ def printParticleMass : IO Unit := do
   IO.println "See ParticleMass.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
 def printOhmTriality : IO Unit := do
   IO.println "════════════════════════════════════════════════════════════════════"
   IO.println "  OhmTriality.lean — Ohm–Coherence Duality at Triality Scales"
@@ -535,6 +542,7 @@ def printOhmTriality : IO Unit := do
   IO.println "See OhmTriality.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
 def printSilverCoherence : IO Unit := do
   IO.println "════════════════════════════════════════════════════════════════════"
   IO.println "  SilverCoherence.lean — A machine-checked answer to a curiosity"
@@ -598,6 +606,7 @@ def printSilverCoherence : IO Unit := do
   IO.println "See SilverCoherence.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
 def printKernelAxle : IO Unit := do
   IO.println "════════════════════════════════════════════════════════════════════"
   IO.println "  KernelAxle.lean — The axle of the Kernel engine"
