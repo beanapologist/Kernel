@@ -57,7 +57,7 @@
 -/
 
 import OhmTriality
-import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
+import Mathlib.Analysis.Real.Pi.Bounds
 
 open Complex Real
 
@@ -388,7 +388,7 @@ theorem silver_unitarity_elastic_sq : Real.sin (Real.pi / 4) ^ 2 = C δS ^ 2 := 
 theorem silver_schwinger_bound : α_FS / (2 * Real.pi) < C δS ^ 2 := by
   rw [silver_coherence_sq]
   unfold α_FS
-  have hπ : (3 : ℝ) < Real.pi := by linarith [Real.pi_gt_3141592]
+  have hπ : (3 : ℝ) < Real.pi := Real.pi_gt_three
   rw [div_lt_iff₀ (by positivity : (0 : ℝ) < 2 * Real.pi)]
   linarith
 
