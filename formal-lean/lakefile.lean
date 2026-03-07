@@ -24,7 +24,7 @@ require mathlib from git
 
 /-- Library containing the core Kernel formalizations. -/
 lean_lib «FormalLean» where
-  roots := #[`CriticalEigenvalue, `TimeCrystal, `SpaceTime]
+  roots := #[`CriticalEigenvalue, `TimeCrystal, `SpaceTime, `BidirectionalTime]
 
 /-- Executable entry point that prints a summary of verified theorems. -/
 @[default_target]
