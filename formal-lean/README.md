@@ -21,6 +21,7 @@ formal-lean/
 ├── ParticleMass.lean       # 38 theorems on Koide formula, proton/electron mass ratio, coherence triality
 ├── OhmTriality.lean        # 24 theorems on Ohm–Coherence duality at triality scales
 ├── SilverCoherence.lean    # 27 theorems: C(δS)=√2/2; uniqueness; Im(μ)=C(δS); 45°-physics
+├── KernelAxle.lean         # 20 theorems: the axle μ — gear ratio 3:8, cross-section, engine loop
 └── README.md              # This file
 ```
 
@@ -92,6 +93,7 @@ All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no
 All 38 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
 All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `sorry`).
 All 27 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
+All 20 theorems in `KernelAxle.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -695,6 +697,61 @@ All 27 theorems in `SilverCoherence.lean` have complete machine-checked proofs (
 | 25 | `silver_schwinger_bound` | α_FS/(2π) < C(δS)² — Schwinger loop sub-threshold |
 | 26 | `silver_em_stays_above_koide` | coherenceEM(δS) > C(φ²) — EM-corrected silver exceeds Koide |
 | 27 | `silver_phase_complement` | π/4 + 3π/4 = π — silver and eigenvalue phases supplementary |
+
+---
+
+### `KernelAxle.lean`
+
+The **axle of the Kernel engine** — a formalization of what μ is as a rotating element, computing the gear ratio, cross-section, and closure of the engine loop.
+
+All 20 theorems in `KernelAxle.lean` have complete machine-checked proofs (no `sorry`).
+
+The central calculation: **8 × (3π/4) = 3 × (2π)** — the axle makes exactly 3 full rotations per 8-step orbit. Gear ratio 3:8 with gcd(3,8)=1.
+
+**§1 The axle angular step: ω = 3π/4**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `axle_step_cos` | cos(3π/4) = Re(μ) — cosine of axle step |
+| 2 | `axle_step_sin` | sin(3π/4) = Im(μ) — sine of axle step |
+| 3 | `axle_euler_form` | μ = cos(3π/4) + i·sin(3π/4) — Euler form |
+
+**§2 The gear ratio: 3 complete turns per 8-step orbit**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 4 | `axle_gear_ratio` | **8 × (3π/4) = 3 × (2π)** ← THE AXLE CALCULATION |
+| 5 | `axle_gear_fraction` | 8 × (3π/4) / (2π) = 3 — 3 turns per orbit |
+| 6 | `axle_gear_coprime` | gcd(3, 8) = 1 — ratio in lowest terms |
+| 7 | `axle_orbit_primitive` | μ^j ≠ μ^k for j ≠ k < 8 — visits all 8 positions |
+| 8 | `axle_orbit_closes` | μ^8 = 1 — gear lock after 8 steps |
+
+**§3 The axle cross-section: isotropic at 45°**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `axle_rigid` | \|μ\| = 1 — rigid axle, no radial motion |
+| 10 | `axle_cross_section_isotropic` | \|Re(μ)\| = Im(μ) — circular cross-section |
+| 11 | `axle_cross_section_value` | Im(μ) = √2/2 — cross-section radius |
+| 12 | `axle_cross_section_silver` | Im(μ) = C(δS) — silver bridge |
+| 13 | `axle_unit_constraint` | Re(μ)² + Im(μ)² = 1 — Pythagorean identity |
+
+**§4 Axle dynamics: coherence along the μ-orbit**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 14 | `axle_orbit_unit` | \|μ^n\| = 1 for all n — orbit on unit circle |
+| 15 | `axle_maximum_coherence` | C(\|μ^n\|) = 1 for all n — maximum coherence at every step |
+| 16 | `axle_kernel_equilibrium` | C(1) = 1 — kernel fixed point |
+
+**§5 The engine loop: how μ connects all modules**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 17 | `axle_silver_supplementary` | 3π/4 + π/4 = π — axle ⊕ silver = π (supplementary) |
+| 18 | `axle_triality_3_scales` | C(1)=1 ∧ C(φ²)=2/3 ∧ C(1/φ²)=2/3 — triality connection |
+| 19 | `axle_gear_numerator` | ∃n=3, n×(2π) = 8×(3π/4) — exactly 3 full turns |
+| 20 | `axle_closes_loop` | \|μ\|=1 ∧ μ^8=1 ∧ C(\|μⁿ\|)=1 ∧ Im(μ)=C(δS) ∧ 8×(3π/4)=3×(2π) |
 
 ---
 
