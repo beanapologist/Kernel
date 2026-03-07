@@ -192,12 +192,17 @@ theorem rotMat_det : Matrix.det rotMat = 1 := by
     Proof: direct computation using cos²θ + sin²θ = 1 and
            c·(−s) + s·c = 0. -/
 theorem rotMat_orthog : rotMat * rotMatᵀ = 1 := by
-  unfold rotMat
+  -- Rewrite rotMat to an explicit matrix literal (eliminates let-binding
+  -- indirection that prevents simp from reducing transpose entries).
+  have hM : rotMat = !![Real.cos (3 * Real.pi / 4), -Real.sin (3 * Real.pi / 4);
+                        Real.sin (3 * Real.pi / 4),  Real.cos (3 * Real.pi / 4)] := rfl
+  rw [hM]
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [Matrix.mul_apply, Matrix.transpose_apply, Fin.sum_univ_two,
           Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
-          Matrix.head_fin_const, Matrix.one_apply, neg_mul, mul_neg, neg_neg] <;>
+          Matrix.head_fin_const, Matrix.vecHead, Matrix.one_apply,
+          neg_mul, mul_neg, neg_neg] <;>
     nlinarith [Real.sin_sq_add_cos_sq (3 * Real.pi / 4)]
 
 /-- R(3π/4)^8 = I (8-fold application returns to identity).
