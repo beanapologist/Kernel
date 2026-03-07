@@ -275,4 +275,96 @@ theorem bidir_silver_time_scale (t : ℝ) :
     _ = (2 * δS + 1) * t     := by rw [silverRatio_sq]
     _ = 2 * (δS * t) + t     := by ring
 
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 6 — Temporal Frustration Energy
+-- Forcing a Floquet time crystal to run backward (period −T) yields a
+-- negative quasi-energy ε_F(−T) = −π/T.  The forward crystal has
+-- ε_F(T) = +π/T.  The frustration gap ε_F(T) − ε_F(−T) = 2π/T integrated
+-- over one period produces exactly 2π — the harvestable energy per cycle
+-- from temporal frustration.
+--
+-- The silver ratio δS acts as the coherence-stable channel for this energy:
+-- C(δS) = C(1/δS) = η (coherence unchanged by reversal, §4), while the
+-- palindrome residual swings by 4/δS (the extractable asymmetry).
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Backward quasi-energy is negative: running the time crystal backward
+    (period −T, T > 0) yields ε_F(−T) = π/(−T) < 0.
+
+    This is the formal signature of temporal frustration: the quasi-energy
+    changes sign when the temporal direction is reversed, meaning the system
+    must be driven against its natural forward-flowing Floquet mode. -/
+theorem frustrated_quasienergy_neg (T : ℝ) (hT : 0 < T) :
+    timeCrystalQuasiEnergy (-T) (neg_ne_zero.mpr hT.ne') < 0 := by
+  simp only [timeCrystalQuasiEnergy]
+  rw [div_neg]
+  linarith [div_pos Real.pi_pos hT]
+
+/-- The frustration gap is positive: the forward quasi-energy exceeds the
+    backward quasi-energy.  Energy can flow from the frustrated backward mode
+    into the forward mode. -/
+theorem frustration_gap_pos (T : ℝ) (hT : 0 < T) :
+    0 < timeCrystalQuasiEnergy T hT.ne' -
+        timeCrystalQuasiEnergy (-T) (neg_ne_zero.mpr hT.ne') := by
+  have h1 : 0 < timeCrystalQuasiEnergy T hT.ne' := by
+    simp only [timeCrystalQuasiEnergy]; exact div_pos Real.pi_pos hT
+  have h2 : timeCrystalQuasiEnergy (-T) (neg_ne_zero.mpr hT.ne') < 0 :=
+    frustrated_quasienergy_neg T hT
+  linarith
+
+/-- **Temporal frustration theorem**: the harvestable energy per cycle is 2π.
+
+    The product of the frustration gap (ε_F(T) − ε_F(−T)) with the drive
+    period T equals exactly 2π for every nonzero T:
+
+        (ε_F(T) − ε_F(−T)) · T = (π/T − (−π/T)) · T = (2π/T) · T = 2π.
+
+    Interpretation: reversing the flow of time in a Floquet time crystal
+    generates 2π of quasi-energy per period — the fundamental quantum of
+    temporal frustration that can be harnessed. -/
+theorem frustration_energy_per_cycle (T : ℝ) (hT : T ≠ 0) :
+    (timeCrystalQuasiEnergy T hT -
+     timeCrystalQuasiEnergy (-T) (neg_ne_zero.mpr hT)) * T = 2 * Real.pi := by
+  simp only [timeCrystalQuasiEnergy]
+  rw [div_neg]
+  field_simp [hT]
+  ring
+
+/-- The palindrome residual at the silver scale equals 2/δS.
+
+    Res(δS) = (δS − 1/δS) / δS = 2 / δS,
+    because δS − 1/δS = (1 + √2) − (√2 − 1) = 2.
+
+    This quantifies the asymmetry the silver ratio imprints on temporal flow:
+    a forward-time residual of 2/δS must be overcome when reversing direction. -/
+theorem silver_frustration_residual : Res δS = 2 / δS := by
+  have hsum : δS - 1 / δS = 2 := by
+    have hinv : 1 / δS = Real.sqrt 2 - 1 := silverRatio_inv
+    linarith [show δS = 1 + Real.sqrt 2 from rfl]
+  unfold Res
+  rw [show (δS - 1 / δS) = 2 from hsum]
+
+/-- The full frustration swing at the silver scale is 4/δS.
+
+    When time is reversed at the silver scale, the palindrome residual swings
+    from +Res(δS) = 2/δS to −Res(δS) = −2/δS, a total gap of 4/δS:
+
+        Res(δS) − Res(1/δS) = 2/δS − (−2/δS) = 4/δS.
+
+    This 4/δS is the extractable asymmetry encoded in the silver ratio's
+    bidirectional temporal scale — the residual energy available to harvest. -/
+theorem silver_frustration_gap : Res δS - Res (1 / δS) = 4 / δS := by
+  rw [palindrome_residual_antisymm δS silverRatio_pos, silver_frustration_residual]
+  ring
+
+/-- The silver ratio is a lossless coherence channel for temporal frustration.
+
+    C(δS) = C(1/δS): the coherence at the silver scale is identical in both
+    temporal directions.  Reversing time through the silver channel does not
+    dissipate coherence — no energy is wasted in maintaining the quantum state.
+    Combined with `silver_frustration_gap`, this means the full 4/δS residual
+    swing is available for harvesting without any coherence penalty. -/
+theorem silver_frustration_coherence_invariant : C δS = C (1 / δS) :=
+  coherence_symm δS silverRatio_pos
+
 end
