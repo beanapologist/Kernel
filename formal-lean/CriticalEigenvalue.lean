@@ -282,14 +282,14 @@ private lemma one_add_sq_pos (r : ℝ) : 0 < 1 + r ^ 2 := by positivity
 
     Proof: C(r) ≤ 1  ↔  2r ≤ 1 + r²  ↔  0 ≤ (r − 1)².
     Ref: docs/master_derivations.pdf §4  Proposition 4.1 -/
-theorem coherence_le_one (r : ℝ) (hr : 0 ≤ r) : C r ≤ 1 := by
+theorem coherence_le_one (r : ℝ) (_ : 0 ≤ r) : C r ≤ 1 := by
   unfold C
   rw [div_le_one (one_add_sq_pos r)]
   nlinarith [sq_nonneg (r - 1)]
 
 /-- C(r) = 1 if and only if r = 1.
     Proof: equality in AM–GM holds iff r = 1. -/
-theorem coherence_eq_one_iff (r : ℝ) (hr : 0 ≤ r) : C r = 1 ↔ r = 1 := by
+theorem coherence_eq_one_iff (r : ℝ) (_ : 0 ≤ r) : C r = 1 ↔ r = 1 := by
   unfold C
   rw [div_eq_one_iff_eq (ne_of_gt (one_add_sq_pos r))]
   constructor
@@ -562,7 +562,7 @@ theorem trichotomy_unit_orbit (n : ℕ) : Complex.abs ((1 : ℂ) * μ ^ n) = 1 :
 theorem trichotomy_grow (r : ℝ) (hr : 1 < r) (n : ℕ) :
     Complex.abs ((↑r * μ) ^ n) < Complex.abs ((↑r * μ) ^ (n + 1)) := by
   simp only [scaled_orbit_abs r (le_of_lt (lt_trans one_pos hr))]
-  exact pow_lt_pow_right hr (Nat.lt_succ_self n)
+  exact pow_lt_pow_right₀ hr (Nat.lt_succ_self n)
 
 /-- Trichotomy — 0 < r < 1: magnitudes are strictly decreasing (spiral inward).
     |(r·μ)^(n+1)| < |(r·μ)^n| since r^(n+1) < r^n when 0 < r < 1.
@@ -705,7 +705,7 @@ theorem precession_preserves_abs (β : ℂ) (θ : ℝ) :
     If α and β are the two state components and both are multiplied by the
     same phasor e^{iθ}, the ratio |β|/|α| — and therefore C(r) — is invariant.
     This formally proves that precession steps are "zero overhead" for coherence. -/
-theorem precession_preserves_coherence (α β : ℂ) (hα : Complex.abs α ≠ 0) (θ : ℝ) :
+theorem precession_preserves_coherence (α β : ℂ) (_ : Complex.abs α ≠ 0) (θ : ℝ) :
     C (Complex.abs (Complex.exp (Complex.I * ↑θ) * β) / Complex.abs α) =
     C (Complex.abs β / Complex.abs α) := by
   rw [precession_preserves_abs]
@@ -817,7 +817,7 @@ theorem coherence_orbit_decay (r : ℝ) (hr : 1 < r) (n : ℕ) (hn : 1 ≤ n) :
   · simp [hn1]
   · have hn2 : 1 < n := Nat.lt_of_le_of_ne hn (Ne.symm hn1)
     exact le_of_lt (coherence_strictAnti r (r ^ n) (le_of_lt hr) (by
-      nth_rw 1 [← pow_one r]; exact pow_lt_pow_right hr hn2))
+      nth_rw 1 [← pow_one r]; exact pow_lt_pow_right₀ hr hn2))
 
 /-- Coherence is perfectly preserved at the stable orbit: C(1ⁿ) = 1 for all n.
     The coherent fixed point r = 1 is stable under any number of orbit steps. -/
@@ -994,7 +994,7 @@ theorem orbit_decoherence_rate (r : ℝ) (hr : 1 < r) (n : ℕ) :
   have hr0 : 0 < r := lt_trans one_pos hr
   have hpow : (0 : ℝ) < r ^ n := pow_pos hr0 n
   rw [coherence_orbit_sech r hr0, inv_eq_one_div,
-      div_le_div_iff (Real.cosh_pos _) hpow, one_mul]
+      div_le_div_iff₀ (Real.cosh_pos _) hpow, one_mul]
   have hexp : Real.exp (↑n * Real.log r) = r ^ n := by
     rw [← Real.exp_log (pow_pos hr0 n), Real.log_pow]
   rw [Real.cosh_eq, hexp]

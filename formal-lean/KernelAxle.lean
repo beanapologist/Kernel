@@ -140,11 +140,11 @@ theorem axle_orbit_unit (n : ℕ) : Complex.abs (μ ^ n) = 1 := mu_pow_abs n
     its entire 8-step orbit. -/
 theorem axle_maximum_coherence (n : ℕ) : C (Complex.abs (μ ^ n)) = 1 := by
   rw [mu_pow_abs]
-  exact (coherence_eq_one_iff 1 le_rfl).mpr rfl
+  exact (coherence_eq_one_iff 1 zero_le_one).mpr rfl
 
 /-- **Kernel equilibrium**: the axle is at the global coherence maximum, C(1) = 1. -/
 theorem axle_kernel_equilibrium : C 1 = 1 :=
-  (coherence_eq_one_iff 1 le_rfl).mpr rfl
+  (coherence_eq_one_iff 1 zero_le_one).mpr rfl
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- §5  The engine loop: how the axle connects all modules

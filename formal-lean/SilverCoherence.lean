@@ -57,7 +57,7 @@
 -/
 
 import OhmTriality
-import Mathlib.Analysis.Real.Pi.Bounds
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 
 open Complex Real
 
