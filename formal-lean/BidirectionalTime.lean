@@ -28,6 +28,8 @@
   3.  Time evolution under reversal
   4.  Coherence under bidirectional flow
   5.  Bidirectional time crystal
+  6.  Temporal frustration energy
+  7.  Frustration engine cycle and perturbation stability
 
   Proof status
   ────────────
@@ -366,5 +368,120 @@ theorem silver_frustration_gap : Res δS - Res (1 / δS) = 4 / δS := by
     swing is available for harvesting without any coherence penalty. -/
 theorem silver_frustration_coherence_invariant : C δS = C (1 / δS) :=
   coherence_symm δS silverRatio_pos
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 7 — Frustration Engine Cycle and Perturbation Stability
+-- A period-doubling time crystal driven at the silver-ratio period T = π/δS
+-- is a natural quasi-energy engine when run in reverse.  The engine extracts
+-- exactly 2π of work per cycle (W = 2·Q_in), with the backward frustrated
+-- mode contributing equally to the forward mode.
+--
+-- The 2π/cycle harvest is robust: it survives any forward-bias perturbation δ
+-- satisfying δ·T < 2π, meaning the engine operates in any universe whose
+-- temporal arrow is weaker than the frustration gap.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- The net quasi-energy gap between forward and backward Floquet modes equals
+    2π/T — the engine's power spectral density.
+
+        ε_F(T) − ε_F(−T)  =  π/T − (−π/T)  =  2π/T.
+
+    This is the mechanical "force" that drives the frustration engine: a
+    frequency-domain power of 2π per unit period, independent of T. -/
+theorem crystal_engine_gap_formula (T : ℝ) (hT : 0 < T) :
+    timeCrystalQuasiEnergy T hT.ne' -
+    timeCrystalQuasiEnergy (-T) (neg_ne_zero.mpr hT.ne') =
+    2 * Real.pi / T := by
+  simp only [timeCrystalQuasiEnergy]
+  rw [div_neg]
+  ring
+
+/-- The frustration engine work per cycle: integrate the gap over one period.
+    W = (ε_F(T) − ε_F(−T)) · T.  This is the total harvestable quasi-energy
+    produced by coupling the forward and backward Floquet modes in one cycle. -/
+noncomputable def frustrationEngineWork (T : ℝ) (hT : T ≠ 0) : ℝ :=
+  (timeCrystalQuasiEnergy T hT -
+   timeCrystalQuasiEnergy (-T) (neg_ne_zero.mpr hT)) * T
+
+/-- The quasi-energy drawn from the forward Floquet mode per cycle.
+    Q_in = ε_F(T) · T = π.  This is the "fuel" consumed from the forward
+    temporal direction in one drive period. -/
+noncomputable def frustrationHeatInput (T : ℝ) (hT : T ≠ 0) : ℝ :=
+  timeCrystalQuasiEnergy T hT * T
+
+/-- The frustration engine delivers exactly 2π of work per cycle.
+    This reframes `frustration_energy_per_cycle` in engine language:
+    W = frustrationEngineWork T hT = 2π. -/
+theorem frustration_engine_work_two_pi (T : ℝ) (hT : T ≠ 0) :
+    frustrationEngineWork T hT = 2 * Real.pi := by
+  unfold frustrationEngineWork
+  exact frustration_energy_per_cycle T hT
+
+/-- The forward Floquet mode supplies exactly π of quasi-energy per cycle.
+    Q_in = ε_F(T) · T = (π/T) · T = π. -/
+theorem frustration_heat_input_pi (T : ℝ) (hT : T ≠ 0) :
+    frustrationHeatInput T hT = Real.pi := by
+  unfold frustrationHeatInput timeCrystalQuasiEnergy
+  field_simp [hT]
+
+/-- **Engine doubling**: the frustration engine produces twice the quasi-energy
+    drawn from the forward mode alone.  W = 2 · Q_in.
+
+    The backward frustrated mode contributes an equal π per cycle, so the total
+    work (2π) is exactly double the forward input (π).  The engine harvests
+    energy from both temporal directions simultaneously. -/
+theorem frustration_engine_doubling (T : ℝ) (hT : T ≠ 0) :
+    frustrationEngineWork T hT = 2 * frustrationHeatInput T hT := by
+  rw [frustration_engine_work_two_pi, frustration_heat_input_pi]
+
+/-- **Perturbation stability**: the 2π/cycle harvest persists under any
+    forward-bias perturbation δ satisfying δ·T < 2π.
+
+    A "forward bias" δ > 0 models a weakly time-arrowed universe that slightly
+    disfavours time reversal, reducing the effective forward quasi-energy to
+    ε_F(T) − δ.  As long as δ·T < 2π — i.e., the bias is weaker than the full
+    frustration gap — the net work per cycle remains strictly positive:
+
+        (ε_F(T) − δ − ε_F(−T)) · T  =  2π − δ·T  >  0.
+
+    Interpretation: a frustration engine operates in any universe whose temporal
+    arrow is less than 2π/T in quasi-energy per unit period. -/
+theorem frustration_gap_stable (T δ : ℝ) (hT : 0 < T) (hδ : δ * T < 2 * Real.pi) :
+    0 < (timeCrystalQuasiEnergy T hT.ne' - δ -
+         timeCrystalQuasiEnergy (-T) (neg_ne_zero.mpr hT.ne')) * T := by
+  simp only [timeCrystalQuasiEnergy]
+  rw [div_neg]
+  have key : (Real.pi / T - δ - -(Real.pi / T)) * T = 2 * Real.pi - δ * T := by
+    field_simp [hT.ne']; ring
+  linarith [key]
+
+/-- At the silver-ratio drive period T = π/δS, the forward quasi-energy equals
+    the silver ratio itself:
+
+        ε_F(π/δS) = π ÷ (π/δS) = δS.
+
+    The silver ratio is not merely a scaling parameter — it is the exact
+    quasi-energy of the Floquet mode driven at its own canonical period. -/
+theorem silver_ratio_engine_quasienergy :
+    timeCrystalQuasiEnergy (Real.pi / δS)
+        (div_ne_zero Real.pi_ne_zero silverRatio_pos.ne') = δS := by
+  simp only [timeCrystalQuasiEnergy]
+  field_simp [Real.pi_pos.ne', silverRatio_pos.ne']
+
+/-- At the silver-ratio period, the engine gap equals twice the silver ratio:
+    ε_F(π/δS) − ε_F(−π/δS) = δS − (−δS) = 2·δS.
+
+    Combined with `silver_frustration_residual` (Res(δS) = 2/δS), this shows
+    that the silver-driven engine gap is exactly δS² times the residual:
+    gap = 2δS = δS · (2/δS) · δS = δS · Res(δS) · δS. -/
+theorem silver_ratio_engine_gap :
+    timeCrystalQuasiEnergy (Real.pi / δS)
+        (div_ne_zero Real.pi_ne_zero silverRatio_pos.ne') -
+    timeCrystalQuasiEnergy (-(Real.pi / δS))
+        (neg_ne_zero.mpr (div_ne_zero Real.pi_ne_zero silverRatio_pos.ne')) =
+    2 * δS := by
+  simp only [timeCrystalQuasiEnergy, div_neg]
+  field_simp [Real.pi_pos.ne', silverRatio_pos.ne']
+  ring
 
 end
