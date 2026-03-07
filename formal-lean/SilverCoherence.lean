@@ -141,9 +141,11 @@ theorem mu_imaginary_part : Complex.im μ = Real.sqrt 2 / 2 := by
     rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring,
         Real.sin_pi_sub, Real.sin_pi_div_four]
   unfold μ
-  rw [mul_comm, Complex.exp_mul_I]
+  rw [show Complex.I * (3 * ↑Real.pi / 4) = ↑(3 * Real.pi / 4 : ℝ) * Complex.I by push_cast; ring,
+      Complex.exp_mul_I]
   simp only [Complex.add_im, Complex.mul_im, Complex.ofReal_im, Complex.I_im,
-             Complex.ofReal_re, Complex.I_re, mul_one, mul_zero, zero_add]
+             Complex.ofReal_re, Complex.I_re, Complex.cos_ofReal_im, Complex.sin_ofReal_re,
+             mul_one, mul_zero, zero_add, add_zero]
   exact hsin
 
 /-- **Central connection**: Im(μ) = C(δS).
@@ -173,7 +175,6 @@ theorem silver_ohm_resistance : (C δS)⁻¹ = Real.sqrt 2 := by
   rw [silver_coherence]
   have h2 : Real.sqrt 2 ≠ 0 := Real.sqrt_ne_zero'.mpr (by norm_num)
   field_simp [h2]
-  exact sqrt2_mul_self
 
 /-- Ohm's law at the silver scale: G_eff(δS) · R_eff(δS) = 1. -/
 theorem silver_ohm_law : C δS * (C δS)⁻¹ = 1 := by
@@ -215,7 +216,7 @@ theorem koide_silver_kernel_ordering :
     The μ-orbit always runs at the perfectly-coherent kernel point, above δS. -/
 theorem mu_orbit_exceeds_silver (n : ℕ) :
     C δS < C (Complex.abs (μ ^ n)) := by
-  rw [mu_pow_abs, (coherence_eq_one_iff 1 le_rfl).mpr rfl]
+  rw [mu_pow_abs]
   exact silver_below_kernel
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -233,7 +234,7 @@ theorem silver_le_hundred : δS ≤ 100 := by
   unfold δS
   have : Real.sqrt 2 ≤ 2 := by
     calc Real.sqrt 2 ≤ Real.sqrt 4 := Real.sqrt_le_sqrt (by norm_num)
-      _ = 2 := by norm_num [Real.sqrt_eq_iff_sq_eq]
+      _ = 2 := by norm_num [Real.sqrt_eq_iff_eq_sq]
   linarith
 
 /-- The silver ratio lies in the meso turbulence domain [1, 100]. -/
@@ -279,9 +280,11 @@ theorem mu_real_part : Complex.re μ = -(Real.sqrt 2 / 2) := by
     rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring,
         Real.cos_pi_sub, Real.cos_pi_div_four]
   unfold μ
-  rw [mul_comm, Complex.exp_mul_I]
+  rw [show Complex.I * (3 * ↑Real.pi / 4) = ↑(3 * Real.pi / 4 : ℝ) * Complex.I by push_cast; ring,
+      Complex.exp_mul_I]
   simp only [Complex.add_re, Complex.mul_re, Complex.ofReal_re, Complex.I_re,
-             Complex.ofReal_im, Complex.I_im, mul_zero, sub_zero]
+             Complex.ofReal_im, Complex.I_im, Complex.cos_ofReal_re, Complex.sin_ofReal_im,
+             mul_zero, sub_zero]
   exact hcos
 
 /-- **Symmetry**: both component magnitudes of μ equal C(δS) = √2/2.
@@ -289,7 +292,7 @@ theorem mu_real_part : Complex.re μ = -(Real.sqrt 2 / 2) := by
     The critical eigenvalue μ = (−1+i)/√2 has |Re(μ)| = |Im(μ)| = √2/2 = C(δS).
     The silver ratio δS is the unique scale capturing both component magnitudes. -/
 theorem mu_re_abs_eq_silver_coherence : |Complex.re μ| = C δS := by
-  rw [mu_real_part, abs_neg, abs_of_nonneg (by positivity),
+  rw [mu_real_part, abs_neg, _root_.abs_of_nonneg (by positivity),
       silver_coherence]
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -384,8 +387,8 @@ theorem silver_unitarity_elastic_sq : Real.sin (Real.pi / 4) ^ 2 = C δS ^ 2 := 
 theorem silver_schwinger_bound : α_FS / (2 * Real.pi) < C δS ^ 2 := by
   rw [silver_coherence_sq]
   unfold α_FS
-  have hπ : (3 : ℝ) < Real.pi := Real.pi_gt_three
-  rw [div_lt_iff (by positivity : (0 : ℝ) < 2 * Real.pi)]
+  have hπ : (3 : ℝ) < Real.pi := by linarith [Real.pi_gt_3141592]
+  rw [div_lt_iff₀ (by positivity : (0 : ℝ) < 2 * Real.pi)]
   linarith
 
 /-- **EM-corrected silver coherence exceeds Koide**: coherenceEM(δS) > C(φ²).
@@ -396,7 +399,7 @@ theorem silver_schwinger_bound : α_FS / (2 * Real.pi) < C δS ^ 2 := by
 
     Proof: (136/137)·√2/2 > 2/3 ↔ 408·√2 > 548, verified by 408²·2 > 548². -/
 theorem silver_em_stays_above_koide : coherenceEM δS > C (φ ^ 2) := by
-  rw [show coherenceEM δS = (1 - α_FS) * C δS from by unfold coherenceEM,
+  rw [show coherenceEM δS = (1 - α_FS) * C δS from rfl,
       koide_coherence_bridge, silver_coherence]
   unfold α_FS
   have hsq : Real.sqrt 2 * Real.sqrt 2 = 2 := sqrt2_mul_self
