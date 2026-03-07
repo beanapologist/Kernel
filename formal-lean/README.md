@@ -18,7 +18,8 @@ formal-lean/
 ├── SpaceTime.lean          # 43 theorems on space-time unification
 ├── Turbulence.lean         # 29 theorems on Navier-Stokes turbulence theory
 ├── FineStructure.lean      # 30 theorems on the fine structure constant α_FS
-├── ParticleMass.lean       # 28 theorems on Koide formula and proton/electron mass ratio
+├── ParticleMass.lean       # 38 theorems on Koide formula, proton/electron mass ratio, coherence triality
+├── OhmTriality.lean        # 24 theorems on Ohm–Coherence duality at triality scales
 └── README.md              # This file
 ```
 
@@ -88,6 +89,7 @@ All 43 theorems in `SpaceTime.lean` have complete machine-checked proofs (no `so
 All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `sorry`).
 All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no `sorry`).
 All 38 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
+All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -556,6 +558,68 @@ Physical interpretation: **kernel @ r=1** (μ-orbit, C=1), **leptons @ r=φ²** 
 | 36 | `coherence_triality` | **C(1)=1  ∧  C(φ²)=2/3  ∧  C(1/φ²)=2/3** — full triality |
 | 37 | `triality_kernel_strict_max` | C(1/φ²) < C(1) ∧ C(φ²) < C(1) — kernel dominates both wings |
 | 38 | `mu_orbit_exceeds_triality_wings` | C(1/φ²) < C(\|μⁿ\|) = 1 for all n |
+
+---
+
+### `OhmTriality.lean`
+
+Applies the **Ohm–Coherence duality** (G_eff = C(r), R_eff = 1/C(r), G·R = 1) to the three triality scales simultaneously, connecting the circuit interpretation of the coherence function to the kernel/lepton/hadronic structure.
+
+All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Ohm conductance at triality scales  (G_eff = C)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `ohm_conductance_kernel` | G(1) = C(1) = 1 — perfectly conducting |
+| 2 | `ohm_conductance_lepton` | G(φ²) = C(φ²) = 2/3 — Koide coupling |
+| 3 | `ohm_conductance_hadronic` | G(1/φ²) = C(1/φ²) = 2/3 |
+| 4 | `ohm_conductance_wings_equal` | G(φ²) = G(1/φ²) — wings share conductance |
+
+**§2 Ohm resistance at triality scales  (R_eff = 1/C)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 5 | `ohm_resistance_kernel` | R(1) = (C 1)⁻¹ = 1 — unit resistance |
+| 6 | `ohm_resistance_lepton` | R(φ²) = (C φ²)⁻¹ = 3/2 |
+| 7 | `ohm_resistance_hadronic` | R(1/φ²) = (C 1/φ²)⁻¹ = 3/2 |
+| 8 | `ohm_triality_resistance` | **R_kernel=1  ∧  R_lepton=3/2  ∧  R_hadronic=3/2** |
+
+**§3 Ohm's law G·R = 1 at each triality scale**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `ohm_law_kernel` | C(1) · (C 1)⁻¹ = 1 |
+| 10 | `ohm_law_lepton` | C(φ²) · (C φ²)⁻¹ = 1 |
+| 11 | `ohm_law_hadronic` | C(1/φ²) · (C 1/φ²)⁻¹ = 1 |
+| 12 | `ohm_triality_gr` | **G·R=1 at all three triality scales** |
+
+**§4 Wing symmetry and kernel minimality**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 13 | `ohm_wings_equal_resistance` | R(φ²) = R(1/φ²) — wings have equal resistance |
+| 14 | `ohm_kernel_minimal_resistance` | R(1) = 1 < 3/2 = R(wing) — kernel is minimally resistive |
+| 15 | `ohm_kernel_maximal_conductance` | G(φ²) < G(1) — kernel maximally conducting |
+
+**§5 Lyapunov exponent at triality scales  (λ = log r)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `ohm_lyapunov_kernel` | log 1 = 0 (no decoherence at kernel) |
+| 17 | `ohm_lyapunov_lepton_pos` | 0 < log(φ²) (lepton in positive-λ regime) |
+| 18 | `ohm_lyapunov_wing_symmetry` | log(1/φ²) = −log(φ²) — symmetric wings |
+| 19 | `ohm_lyapunov_wings_same_magnitude` | \|log(φ²)\| = \|log(1/φ²)\| |
+| 20 | `ohm_lepton_lyapunov_resistance` | R(φ²) = cosh(log φ²) — Lyapunov form of resistance |
+| 21 | `ohm_lyapunov_cosh_wing_symmetry` | cosh(log 1/φ²) = cosh(log φ²) — cosh even ⟹ equal R |
+
+**§6 μ-Orbit Ohm identity**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 22 | `ohm_mu_orbit_conductance` | C(\|μⁿ\|) = 1 — perfect conductance at every orbit step |
+| 23 | `ohm_mu_orbit_unit_resistance` | (C \|μⁿ\|)⁻¹ = 1 — unit resistance throughout orbit |
+| 24 | `ohm_mu_orbit_exceeds_wings` | G_wing < C(\|μⁿ\|) = 1 — μ-orbit dominates both wings |
 
 ---
 
