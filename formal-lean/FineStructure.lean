@@ -90,7 +90,7 @@ theorem α_FS_sq_lt : α_FS ^ 2 < α_FS := by
   nlinarith [sq_nonneg α_FS]
 
 /-- α_FS² > 0: even second-order electromagnetic corrections are non-trivial. -/
-theorem α_FS_sq_pos : 0 < α_FS ^ 2 := by positivity
+theorem α_FS_sq_pos : 0 < α_FS ^ 2 := pow_pos α_FS_pos 2
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 2 — Fine Structure Energy Splitting
@@ -128,7 +128,7 @@ theorem fineStructureShift_pos (ε : ℝ) (hε : 0 < ε) :
 theorem fineStructureShift_lt_base (ε : ℝ) (hε : 0 < ε) :
     fineStructureShift ε < ε := by
   unfold fineStructureShift
-  calc α_FS ^ 2 * ε < 1 * ε := by nlinarith [α_FS_sq_lt, α_FS_pos, α_FS_sq_pos]
+  calc α_FS ^ 2 * ε < 1 * ε := by nlinarith [α_FS_sq_lt, α_FS_lt_one]
     _ = ε := one_mul ε
 
 /-- Fine-structure–corrected energy: ε_fine = ε_base + α_FS² · ε_base = (1 + α_FS²) · ε_base.
@@ -189,6 +189,7 @@ theorem rydbergEnergy_ground_state_lowest (n : ℕ) (hn : 0 < n) :
   have h1 : (0 : ℝ) < (n : ℝ) ^ 2 := pow_pos hn' 2
   have hle : 1 / (n : ℝ) ^ 2 ≤ 1 := by
     rw [div_le_one h1]
+    have hn1 : (1 : ℝ) ≤ (n : ℝ) := by exact_mod_cast hn
     nlinarith [sq_nonneg ((n : ℝ) - 1)]
   linarith
 
@@ -204,7 +205,8 @@ theorem rydbergEnergy_strictMono (n : ℕ) (hn : 0 < n) :
   simp only [neg_lt_neg_iff]
   have hn' : (0 : ℝ) < (n : ℝ) := Nat.cast_pos.mpr hn
   have hn1' : (0 : ℝ) < ((n : ℝ) + 1) := by linarith
-  rw [div_lt_div_iff (pow_pos hn1' 2) (pow_pos hn' 2)]
+  push_cast
+  rw [div_lt_div_iff₀ (pow_pos hn1' 2) (pow_pos hn' 2)]
   have : (n : ℝ) < (n : ℝ) + 1 := by linarith
   nlinarith [pow_pos hn' 2, pow_pos hn1' 2]
 
@@ -253,7 +255,7 @@ theorem coherenceEM_le_coherence (r : ℝ) (hr : 0 ≤ r) :
     coherenceEM r ≤ C r := by
   unfold coherenceEM C
   have hC : 0 ≤ 2 * r / (1 + r ^ 2) :=
-    div_nonneg (by linarith) (le_of_lt (one_add_sq_pos r))
+    div_nonneg (by linarith) (by nlinarith [sq_nonneg r])
   nlinarith [α_FS_pos]
 
 /-- C_EM(r) ≥ 0 for r ≥ 0: electromagnetic coherence is non-negative.
@@ -263,7 +265,7 @@ theorem coherenceEM_nonneg (r : ℝ) (hr : 0 ≤ r) : 0 ≤ coherenceEM r := by
   unfold coherenceEM C
   apply mul_nonneg
   · linarith [α_FS_lt_one]
-  · exact div_nonneg (by linarith) (le_of_lt (one_add_sq_pos r))
+  · exact div_nonneg (by linarith) (by nlinarith [sq_nonneg r])
 
 /-- C_EM(1) = 1 − α_FS: at the kernel scale, EM coherence equals 1 − α_FS.
 
@@ -271,7 +273,7 @@ theorem coherenceEM_nonneg (r : ℝ) (hr : 0 ≤ r) : 0 ≤ coherenceEM r := by
     maximum of C. -/
 theorem coherenceEM_kernel : coherenceEM 1 = 1 - α_FS := by
   unfold coherenceEM
-  rw [(coherence_eq_one_iff 1 le_rfl).mpr rfl, mul_one]
+  rw [(coherence_eq_one_iff 1 zero_le_one).mpr rfl, mul_one]
 
 /-- C_EM(r) < 1 − α_FS for r ≥ 0 with r ≠ 1.
 
@@ -348,7 +350,7 @@ theorem floquetFineEnergy_phase (T : ℝ) (hT : T ≠ 0) :
   -- Algebraic chain:
   -- (ε_F · (1+α_FS²)) · T = (1+α_FS²) · (ε_F · T) = (1+α_FS²) · π
   rw [mul_comm (timeCrystalQuasiEnergy T hT) _, mul_assoc,
-      mul_comm T _, timeCrystalQuasiEnergy_phase]
+      timeCrystalQuasiEnergy_phase, mul_comm]
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 6 — Fine Structure and Turbulence
