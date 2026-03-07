@@ -44,6 +44,7 @@ jobs:
 
       - name: Download pre-built Mathlib cache
         working-directory: formal-lean
+        continue-on-error: true
         run: lake exe cache get
 
       - name: Build and verify all Lean proofs
