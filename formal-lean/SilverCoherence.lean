@@ -57,6 +57,7 @@
 -/
 
 import OhmTriality
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Bounds
 
 open Complex Real
 
@@ -284,7 +285,7 @@ theorem mu_real_part : Complex.re μ = -(Real.sqrt 2 / 2) := by
       Complex.exp_mul_I]
   simp only [Complex.add_re, Complex.mul_re, Complex.ofReal_re, Complex.I_re,
              Complex.ofReal_im, Complex.I_im, Complex.cos_ofReal_re, Complex.sin_ofReal_im,
-             mul_zero, sub_zero]
+             mul_zero, zero_mul, sub_zero, add_zero]
   exact hcos
 
 /-- **Symmetry**: both component magnitudes of μ equal C(δS) = √2/2.
