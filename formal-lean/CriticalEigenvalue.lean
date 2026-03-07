@@ -69,7 +69,6 @@ theorem mu_eq_cart : μ = ((-1 + Complex.I) / Real.sqrt 2) := by
   -- exp(I · 3π/4) = cos(3π/4) + I·sin(3π/4)
   --              = −(1/√2) + I·(1/√2) = (−1 + I)/√2
   have h2ne : Real.sqrt 2 ≠ 0 := Real.sqrt_ne_zero'.mpr (by norm_num)
-  have h2sq : Real.sqrt 2 * Real.sqrt 2 = 2 := Real.mul_self_sqrt (by norm_num)
   have hcos : Real.cos (3 * Real.pi / 4) = -(1 / Real.sqrt 2) := by
     rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring]
     rw [Real.cos_pi_sub, Real.cos_pi_div_four]
