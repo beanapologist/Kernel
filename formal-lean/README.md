@@ -14,9 +14,10 @@ formal-lean/
 ├── lean-toolchain         # Pins the exact Lean 4 version
 ├── Main.lean              # Executable entry point (prints verified theorems)
 ├── CriticalEigenvalue.lean # 71 theorems on eigenvalue/coherence structure
-├── TimeCrystal.lean        # 20 theorems on discrete time crystal theory
+├── TimeCrystal.lean        # 33 theorems on discrete time crystal theory
 ├── SpaceTime.lean          # 43 theorems on space-time unification
 ├── Turbulence.lean         # 29 theorems on Navier-Stokes turbulence theory
+├── FineStructure.lean      # 30 theorems on the fine structure constant α_FS
 └── README.md              # This file
 ```
 
@@ -84,6 +85,7 @@ All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proof
 All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
 All 43 theorems in `SpaceTime.lean` have complete machine-checked proofs (no `sorry`).
 All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `sorry`).
+All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -409,6 +411,70 @@ lake build
 
 ---
 
+### `FineStructure.lean`
+
+**§1 Fine structure constant  (α_FS = 1/137)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `α_FS_pos` | 0 < α_FS |
+| 2 | `α_FS_lt_one` | α_FS < 1 — weak electromagnetic coupling |
+| 3 | `α_FS_lt_one_over_hundred` | α_FS < 1/100 — perturbation theory converges |
+| 4 | `α_FS_mem_unit` | 0 < α_FS ∧ α_FS < 1 |
+| 5 | `α_FS_sq_lt` | α_FS² < α_FS — higher-order corrections are smaller |
+| 6 | `α_FS_sq_pos` | 0 < α_FS² |
+
+**§2 Fine structure energy splitting  (Δε = α_FS² · ε)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `fineStructureShift_nonneg` | Δε ≥ 0 for ε ≥ 0 |
+| 8 | `fineStructureShift_pos` | Δε > 0 for ε > 0 |
+| 9 | `fineStructureShift_lt_base` | Δε < ε — shift is a small correction |
+| 10 | `fineEnergy_gt_base` | ε_fine > ε_base for ε > 0 |
+| 11 | `fineEnergy_factor` | ε_fine = (1 + α_FS²) · ε |
+
+**§3 Rydberg (Bohr) energy levels  (E_n = −1/n²)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 12 | `rydbergEnergy_neg` | E_n < 0 — all levels are bound states |
+| 13 | `rydbergEnergy_ground_state_lowest` | E_1 ≤ E_n for all n ≥ 1 |
+| 14 | `rydbergEnergy_strictMono` | E_n < E_{n+1} — levels increase toward zero |
+| 15 | `rydbergFineEnergy_gt_base` | E_n^fine > E_n — fine structure lifts levels |
+
+**§4 Electromagnetic coherence  (C_EM(r) = (1 − α_FS) · C(r))**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `coherenceEM_le_coherence` | C_EM(r) ≤ C(r) — EM coupling reduces coherence |
+| 17 | `coherenceEM_nonneg` | C_EM(r) ≥ 0 for r ≥ 0 |
+| 18 | `coherenceEM_kernel` | C_EM(1) = 1 − α_FS — EM-corrected kernel coherence |
+| 19 | `coherenceEM_lt_kernel` | C_EM(r) < 1 − α_FS for r ≠ 1 |
+| 20 | `coherenceEM_micro_below_kernel` | C_EM(η) < C_EM(1) for η ∈ microScaleDomain |
+
+**§5 Floquet quasi-energy fine structure**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `floquetFineEnergy_gt_base` | ε_F^fine > ε_F for T > 0 |
+| 22 | `floquetFineEnergy_pos` | ε_F^fine > 0 for T > 0 |
+| 23 | `fineStructure_preserves_mu_period` | μ^8 = 1 — 8-cycle unaffected by α_FS |
+| 24 | `floquetFineEnergy_phase` | ε_F^fine · T = π · (1 + α_FS²) |
+
+**§6 Fine structure and turbulence  (MHD dissipation)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 25 | `fineStructureDissipation_nonneg` | ε_EM ≥ 0 for ε_visc ≥ 0 |
+| 26 | `fineStructureDissipation_pos` | ε_EM > 0 for ε_visc > 0 |
+| 27 | `fineStructureDissipation_lt_viscous` | ε_EM < ε_visc — EM is a minority dissipation |
+| 28 | `totalMHDDissipation_gt_viscous` | ε_total > ε_visc |
+| 29 | `totalMHDDissipation_factor` | ε_total = (1 + α_FS) · ε_visc |
+| 30 | `MHDDissipation_from_NS` | ε_total = (1 + α_FS) · ν · g² |
+
+---
+
 ## References
 
 - [Lean 4 documentation](https://leanprover.github.io/lean4/doc/)
@@ -418,3 +484,7 @@ lake build
 - Reynolds, O. (1895). On the dynamical theory of incompressible viscous fluids. *Phil. Trans. R. Soc. A* 186, 123–164.
 - Kolmogorov, A. N. (1941). The local structure of turbulence in incompressible viscous fluid. *Dokl. Akad. Nauk SSSR* 30, 301–305.
 - Pope, S. B. (2000). *Turbulent Flows*. Cambridge University Press.
+- Sommerfeld, A. (1916). Zur Quantentheorie der Spektrallinien. *Ann. Phys.* 51, 1–94.
+- Bethe, H. A., & Salpeter, E. E. (1977). *Quantum Mechanics of One- and Two-Electron Atoms*. Springer.
+- Davidson, P. A. (2001). *An Introduction to Magnetohydrodynamics*. Cambridge University Press.
+- CODATA 2018. Fine structure constant α = 7.2973525693 × 10⁻³ (NIST).
