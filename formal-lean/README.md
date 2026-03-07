@@ -18,6 +18,7 @@ formal-lean/
 ├── SpaceTime.lean          # 43 theorems on space-time unification
 ├── Turbulence.lean         # 29 theorems on Navier-Stokes turbulence theory
 ├── FineStructure.lean      # 30 theorems on the fine structure constant α_FS
+├── ParticleMass.lean       # 28 theorems on Koide formula and proton/electron mass ratio
 └── README.md              # This file
 ```
 
@@ -86,6 +87,7 @@ All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `
 All 43 theorems in `SpaceTime.lean` have complete machine-checked proofs (no `sorry`).
 All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `sorry`).
 All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no `sorry`).
+All 28 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -475,6 +477,70 @@ lake build
 
 ---
 
+### `ParticleMass.lean`
+
+**Central result:** `koide_coherence_bridge : C(φ²) = 2/3` — the Koide lepton mass ratio equals the Kernel coherence function at the golden ratio scale (the μ-cycle trick).
+
+**§1 Koide quotient  (1/3 ≤ Q ≤ 1)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `koideQuotient_denom_pos` | denominator > 0 when m₁ > 0 |
+| 2 | `koideQuotient_nonneg` | Q ≥ 0 for non-negative masses |
+| 3 | `koideQuotient_lower_bound` | Q ≥ 1/3  (Cauchy-Schwarz) |
+| 4 | `koideQuotient_upper_bound` | Q ≤ 1  (non-negative cross terms) |
+
+**§2 Extremal masses**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 5 | `koideQuotient_equal_masses` | Q(m,m,m) = 1/3 — lower bound attained |
+| 6 | `koide_lower_attained` | ∃ triple (1,1,1) with Q = 1/3 |
+
+**§3 Golden ratio  φ = (1+√5)/2**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `goldenRatio_pos` | φ > 0 |
+| 8 | `goldenRatio_gt_one` | φ > 1 |
+| 9 | `goldenRatio_sq` | φ² = φ + 1 — defining equation |
+| 10 | `goldenRatio_sq_pos` | φ² > 0 |
+| 11 | `goldenRatio_fourth` | φ⁴ = 3φ + 2 |
+
+**§4 Koide-coherence bridge (μ-cycle trick)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 12 | `one_add_goldenRatio_fourth` | 1 + φ⁴ = 3φ² — key bridge identity |
+| 13 | `koide_coherence_bridge` | **C(φ²) = 2/3** — Koide value from μ-cycle coherence |
+| 14 | `koide_coherence_two_thirds_of_max` | C(φ²) = (2/3)·C(1) |
+| 15 | `koide_coherence_reciprocal` | C(1/φ²) = 2/3 — coherence symmetry |
+
+**§5 μ-orbit Koide connection**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `goldenRatio_sq_ne_one` | φ² ≠ 1 |
+| 17 | `goldenRatio_sq_meso` | φ² ∈ mesoScaleDomain [1, 100] |
+| 18 | `koide_coherence_pos` | 0 < C(φ²) = 2/3 |
+| 19 | `koide_below_mu_orbit_peak` | C(φ²) < C(1) = 1 |
+| 20 | `koide_coherence_strictly_between` | 0 < C(φ²) < 1 |
+| 21 | `mu_orbit_exceeds_koide` | C(\|μⁿ\|) = 1 > 2/3 for all n |
+
+**§6 Proton/electron mass ratio  R = 1836**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 22 | `protonElectronRatio_gt_one` | R > 1 |
+| 23 | `protonElectronRatio_gt_α_FS_inv` | 1/α_FS = 137 < R = 1836 |
+| 24 | `protonElectronRatio_gt_8cycle` | R > 8 (exceeds the μ-orbit period) |
+| 25 | `reducedMassFactor_mem_unit` | 0 < R/(R+1) < 1 |
+| 26 | `reducedMassEnergy_neg` | E_n^red < 0 — still a bound state |
+| 27 | `reducedMassEnergy_gt_rydberg` | E_n < E_n^red — recoil lifts levels |
+| 28 | `reducedMassCorrection_lt_α_FS` | 1/(R+1) < α_FS — recoil < EM coupling |
+
+---
+
 ## References
 
 - [Lean 4 documentation](https://leanprover.github.io/lean4/doc/)
@@ -488,3 +554,6 @@ lake build
 - Bethe, H. A., & Salpeter, E. E. (1977). *Quantum Mechanics of One- and Two-Electron Atoms*. Springer.
 - Davidson, P. A. (2001). *An Introduction to Magnetohydrodynamics*. Cambridge University Press.
 - CODATA 2018. Fine structure constant α = 7.2973525693 × 10⁻³ (NIST).
+- Koide, Y. (1982). A fermion-boson composite model of quarks and leptons. *Phys. Lett. B* 120, 161–165.
+- Livio, M. (2002). *The Golden Ratio*. Broadway Books.
+- Mohr, P. J. et al. (2016). CODATA recommended values. *Rev. Mod. Phys.* 88, 035009.

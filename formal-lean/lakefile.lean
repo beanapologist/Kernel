@@ -24,7 +24,8 @@ require mathlib from git
 
 /-- Library containing the core Kernel formalizations. -/
 lean_lib «FormalLean» where
-  roots := #[`CriticalEigenvalue, `TimeCrystal, `SpaceTime, `Turbulence, `FineStructure]
+  roots := #[`CriticalEigenvalue, `TimeCrystal, `SpaceTime, `Turbulence, `FineStructure,
+             `ParticleMass]
 
 /-- Executable entry point that prints a summary of verified theorems. -/
 @[default_target]
