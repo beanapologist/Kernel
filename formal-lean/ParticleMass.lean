@@ -192,7 +192,7 @@ theorem goldenRatio_sq : φ ^ 2 = φ + 1 := by
   nlinarith
 
 /-- φ² > 0. -/
-theorem goldenRatio_sq_pos : 0 < φ ^ 2 := by positivity
+theorem goldenRatio_sq_pos : 0 < φ ^ 2 := pow_pos goldenRatio_pos 2
 
 /-- φ⁴ = 3φ + 2 (derived by squaring φ² = φ + 1 and substituting again). -/
 theorem goldenRatio_fourth : φ ^ 4 = 3 * φ + 2 := by
@@ -234,7 +234,7 @@ theorem koide_coherence_bridge : C (φ ^ 2) = 2 / 3 := by
 
 /-- The Koide value is exactly 2/3 of the μ-orbit peak coherence C(1) = 1. -/
 theorem koide_coherence_two_thirds_of_max : C (φ ^ 2) = 2 / 3 * C 1 := by
-  rw [koide_coherence_bridge, (coherence_eq_one_iff 1 le_rfl).mpr rfl, mul_one]
+  rw [koide_coherence_bridge, (coherence_eq_one_iff 1 zero_le_one).mpr rfl, mul_one]
 
 /-- Coherence-symmetry Koide: C(1/φ²) = 2/3.
 
@@ -283,7 +283,7 @@ theorem koide_coherence_pos : 0 < C (φ ^ 2) := by
     φ² ≠ 1, so by coherence_lt_one (every r ≠ 1 gives C(r) < 1 = C(1))
     the Koide coherence 2/3 lies strictly below the maximum. -/
 theorem koide_below_mu_orbit_peak : C (φ ^ 2) < C 1 := by
-  rw [(coherence_eq_one_iff 1 le_rfl).mpr rfl]
+  rw [(coherence_eq_one_iff 1 zero_le_one).mpr rfl]
   exact coherence_lt_one (φ ^ 2) (le_of_lt goldenRatio_sq_pos) goldenRatio_sq_ne_one
 
 /-- The Koide coherence 2/3 is strictly between 0 and 1. -/
@@ -297,7 +297,7 @@ theorem koide_coherence_strictly_between : 0 < C (φ ^ 2) ∧ C (φ ^ 2) < 1 :=
     The μ-orbit always achieves maximum coherence; the Koide scale lies
     strictly below the μ-orbit peak throughout the 8-cycle. -/
 theorem mu_orbit_exceeds_koide (n : ℕ) : C (φ ^ 2) < C (Complex.abs (μ ^ n)) := by
-  rw [mu_pow_abs, koide_coherence_bridge, (coherence_eq_one_iff 1 le_rfl).mpr rfl]
+  rw [mu_pow_abs, koide_coherence_bridge, (coherence_eq_one_iff 1 zero_le_one).mpr rfl]
   norm_num
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -453,7 +453,7 @@ theorem triality_wings_equal_coherence : C (1 / φ ^ 2) = C (φ ^ 2) :=
 
 /-- The hadronic triality scale is below the kernel peak: C(1/φ²) < C(1). -/
 theorem triality_recip_below_kernel : C (1 / φ ^ 2) < C 1 := by
-  rw [(coherence_eq_one_iff 1 le_rfl).mpr rfl]
+  rw [(coherence_eq_one_iff 1 zero_le_one).mpr rfl]
   exact coherence_lt_one (1 / φ ^ 2)
     (le_of_lt goldenRatio_sq_recip_pos) (ne_of_lt goldenRatio_sq_recip_lt_one)
 
@@ -469,7 +469,7 @@ theorem triality_recip_below_kernel : C (1 / φ ^ 2) < C 1 := by
     and both sit strictly below the kernel maximum. -/
 theorem coherence_triality :
     C 1 = 1 ∧ C (φ ^ 2) = 2 / 3 ∧ C (1 / φ ^ 2) = 2 / 3 :=
-  ⟨(coherence_eq_one_iff 1 le_rfl).mpr rfl,
+  ⟨(coherence_eq_one_iff 1 zero_le_one).mpr rfl,
    koide_coherence_bridge,
    koide_coherence_reciprocal⟩
 
@@ -486,7 +486,7 @@ theorem triality_kernel_strict_max :
     and the hadronic wing 1/φ² lie strictly below the μ-orbit peak. -/
 theorem mu_orbit_exceeds_triality_wings (n : ℕ) :
     C (1 / φ ^ 2) < C (Complex.abs (μ ^ n)) := by
-  rw [koide_coherence_reciprocal, mu_pow_abs, (coherence_eq_one_iff 1 le_rfl).mpr rfl]
+  rw [koide_coherence_reciprocal, mu_pow_abs, (coherence_eq_one_iff 1 zero_le_one).mpr rfl]
   norm_num
 
 end -- noncomputable section
