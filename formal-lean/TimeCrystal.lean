@@ -417,7 +417,7 @@ theorem mu_crystal_coherence_stability (ψ : ℝ → ℂ) (T : ℝ)
     (h : isMuDrivenState ψ T) (n : ℕ) (t : ℝ) (hψ : ψ t ≠ 0) :
     C (Complex.abs (ψ (t + ↑n * T)) / Complex.abs (ψ t)) = 1 := by
   have habs : Complex.abs (ψ t) ≠ 0 := by
-    intro h0; exact hψ (Complex.abs_eq_zero.mp h0)
+    intro h0; exact hψ (Complex.abs.eq_zero.mp h0)
   rw [mu_driven_norm_n ψ T h n t, div_self habs]
   exact mu_crystal_max_coherence
 
