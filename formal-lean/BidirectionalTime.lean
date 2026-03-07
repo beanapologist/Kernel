@@ -30,6 +30,7 @@
   5.  Bidirectional time crystal
   6.  Temporal frustration energy
   7.  Frustration engine cycle and perturbation stability
+  8.  Palindrome vacuum residual
 
   Proof status
   ────────────
@@ -483,5 +484,85 @@ theorem silver_ratio_engine_gap :
   simp only [timeCrystalQuasiEnergy, div_neg]
   field_simp [Real.pi_pos.ne', silverRatio_pos.ne']
   ring
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 8 — Palindrome Vacuum Residual
+-- The digit palindrome 987654321 = 8 × 123456789 + 9 already in the
+-- CriticalEigenvalue library (palindrome_comp) encodes the μ-cycle period
+-- (quotient 8) plus a precession residual 9/123456789 = 1/D where
+-- D = 13717421 is the slow-precession period (precession_period_factor).
+--
+-- Coupling this to the frustration engine: ε_F(π/8) = 8 is exactly the
+-- integer part of the palindrome ratio.  The sub-integer excess
+-- palindromeRatio − 8 = 1/D is the per-orbit frustration quantum linking
+-- the fast Floquet engine to the slow precession torus.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- The palindrome ratio: the descending digit-palindrome divided by the
+    ascending palindrome.
+    Its integer part 8 equals the μ-rotation period; its fractional excess
+    9/123456789 = 1/D links the 8-cycle engine to the slow-precession torus
+    of period D = 13717421. -/
+noncomputable def palindromeRatio : ℝ := (987654321 : ℝ) / 123456789
+
+/-- The palindrome ratio decomposes as 8 plus the precession residual:
+        palindromeRatio = 8 + 9/123456789.
+    Proof: 987654321 = 8 × 123456789 + 9 (`palindrome_comp`), so
+    987654321/123456789 = (8·123456789 + 9)/123456789 = 8 + 9/123456789. -/
+theorem palindrome_ratio_decomp : palindromeRatio = 8 + 9 / 123456789 := by
+  unfold palindromeRatio
+  norm_num
+
+/-- The palindrome ratio strictly exceeds 8: the descending palindrome
+    carries a positive fractional remainder 9/123456789 > 0 above the
+    8-cycle integer part. -/
+theorem palindrome_ratio_gt_eight : (8 : ℝ) < palindromeRatio := by
+  rw [palindrome_ratio_decomp]
+  norm_num
+
+/-- At the 8-cycle drive period T = π/8, the Floquet quasi-energy equals 8 —
+    the integer part of the palindrome ratio:
+        ε_F(π/8) = π ÷ (π/8) = 8.
+    The palindrome integer part is not merely combinatorial: it is the exact
+    quasi-energy at the period that resolves the 8-cycle of μ. -/
+theorem palindrome_eight_period_quasienergy :
+    timeCrystalQuasiEnergy (Real.pi / 8)
+        (div_ne_zero Real.pi_ne_zero (by norm_num : (8 : ℝ) ≠ 0)) = 8 := by
+  simp only [timeCrystalQuasiEnergy]
+  field_simp [Real.pi_pos.ne']
+
+/-- The frustration engine at the palindrome 8-cycle period T = π/8 extracts
+    exactly 2π of work per cycle.  The universal 2π/cycle harvest holds at
+    the period that resolves the palindrome integer part. -/
+theorem palindrome_eight_period_engine_work :
+    frustrationEngineWork (Real.pi / 8)
+        (div_ne_zero Real.pi_ne_zero (by norm_num : (8 : ℝ) ≠ 0)) =
+    2 * Real.pi :=
+  frustration_engine_work_two_pi _ _
+
+/-- The palindrome vacuum residual: the palindrome ratio exceeds the 8-cycle
+    quasi-energy by exactly 9/123456789.
+        palindromeRatio − ε_F(π/8) = 9/123456789.
+    This sub-integer excess is the minimal per-orbit frustration quantum that
+    links the fast Floquet engine (period π/8, quasi-energy 8) to the slower
+    structure encoded in the digit palindrome. -/
+theorem palindrome_vacuum_residual :
+    palindromeRatio -
+    timeCrystalQuasiEnergy (Real.pi / 8)
+        (div_ne_zero Real.pi_ne_zero (by norm_num : (8 : ℝ) ≠ 0)) =
+    9 / 123456789 := by
+  rw [palindrome_eight_period_quasienergy, palindrome_ratio_decomp]
+  ring
+
+/-- The palindrome residual equals the reciprocal of the slow-precession period:
+        palindromeRatio − 8 = 1/D  where D = 13717421.
+    Proof: 9/123456789 = 9/(9·D) = 1/D by `precession_period_factor`.
+    The palindrome digit-ratio exceeds the 8-cycle engine quasi-energy by
+    exactly one precession quantum 1/D — the slow torus sets the scale of the
+    residual temporal frustration. -/
+theorem palindrome_residual_precession_form :
+    palindromeRatio - 8 = 1 / 13717421 := by
+  rw [palindrome_ratio_decomp]
+  norm_num
 
 end
