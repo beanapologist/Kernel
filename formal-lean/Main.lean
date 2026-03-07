@@ -21,6 +21,7 @@ import OhmTriality
 import SilverCoherence
 import KernelAxle
 
+set_option maxRecDepth 2000 in
 def main : IO Unit := do
   IO.println "==================================================="
   IO.println " Kernel — Lean 4 Formal Verification"
