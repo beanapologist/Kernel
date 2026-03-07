@@ -44,7 +44,7 @@
 
   Proof status
   ────────────
-  All 28 theorems have complete machine-checked proofs.
+  All 38 theorems have complete machine-checked proofs.
   No `sorry` placeholders remain.
 -/
 
@@ -379,5 +379,114 @@ theorem reducedMassEnergy_gt_rydberg (n : ℕ) (hn : n ≠ 0) :
 theorem reducedMassCorrection_lt_α_FS :
     1 / (protonElectronRatio + 1) < α_FS := by
   unfold α_FS protonElectronRatio; norm_num
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 7 — Coherence Triality
+--
+-- The three distinguished coherence scales form a closed geometric structure:
+--
+--     1/φ²  <  1  <  φ²     (strict ordering of scales)
+--
+--   with coherence values:
+--
+--     C(1/φ²) = 2/3 = C(φ²)  <  C(1) = 1
+--
+-- Geometric mean:  √(1/φ² · φ²) = √1 = 1  (kernel is the geometric mean)
+--
+-- Physical interpretation
+-- ───────────────────────
+--   r = 1    Kernel / μ-orbit     — maximum coherence C=1, Floquet 8-period
+--   r = φ²   Lepton sector        — Koide ratio 2/3, meso domain [1,100]
+--   r = 1/φ² Hadronic/quark sector — same coherence 2/3, micro domain (0,1)
+--
+-- The two wings (lepton and hadronic) are coherence mirrors of each other
+-- through the kernel scale: C(φ²) = C(1/φ²) = 2/3 < C(1) = 1.
+--
+-- The triality is a consequence of:
+--   1.  C(r) = C(1/r)  (coherence_symm)
+--   2.  C(1) = 1       (coherence peak)
+--   3.  C(φ²) = 2/3   (Koide-coherence bridge, §4)
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- 1/φ² > 0: the reciprocal golden scale is positive. -/
+theorem goldenRatio_sq_recip_pos : 0 < 1 / φ ^ 2 :=
+  div_pos one_pos goldenRatio_sq_pos
+
+/-- 1/φ² < 1: the reciprocal golden scale lies below the kernel scale.
+
+    φ² > 1 (from φ > 1), so 1/φ² < 1/1 = 1. -/
+theorem goldenRatio_sq_recip_lt_one : 1 / φ ^ 2 < 1 := by
+  rw [div_lt_one goldenRatio_sq_pos]
+  linarith [goldenRatio_sq, goldenRatio_gt_one]
+
+/-- 1/φ² ∈ microScaleDomain: the hadronic triality scale lies in (0, 1).
+
+    The lepton scale φ² sits in the meso turbulence regime [1, 100];
+    its coherence mirror 1/φ² sits in the micro regime (0, 1). -/
+theorem goldenRatio_sq_recip_micro : 1 / φ ^ 2 ∈ microScaleDomain :=
+  ⟨goldenRatio_sq_recip_pos, goldenRatio_sq_recip_lt_one⟩
+
+/-- Triality scale ordering: 1/φ² < 1 < φ².
+
+    The three triality scales are strictly ordered, with the kernel scale
+    r=1 lying exactly between the hadronic mirror (1/φ²) and the lepton
+    scale (φ²). -/
+theorem triality_scale_ordering : 1 / φ ^ 2 < 1 ∧ (1 : ℝ) < φ ^ 2 :=
+  ⟨goldenRatio_sq_recip_lt_one,
+   by linarith [goldenRatio_sq, goldenRatio_gt_one]⟩
+
+/-- Geometric mean: (1/φ²) · φ² = 1.
+
+    The kernel scale r=1 is the geometric mean of the two triality wings:
+    √(1/φ² · φ²) = √1 = 1.  Equivalently, the triality wings are
+    multiplicative inverses: (1/φ²) · φ² = 1. -/
+theorem triality_geometric_mean : 1 / φ ^ 2 * φ ^ 2 = 1 :=
+  div_mul_cancel₀ 1 goldenRatio_sq_pos.ne'
+
+/-- Coherence mirror: C(1/φ²) = C(φ²).
+
+    The two triality wings have identical coherence: the hadronic scale
+    1/φ² is the coherence mirror of the lepton scale φ² through r=1.
+    This is an instance of the coherence symmetry C(r) = C(1/r). -/
+theorem triality_wings_equal_coherence : C (1 / φ ^ 2) = C (φ ^ 2) :=
+  (coherence_symm (φ ^ 2) goldenRatio_sq_pos).symm
+
+/-- The hadronic triality scale is below the kernel peak: C(1/φ²) < C(1). -/
+theorem triality_recip_below_kernel : C (1 / φ ^ 2) < C 1 := by
+  rw [(coherence_eq_one_iff 1 le_rfl).mpr rfl]
+  exact coherence_lt_one (1 / φ ^ 2)
+    (le_of_lt goldenRatio_sq_recip_pos) (ne_of_lt goldenRatio_sq_recip_lt_one)
+
+/-- *** Full Coherence Triality: C(1) = 1, C(φ²) = 2/3, C(1/φ²) = 2/3. ***
+
+    The Kernel coherence function has exactly three distinguished values on
+    the triality scales:
+    - Kernel peak:   C(1)    = 1    (μ-orbit maximum coherence)
+    - Lepton wing:   C(φ²)   = 2/3  (Koide lepton mass ratio)
+    - Hadronic wing: C(1/φ²) = 2/3  (coherence mirror of lepton wing)
+
+    The two wings are symmetric across the kernel scale by C(r) = C(1/r),
+    and both sit strictly below the kernel maximum. -/
+theorem coherence_triality :
+    C 1 = 1 ∧ C (φ ^ 2) = 2 / 3 ∧ C (1 / φ ^ 2) = 2 / 3 :=
+  ⟨(coherence_eq_one_iff 1 le_rfl).mpr rfl,
+   koide_coherence_bridge,
+   koide_coherence_reciprocal⟩
+
+/-- The kernel scale strictly maximises coherence over both triality wings:
+    C(1/φ²) < C(1)  and  C(φ²) < C(1). -/
+theorem triality_kernel_strict_max :
+    C (1 / φ ^ 2) < C 1 ∧ C (φ ^ 2) < C 1 :=
+  ⟨triality_recip_below_kernel, koide_below_mu_orbit_peak⟩
+
+/-- The μ-orbit coherence exceeds both triality wings at every step:
+    C(1/φ²) < C(|μⁿ|) = 1 for all n.
+
+    The μ-orbit always achieves maximum coherence; both the lepton wing φ²
+    and the hadronic wing 1/φ² lie strictly below the μ-orbit peak. -/
+theorem mu_orbit_exceeds_triality_wings (n : ℕ) :
+    C (1 / φ ^ 2) < C (Complex.abs (μ ^ n)) := by
+  rw [koide_coherence_reciprocal, mu_pow_abs, (coherence_eq_one_iff 1 le_rfl).mpr rfl]
+  norm_num
 
 end -- noncomputable section

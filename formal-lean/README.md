@@ -87,7 +87,7 @@ All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `
 All 43 theorems in `SpaceTime.lean` have complete machine-checked proofs (no `sorry`).
 All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `sorry`).
 All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no `sorry`).
-All 28 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
+All 38 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
 
@@ -538,6 +538,24 @@ lake build
 | 26 | `reducedMassEnergy_neg` | E_n^red < 0 — still a bound state |
 | 27 | `reducedMassEnergy_gt_rydberg` | E_n < E_n^red — recoil lifts levels |
 | 28 | `reducedMassCorrection_lt_α_FS` | 1/(R+1) < α_FS — recoil < EM coupling |
+
+**§7 Coherence Triality  (1/φ² < 1 < φ²)**
+
+The three triality scales are strictly ordered with the kernel at the geometric mean.
+Physical interpretation: **kernel @ r=1** (μ-orbit, C=1), **leptons @ r=φ²** (Koide 2/3, meso domain), **hadronic mirror @ r=1/φ²** (same coherence 2/3, micro domain).
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 29 | `goldenRatio_sq_recip_pos` | 1/φ² > 0 |
+| 30 | `goldenRatio_sq_recip_lt_one` | 1/φ² < 1 (hadronic wing below kernel) |
+| 31 | `goldenRatio_sq_recip_micro` | 1/φ² ∈ microScaleDomain (0, 1) |
+| 32 | `triality_scale_ordering` | 1/φ² < 1 < φ² — strict scale ordering |
+| 33 | `triality_geometric_mean` | (1/φ²) · φ² = 1 — kernel is the geometric mean |
+| 34 | `triality_wings_equal_coherence` | C(1/φ²) = C(φ²) = 2/3 — wings are coherence mirrors |
+| 35 | `triality_recip_below_kernel` | C(1/φ²) < C(1) = 1 |
+| 36 | `coherence_triality` | **C(1)=1  ∧  C(φ²)=2/3  ∧  C(1/φ²)=2/3** — full triality |
+| 37 | `triality_kernel_strict_max` | C(1/φ²) < C(1) ∧ C(φ²) < C(1) — kernel dominates both wings |
+| 38 | `mu_orbit_exceeds_triality_wings` | C(1/φ²) < C(\|μⁿ\|) = 1 for all n |
 
 ---
 
