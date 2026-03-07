@@ -96,7 +96,7 @@ theorem koideQuotient_lower_bound (m₁ m₂ m₃ : ℝ)
   unfold koideQuotient
   have hD : 0 < (Real.sqrt m₁ + Real.sqrt m₂ + Real.sqrt m₃) ^ 2 :=
     koideQuotient_denom_pos m₁ m₂ m₃ h₁
-  rw [le_div_iff hD]
+  rw [le_div_iff₀ hD]
   have s1 := Real.sq_sqrt h₁.le
   have s2 := Real.sq_sqrt h₂.le
   have s3 := Real.sq_sqrt h₃.le

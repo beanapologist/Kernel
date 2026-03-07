@@ -165,7 +165,7 @@ theorem fineEnergy_factor (ε : ℝ) : fineEnergy ε = (1 + α_FS ^ 2) * ε := b
 /-- Rydberg (Bohr) energy level n: E_n = −1/n² in Hartree atomic units.
 
     Defined for principal quantum number n ≥ 1 (n = 0 is unphysical). -/
-noncomputable def rydbergEnergy (n : ℕ) (hn : n ≠ 0) : ℝ :=
+noncomputable def rydbergEnergy (n : ℕ) (_ : n ≠ 0) : ℝ :=
   -(1 / (n : ℝ) ^ 2)
 
 /-- All Rydberg levels are negative (bound states):  E_n < 0  for all n ≥ 1.
@@ -419,7 +419,7 @@ theorem totalMHDDissipation_factor (ε : ℝ) : totalMHDDissipation ε = (1 + α
 
     This is the MHD generalization of the Navier-Stokes dissipation formula
     ε = ν · g² from Turbulence.lean. -/
-theorem MHDDissipation_from_NS (ν g : ℝ) (hν : 0 ≤ ν) :
+theorem MHDDissipation_from_NS (ν g : ℝ) (_ : 0 ≤ ν) :
     totalMHDDissipation (viscousDissipation ν g) =
     (1 + α_FS) * (viscousDissipation ν g) :=
   totalMHDDissipation_factor _
