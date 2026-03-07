@@ -196,7 +196,8 @@ theorem rotMat_orthog : rotMat * rotMatᵀ = 1 := by
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [Matrix.mul_apply, Matrix.transpose_apply, Fin.sum_univ_two,
-          Matrix.one_apply, neg_mul, mul_neg, neg_neg] <;>
+          Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+          Matrix.head_fin_const, Matrix.one_apply, neg_mul, mul_neg, neg_neg] <;>
     nlinarith [Real.sin_sq_add_cos_sq (3 * Real.pi / 4)]
 
 /-- R(3π/4)^8 = I (8-fold application returns to identity).
