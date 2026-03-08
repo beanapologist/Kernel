@@ -2,16 +2,41 @@
 Fine-structure constant validator.
 ====================================
 Validates the fine-structure constant α against CODATA 2018 reference data
-and checks key relationships established in ``FineStructure.lean``:
+and checks key relationships established in ``FineStructure.lean``.
 
-  1. α ≈ 7.2973525693 × 10⁻³  (CODATA 2018 reference)
-  2. 1/α ≈ 137.035999084       (reciprocal)
-  3. α = e² / (4πε₀ℏc)        (definition, dimensionless — verified via
-                                 CODATA values of e, ℏ, c; ε₀ = 1/(μ₀c²))
-  4. α < 1/137                 (sub-unity check)
-  5. α × 137 ≈ 1               (near-unity product with nominal 137)
+Check-type taxonomy used in this module
+----------------------------------------
+``empirical``
+    Comparisons between a *predicted* or *reconstructed* value and an
+    *independent* reference from CODATA 2018 or the SI definition.  These
+    checks CAN fail and CAN distinguish whether the framework's constants
+    are consistent with experiment.
 
-Both exact SymPy and numerical NumPy checks are included.
+``numerical_precision``
+    Verifies that SymPy rational arithmetic and NumPy floating-point give
+    the same 1/α value.  Internal consistency only.
+
+Validation checks
+-----------------
+  1. α reconstructed from e²/(4πε₀ℏc) vs CODATA 2018 — EMPIRICAL
+     Tolerance 1e-9 reflects the ~0.5ppb uncertainty in ε₀ (CODATA 2018).
+     A larger discrepancy would signal an inconsistency in CODATA constants.
+
+  2. 1/α (from CODATA α) vs nominal 137.035999084 — EMPIRICAL
+     Both derived from CODATA; tolerance 1e-9 (CODATA precision).
+
+  3. α < 1 — EMPIRICAL
+     Experimental fact: electromagnetic coupling is weak.
+
+  4. α × 137 ≈ 1 within 0.03% — EMPIRICAL
+     The 0.03% tolerance corresponds to the gap between the nominal integer
+     137 and the actual measured value 137.036.
+
+  5. 1/α from SymPy rational vs CODATA nominal — NUMERICAL_PRECISION
+     Verifies SymPy arithmetic consistency with CODATA value.
+
+  6. α < 1/137 — EMPIRICAL
+     α = 7.2973…×10⁻³ < 7.2993…×10⁻³ = 1/137; measurable fine-tuning.
 """
 
 from __future__ import annotations
@@ -49,7 +74,8 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     Returns
     -------
     list[dict]
-        One result dict per individual check.
+        One result dict per individual check.  Each dict includes
+        ``check_type`` and ``pass_criterion``.
     """
     data = data or {}
     alpha_ref = (
@@ -62,6 +88,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_1 = abs(alpha_computed - alpha_ref) / alpha_ref
     results.append({
         "name": "fine_structure_constant_definition",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |α_computed − α_CODATA| / α_CODATA < 1e-9. "
+            "Tolerance reflects ~0.5 ppb uncertainty in ε₀ (CODATA 2018). "
+            "Failure means CODATA constants e, ε₀, ℏ, c are mutually inconsistent."
+        ),
         "modelled": alpha_computed,
         "observed": alpha_ref,
         "rel_error": rel_err_1,
@@ -76,6 +108,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_2 = abs(inv_alpha - inv_alpha_nominal) / inv_alpha_nominal
     results.append({
         "name": "fine_structure_constant_inverse",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |1/α_CODATA − 137.035999084| / 137.035999084 < 1e-9. "
+            "Reference value 137.035999084 is the CODATA 2018 published 1/α. "
+            "Failure means data ingestion returned a wrong α value."
+        ),
         "modelled": inv_alpha,
         "observed": inv_alpha_nominal,
         "rel_error": rel_err_2,
@@ -87,6 +125,11 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     # ── 3. α < 1 (weak coupling) ───────────────────────────────────────────
     results.append({
         "name": "fine_structure_constant_sub_unity",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "α < 1. Experimental fact since Sommerfeld (1916); "
+            "failure would mean the ingested CODATA value is wrong by ~100×."
+        ),
         "modelled": alpha_ref,
         "observed": 1.0,
         "rel_error": alpha_ref,
@@ -100,10 +143,17 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_4 = abs(prod - 1.0)
     results.append({
         "name": "fine_structure_constant_times_137",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "|α × 137 − 1| < 3e-4 (0.03%). "
+            "The 0.03% tolerance equals the fractional gap between integer 137 "
+            "and the measured 1/α = 137.036. "
+            "Tighter would reject the CODATA value; looser would miss gross errors."
+        ),
         "modelled": prod,
         "observed": 1.0,
         "rel_error": rel_err_4,
-        "passed": rel_err_4 < 3e-4,          # within 0.03 % of unity
+        "passed": rel_err_4 < 3e-4,
         "method": "NumPy arithmetic",
         "description": "α × 137 ≈ 1  (within 0.03 %)",
     })
@@ -115,6 +165,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_5 = abs(inv_numeric - inv_alpha_nominal) / inv_alpha_nominal
     results.append({
         "name": "fine_structure_constant_inverse_sympy",
+        "check_type": "numerical_precision",
+        "pass_criterion": (
+            "Relative error between SymPy rational 1/α and CODATA nominal < 1e-9. "
+            "Verifies SymPy exact arithmetic on the CODATA rational; "
+            "failure = SymPy rational truncation error."
+        ),
         "modelled": inv_numeric,
         "observed": inv_alpha_nominal,
         "rel_error": rel_err_5,
@@ -123,12 +179,17 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
         "description": "1/α from SymPy rational matches CODATA 2018",
     })
 
-    # ── 6. α < 1/137 is FALSE (α is slightly *larger* than 1/137.036) ──────
-    # The actual CODATA value α = 7.297…×10⁻³ > 1/137 = 7.299…×10⁻³? No:
-    # 1/137 = 0.007299... but α = 0.007297... so α < 1/137 is TRUE.
+    # ── 6. α < 1/137 ───────────────────────────────────────────────────────
+    # 1/137 = 0.0072992... but α = 0.0072973..., so α < 1/137 is TRUE.
     alpha_lt_1_over_137 = alpha_ref < (1.0 / 137.0)
     results.append({
         "name": "fine_structure_constant_lt_1_over_137",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "α < 1/137 (boolean). "
+            "CODATA 2018 gives α = 7.2973…×10⁻³ < 7.2993…×10⁻³ = 1/137 by ~0.026%. "
+            "Failure means the ingested α value is wrong."
+        ),
         "modelled": alpha_ref,
         "observed": 1.0 / 137.0,
         "rel_error": abs(alpha_ref - 1.0 / 137.0) / (1.0 / 137.0),
@@ -138,3 +199,4 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     })
 
     return results
+

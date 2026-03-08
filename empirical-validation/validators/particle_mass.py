@@ -2,16 +2,48 @@
 Particle mass ratio validator.
 ================================
 Validates the proton-to-electron mass ratio and related constructs that
-appear in ``ParticleMass.lean``:
+appear in ``ParticleMass.lean``.
 
-  1. m_p / m_e ≈ 1836.15267343  (CODATA 2018 direct reference)
-  2. Reconstructed ratio m_p / m_e from individual masses matches direct ratio.
-  3. Koide formula check for the charged lepton mass triplet (e, μ, τ):
-         (m_e + m_μ + m_τ) / (√m_e + √m_μ + √m_τ)² = 2/3
-  4. Golden-ratio coherence proximity:
-         The Kernel framework relates the proton mass to the golden ratio;
-         we check whether the fractional deviation from 1836 is small (< 0.1%).
-  5. Triality relation: m_p/m_e ≈ 6π⁵  (Wyler-type approximation, ~0.05% error)
+Check-type taxonomy used in this module
+----------------------------------------
+``empirical``
+    Comparisons between a *predicted/derived* value and an *independent*
+    external reference (CODATA 2018, PDG 2022).  These checks CAN fail
+    and distinguish whether the framework is consistent with measurement.
+
+``numerical_precision``
+    Verifies that SymPy rational arithmetic agrees with the floating-point
+    CODATA value to within rounding tolerance.
+
+Validation checks
+-----------------
+  1. CODATA 2018 direct ratio vs reference value — EMPIRICAL
+     Verifies that data ingestion returned the correct ratio.
+     Reference: CODATA 2018, m_p/m_e = 1836.15267343.
+     Tolerance: 1e-9 (CODATA precision).
+
+  2. Ratio reconstructed from individual CODATA masses — EMPIRICAL
+     Tests internal CODATA consistency: m_p/m_e derived from m_p and m_e
+     separately must agree with the direct tabulation to 1 ppm.
+     A discrepancy > 1e-6 would indicate a data ingestion error.
+
+  3. Koide formula Q = 2/3 — EMPIRICAL
+     Q = (m_e + m_μ + m_τ) / (√m_e + √m_μ + √m_τ)² uses PDG 2022 measured
+     lepton masses; the predicted value is Q = 2/3 (Koide, 1982).
+     Tolerance 1e-3 (0.1%) reflects PDG 2022 mass uncertainties.
+     Failure would mean PDG masses contradict the Koide relation.
+
+  4. Ratio within 0.1% of integer 1836 — EMPIRICAL
+     The Kernel framework treats 1836 as a round-number approximation.
+     Tolerance 1e-3 (0.1%) is set to flag gross data errors.
+
+  5. Wyler approximation 6π⁵ ≈ m_p/m_e — EMPIRICAL
+     A well-known numerical coincidence: 6π⁵ = 1836.118…
+     Tolerance 5e-4 (0.05%); failure means CODATA has changed significantly
+     relative to this approximation's known accuracy.
+
+  6. SymPy rational representation — NUMERICAL_PRECISION
+     Verifies SymPy can represent the CODATA value; not an empirical check.
 """
 
 from __future__ import annotations
@@ -50,6 +82,7 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     Returns
     -------
     list[dict]
+        Each dict includes ``check_type`` and ``pass_criterion``.
     """
     data = data or {}
     results: list[dict[str, Any]] = []
@@ -62,6 +95,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     # ── 1. Direct CODATA ratio ──────────────────────────────────────────────
     results.append({
         "name": "proton_electron_mass_ratio_codata",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |ratio_ingested − 1836.15267343| / 1836.15267343 < 1e-9. "
+            "Reference: CODATA 2018 direct measurement. "
+            "Failure means data ingestion returned a wrong value."
+        ),
         "modelled": ratio_ref,
         "observed": 1836.15267343,
         "rel_error": abs(ratio_ref - 1836.15267343) / 1836.15267343,
@@ -75,6 +114,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_2 = abs(ratio_computed - ratio_ref) / ratio_ref
     results.append({
         "name": "proton_electron_mass_ratio_reconstructed",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |m_p/m_e − ratio_direct| / ratio_direct < 1e-6. "
+            "Tests CODATA internal consistency between individual masses and the "
+            "tabulated ratio. Failure means the ingested m_p and m_e are inconsistent."
+        ),
         "modelled": ratio_computed,
         "observed": ratio_ref,
         "rel_error": rel_err_2,
@@ -89,10 +134,17 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_3 = abs(Q - Q_expected) / Q_expected
     results.append({
         "name": "koide_formula",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |Q − 2/3| / (2/3) < 1e-3 (0.1%). "
+            "Q computed from PDG 2022 lepton masses; Koide (1982) predicts Q = 2/3. "
+            "Tolerance 0.1% covers PDG 2022 τ-mass uncertainty (~0.006%). "
+            "Failure means measured lepton masses deviate significantly from prediction."
+        ),
         "modelled": Q,
         "observed": Q_expected,
         "rel_error": rel_err_3,
-        "passed": rel_err_3 < 1e-3,       # Koide formula correct to ~0.1%
+        "passed": rel_err_3 < 1e-3,
         "method": "NumPy from PDG 2022 lepton masses",
         "description": "Koide Q = (m_e+m_μ+m_τ)/(√m_e+√m_μ+√m_τ)² ≈ 2/3",
     })
@@ -101,6 +153,13 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     frac_dev = abs(ratio_ref - 1836.0) / 1836.0
     results.append({
         "name": "proton_electron_mass_ratio_near_1836",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "|m_p/m_e − 1836| / 1836 < 1e-3 (0.1%). "
+            "The Kernel framework uses 1836 as a first-order approximation. "
+            "Tolerance 0.1% flags gross data errors while allowing for the "
+            "known 0.008% deviation of the true ratio from 1836."
+        ),
         "modelled": ratio_ref,
         "observed": 1836.0,
         "rel_error": frac_dev,
@@ -114,10 +173,17 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_5 = abs(wyler - ratio_ref) / ratio_ref
     results.append({
         "name": "proton_electron_mass_ratio_wyler",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |6π⁵ − m_p/m_e| / (m_p/m_e) < 5e-4 (0.05%). "
+            "6π⁵ = 1836.118… is an empirical approximation (Wyler-type). "
+            "Known accuracy ~0.02%; tolerance 0.05% gives headroom for CODATA updates. "
+            "Failure means CODATA has changed enough to break this approximation."
+        ),
         "modelled": wyler,
         "observed": ratio_ref,
         "rel_error": rel_err_5,
-        "passed": rel_err_5 < 5e-4,       # ~0.05% accuracy
+        "passed": rel_err_5 < 5e-4,
         "method": "NumPy: 6π⁵",
         "description": "m_p/m_e ≈ 6π⁵ (Wyler approximation, ~0.05%)",
     })
@@ -129,6 +195,11 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_6 = abs(modelled_val - ratio_ref) / ratio_ref
     results.append({
         "name": "proton_electron_mass_ratio_sympy_rational",
+        "check_type": "numerical_precision",
+        "pass_criterion": (
+            "Relative error between SymPy rational representation and CODATA float < 1e-8. "
+            "Verifies SymPy str→Rational round-trip precision; not an empirical check."
+        ),
         "modelled": modelled_val,
         "observed": ratio_ref,
         "rel_error": rel_err_6,
@@ -138,3 +209,5 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     })
 
     return results
+
+

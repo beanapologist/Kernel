@@ -215,6 +215,29 @@ class TestEigenvalueValidator:
             assert "observed" in r
             assert "passed" in r
             assert "rel_error" in r
+            assert "check_type" in r, f"{r['name']}: missing 'check_type'"
+            assert "pass_criterion" in r, f"{r['name']}: missing 'pass_criterion'"
+
+    def test_check_types_are_valid(self, results):
+        valid = {"mathematical_identity", "numerical_precision", "empirical"}
+        for r in results:
+            assert r["check_type"] in valid, (
+                f"{r['name']}: invalid check_type '{r['check_type']}'"
+            )
+
+    def test_all_eigenvalue_checks_are_non_empirical(self, results):
+        """Eigenvalue checks should never be 'empirical' — they are mathematical."""
+        for r in results:
+            assert r["check_type"] != "empirical", (
+                f"{r['name']}: eigenvalue check should not be 'empirical'"
+            )
+
+    def test_pass_criterion_is_non_empty_string(self, results):
+        for r in results:
+            assert isinstance(r["pass_criterion"], str)
+            assert len(r["pass_criterion"]) > 10, (
+                f"{r['name']}: pass_criterion too short: '{r['pass_criterion']}'"
+            )
 
     def test_norm_sq_passes(self, results):
         r = next(r for r in results if "norm_sq" in r["name"])
@@ -249,6 +272,19 @@ class TestFineStructureValidator:
     def test_returns_list(self, results):
         assert isinstance(results, list)
         assert len(results) > 0
+
+    def test_all_have_check_type_and_pass_criterion(self, results):
+        valid = {"mathematical_identity", "numerical_precision", "empirical"}
+        for r in results:
+            assert "check_type" in r, f"{r['name']}: missing check_type"
+            assert r["check_type"] in valid, f"{r['name']}: invalid check_type"
+            assert "pass_criterion" in r and len(r["pass_criterion"]) > 10
+
+    def test_definition_check_is_empirical(self, results):
+        r = next(r for r in results if "definition" in r["name"])
+        assert r["check_type"] == "empirical", (
+            f"definition check should be empirical, got '{r['check_type']}'"
+        )
 
     def test_definition_check_passes(self, results):
         r = next(r for r in results if "definition" in r["name"])
@@ -285,6 +321,21 @@ class TestParticleMassValidator:
     def test_returns_list(self, results):
         assert isinstance(results, list)
 
+    def test_all_have_check_type_and_pass_criterion(self, results):
+        valid = {"mathematical_identity", "numerical_precision", "empirical"}
+        for r in results:
+            assert "check_type" in r, f"{r['name']}: missing check_type"
+            assert r["check_type"] in valid
+            assert "pass_criterion" in r and len(r["pass_criterion"]) > 10
+
+    def test_codata_ratio_is_empirical(self, results):
+        r = next(r for r in results if "codata" in r["name"])
+        assert r["check_type"] == "empirical"
+
+    def test_koide_formula_is_empirical(self, results):
+        r = next(r for r in results if "koide" in r["name"])
+        assert r["check_type"] == "empirical"
+
     def test_codata_ratio_passes(self, results):
         r = next(r for r in results if "codata" in r["name"])
         assert r["passed"], f"CODATA ratio check failed: {r}"
@@ -319,6 +370,20 @@ class TestCoherenceValidator:
     def test_returns_list(self, results):
         assert isinstance(results, list)
         assert len(results) > 0
+
+    def test_all_have_check_type_and_pass_criterion(self, results):
+        valid = {"mathematical_identity", "numerical_precision", "empirical"}
+        for r in results:
+            assert "check_type" in r, f"{r['name']}: missing check_type"
+            assert r["check_type"] in valid
+            assert "pass_criterion" in r and len(r["pass_criterion"]) > 10
+
+    def test_coherence_checks_are_non_empirical(self, results):
+        """All coherence checks are mathematical/numerical — not empirical."""
+        for r in results:
+            assert r["check_type"] != "empirical", (
+                f"{r['name']}: coherence check should not be 'empirical'"
+            )
 
     def test_c_at_zero_is_1(self, results):
         r = next(r for r in results if "at_zero" in r["name"])
@@ -355,6 +420,35 @@ class TestGoldenRatioValidator:
     def test_returns_list(self, results):
         assert isinstance(results, list)
         assert len(results) > 0
+
+    def test_all_have_check_type_and_pass_criterion(self, results):
+        valid = {"mathematical_identity", "numerical_precision", "empirical"}
+        for r in results:
+            assert "check_type" in r, f"{r['name']}: missing check_type"
+            assert r["check_type"] in valid
+            assert "pass_criterion" in r and len(r["pass_criterion"]) > 10
+
+    def test_fibonacci_and_nist_checks_are_empirical(self, results):
+        empirical_names = [
+            "fibonacci_convergence_golden_ratio",
+            "golden_ratio_value_nist",
+            "silver_ratio_value_nist",
+        ]
+        for name in empirical_names:
+            r = next(r for r in results if r["name"] == name)
+            assert r["check_type"] == "empirical", (
+                f"{name} should be 'empirical', got '{r['check_type']}'"
+            )
+
+    def test_algebraic_identities_are_not_empirical(self, results):
+        identity_names = [
+            "golden_ratio_quadratic_identity_sympy",
+            "golden_ratio_minimal_polynomial_sympy",
+            "silver_conservation_sympy",
+        ]
+        for name in identity_names:
+            r = next(r for r in results if r["name"] == name)
+            assert r["check_type"] == "mathematical_identity"
 
     def test_quadratic_identity_sympy(self, results):
         r = next(r for r in results if "quadratic_identity" in r["name"])
@@ -402,6 +496,25 @@ class TestSpacetimeValidator:
     def test_returns_list(self, results):
         assert isinstance(results, list)
         assert len(results) > 0
+
+    def test_all_have_check_type_and_pass_criterion(self, results):
+        valid = {"mathematical_identity", "numerical_precision", "empirical"}
+        for r in results:
+            assert "check_type" in r, f"{r['name']}: missing check_type"
+            assert r["check_type"] in valid
+            assert "pass_criterion" in r and len(r["pass_criterion"]) > 10
+
+    def test_planck_units_are_empirical(self, results):
+        empirical_names = ["planck_time", "planck_length", "planck_mass"]
+        for name in empirical_names:
+            r = next(r for r in results if r["name"] == name)
+            assert r["check_type"] == "empirical", (
+                f"{name}: expected 'empirical', got '{r['check_type']}'"
+            )
+
+    def test_lp_over_tp_is_mathematical_identity(self, results):
+        r = next(r for r in results if "lp_over_tp" in r["name"])
+        assert r["check_type"] == "mathematical_identity"
 
     def test_speed_of_light_exact(self, results):
         r = next(r for r in results if "speed_of_light" in r["name"])

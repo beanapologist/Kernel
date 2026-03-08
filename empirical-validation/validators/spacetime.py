@@ -2,18 +2,56 @@
 Space-time framework validator.
 =================================
 Validates space-time constructs from ``SpaceTime.lean`` and the broader
-Kernel framework against known physical constants and cosmological data:
+Kernel framework against known physical constants and cosmological data.
 
-  1. Speed of light c = 299,792,458 m/s  (exact SI definition)
-  2. Planck time t_P = √(ℏG/c⁵) ≈ 5.391247×10⁻⁴⁴ s
-  3. Planck length l_P = √(ℏG/c³) ≈ 1.616255×10⁻³⁵ m
-  4. Planck mass m_P = √(ℏc/G) ≈ 2.176434×10⁻⁸ kg
-  5. l_P / t_P = c  (light-cone consistency)
-  6. Hubble radius: r_H = c / H_0 in light-years  (cosmological horizon)
-  7. Schwarzschild radius of the Sun ≈ 2.953 km (from G, M_☉, c)
-  8. Cosmological constant Λ has correct order of magnitude (~10⁻⁵² m⁻²)
+Check-type taxonomy used in this module
+----------------------------------------
+``empirical``
+    Computed values (from CODATA constants) compared against *independently*
+    tabulated reference values (NIST, Planck 2018, IAU 2012).  These CAN
+    fail and can reveal inconsistencies in the physical constants or the
+    framework's predictions.
 
-Uses CODATA 2018 values for ℏ, G and cosmological data from Planck 2018.
+``mathematical_identity``
+    l_P / t_P = c follows algebraically from the Planck-unit definitions;
+    it is always true regardless of the values of G, ℏ, c.
+
+Validation checks and explicit pass criteria
+---------------------------------------------
+  1. c = 299,792,458 m/s — EMPIRICAL
+     Pass: c_CODATA == 299,792,458 exactly (SI definition since 1983).
+     Failure: data ingestion returned wrong speed of light.
+
+  2. Planck time t_P = √(ℏG/c⁵) — EMPIRICAL
+     Pass: |t_P − 5.391247e-44| / 5.391247e-44 < 5e-4 (0.05%).
+     Reference: NIST-tabulated t_P = 5.391247×10⁻⁴⁴ s.
+     Tolerance dominated by CODATA 2018 G uncertainty (~22 ppm).
+
+  3. Planck length l_P = √(ℏG/c³) — EMPIRICAL
+     Pass: |l_P − 1.616255e-35| / 1.616255e-35 < 5e-4.
+     Reference: NIST-tabulated l_P = 1.616255×10⁻³⁵ m.
+
+  4. Planck mass m_P = √(ℏc/G) — EMPIRICAL
+     Pass: |m_P − 2.176434e-8| / 2.176434e-8 < 5e-4.
+     Reference: NIST-tabulated m_P = 2.176434×10⁻⁸ kg.
+
+  5. l_P / t_P = c — MATHEMATICAL_IDENTITY
+     Pass: |l_P/t_P − c| / c < 1e-12.
+     Both l_P and t_P are defined via the same formula; ratio is c by algebra.
+
+  6. Hubble radius r_H = c/H₀ — EMPIRICAL
+     Pass: |r_H − 14.52 Gly| / 14.52 Gly < 2e-2 (2%).
+     Reference: derived from Planck 2018 H₀ = 67.36 km/s/Mpc.
+     Tolerance 2% covers conversion and rounding in the reference value.
+
+  7. Schwarzschild radius of the Sun — EMPIRICAL
+     Pass: |r_sch − 2.953 km| / 2.953 km < 2e-3 (0.2%).
+     Reference: IAU 2012 G, M_☉; tolerance covers G uncertainty (~22 ppm).
+
+  8. Cosmological constant Λ magnitude — EMPIRICAL
+     Pass: |Λ − 1.1e-52| / 1.1e-52 < 5e-2 (5%).
+     Reference: derived from Planck 2018 H₀ and Ω_Λ; 5% tolerance for the
+     approximate nature of the reference value.
 """
 
 from __future__ import annotations
@@ -40,6 +78,7 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     Returns
     -------
     list[dict]
+        Each dict includes ``check_type`` and ``pass_criterion``.
     """
     data = data or {}
     results: list[dict[str, Any]] = []
@@ -53,6 +92,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     # ── 1. Speed of light exact ─────────────────────────────────────────────
     results.append({
         "name": "speed_of_light_exact",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "c_CODATA == 299,792,458 m/s exactly (boolean equality). "
+            "c is defined as this exact integer since the 1983 SI redefinition. "
+            "Failure means data ingestion returned a non-integer or wrong value."
+        ),
         "modelled": c_ref,
         "observed": 299_792_458.0,
         "rel_error": abs(c_ref - 299_792_458.0) / 299_792_458.0,
@@ -67,6 +112,13 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_2 = abs(t_P - t_P_ref) / t_P_ref
     results.append({
         "name": "planck_time",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |t_P_computed − 5.391247e-44| / 5.391247e-44 < 5e-4 (0.05%). "
+            "Reference: NIST Planck time. "
+            "Tolerance 0.05% dominated by CODATA 2018 G uncertainty (22 ppm). "
+            "Failure means CODATA constants produce a Planck time inconsistent with NIST."
+        ),
         "modelled": t_P,
         "observed": t_P_ref,
         "rel_error": rel_err_2,
@@ -81,6 +133,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_3 = abs(l_P - l_P_ref) / l_P_ref
     results.append({
         "name": "planck_length",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |l_P_computed − 1.616255e-35| / 1.616255e-35 < 5e-4 (0.05%). "
+            "Reference: NIST Planck length. "
+            "Tolerance 0.05% dominated by CODATA 2018 G uncertainty (22 ppm)."
+        ),
         "modelled": l_P,
         "observed": l_P_ref,
         "rel_error": rel_err_3,
@@ -95,6 +153,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_4 = abs(m_P - m_P_ref) / m_P_ref
     results.append({
         "name": "planck_mass",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |m_P_computed − 2.176434e-8| / 2.176434e-8 < 5e-4 (0.05%). "
+            "Reference: NIST Planck mass. "
+            "Tolerance 0.05% dominated by CODATA 2018 G uncertainty (22 ppm)."
+        ),
         "modelled": m_P,
         "observed": m_P_ref,
         "rel_error": rel_err_4,
@@ -108,6 +172,12 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_5 = abs(ratio_lp_tp - c_ref) / c_ref
     results.append({
         "name": "planck_ratio_lp_over_tp_equals_c",
+        "check_type": "mathematical_identity",
+        "pass_criterion": (
+            "Relative error |l_P/t_P − c| / c < 1e-12. "
+            "l_P/t_P = √(ℏG/c³)/√(ℏG/c⁵) = c algebraically regardless of G, ℏ, c values. "
+            "Failure = catastrophic floating-point cancellation, not a physics issue."
+        ),
         "modelled": ratio_lp_tp,
         "observed": c_ref,
         "rel_error": rel_err_5,
@@ -127,10 +197,16 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_6 = abs(r_H_ly - r_H_ref_ly) / r_H_ref_ly
     results.append({
         "name": "hubble_radius",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |r_H − 14.52 Gly| / 14.52 Gly < 2e-2 (2%). "
+            "Reference: c/H₀ with H₀ = 67.36 km/s/Mpc (Planck 2018). "
+            "Tolerance 2% covers unit conversion rounding and H₀ uncertainty (~0.5%)."
+        ),
         "modelled": r_H_ly,
         "observed": r_H_ref_ly,
         "rel_error": rel_err_6,
-        "passed": rel_err_6 < 2e-2,          # 2% tolerance
+        "passed": rel_err_6 < 2e-2,
         "method": "NumPy: c/H₀, Planck 2018",
         "description": "Hubble radius r_H = c/H₀ ≈ 14.52 Gly (Planck 2018 H₀=67.36)",
     })
@@ -141,6 +217,11 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_7 = abs(r_sch - r_sch_ref) / r_sch_ref
     results.append({
         "name": "schwarzschild_radius_sun",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |r_sch − 2.953 km| / 2.953 km < 2e-3 (0.2%). "
+            "Reference: IAU 2012 G and M_☉; tolerance covers G uncertainty (22 ppm)."
+        ),
         "modelled": r_sch,
         "observed": r_sch_ref,
         "rel_error": rel_err_7,
@@ -157,12 +238,20 @@ def validate(data: dict | None = None) -> list[dict[str, Any]]:
     rel_err_8 = abs(lambda_ref - expected_magnitude) / expected_magnitude
     results.append({
         "name": "cosmological_constant_magnitude",
+        "check_type": "empirical",
+        "pass_criterion": (
+            "Relative error |Λ_derived − 1.1e-52 m⁻²| / 1.1e-52 < 5e-2 (5%). "
+            "Reference: approximate value derived from Planck 2018 H₀ and Ω_Λ. "
+            "Tolerance 5% reflects approximate nature of the reference value."
+        ),
         "modelled": lambda_ref,
         "observed": expected_magnitude,
         "rel_error": rel_err_8,
-        "passed": rel_err_8 < 5e-2,          # 5% tolerance on derived quantity
+        "passed": rel_err_8 < 5e-2,
         "method": "NumPy: 3H₀²Ω_Λ/c²",
         "description": "Cosmological constant Λ ≈ 1.1×10⁻⁵² m⁻²",
     })
 
     return results
+
+

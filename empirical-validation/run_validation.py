@@ -73,9 +73,21 @@ except ImportError:
 PASS = "✓ PASS"
 FAIL = "✗ FAIL"
 
+# Short labels for check types (used in table columns)
+_TYPE_LABELS = {
+    "mathematical_identity": "math-id",
+    "numerical_precision":   "num-prec",
+    "empirical":             "EMPIRICAL",
+}
+
 
 def _status(r: dict[str, Any]) -> str:
     return PASS if r.get("passed", False) else FAIL
+
+
+def _type_label(r: dict[str, Any]) -> str:
+    raw = r.get("check_type", "unknown")
+    return _TYPE_LABELS.get(raw, raw)
 
 
 def _fmt_val(v: float) -> str:
@@ -92,6 +104,7 @@ def _table_rows(results: list[dict[str, Any]]) -> list[list[str]]:
     for r in results:
         rows.append([
             r["name"],
+            _type_label(r),
             _fmt_val(r.get("modelled", 0.0)),
             _fmt_val(r.get("observed", 0.0)),
             f"{r.get('rel_error', 0.0):.3e}",
@@ -120,6 +133,22 @@ def _generate_markdown(
         f"",
         f"---",
         f"",
+        f"## Pass / Fail Criteria",
+        f"",
+        "Each check belongs to one of three types, with **different levels of",
+        "evidential weight**:",
+        "",
+        "| Type | Label | What it means | Can it falsify the framework? |",
+        "|------|-------|----------------|-------------------------------|",
+        "| `mathematical_identity` | `math-id` | Pure algebra/calculus fact true by definition of the mathematical objects. Failure = **coding bug**, not a physical discrepancy. | **No** |",
+        "| `numerical_precision` | `num-prec` | IEEE 754 floating-point precision of an algebraic identity. Failure = catastrophic numerical regression. | **No** |",
+        "| `empirical` | `EMPIRICAL` | Prediction or reconstruction compared against an **independent** external reference (CODATA/NIST/Planck/PDG). Failure = real discrepancy with experiment. | **Yes** |",
+        "",
+        "The `pass_criterion` field on every check states *exactly* what",
+        "tolerance is used and *why* that tolerance was chosen.",
+        "",
+        f"---",
+        f"",
         f"## Summary",
         f"",
     ]
@@ -127,6 +156,11 @@ def _generate_markdown(
     total = len(all_results)
     n_pass = sum(1 for r in all_results if r.get("passed", False))
     n_fail = total - n_pass
+    n_empirical = sum(1 for r in all_results if r.get("check_type") == "empirical")
+    n_empirical_pass = sum(
+        1 for r in all_results
+        if r.get("check_type") == "empirical" and r.get("passed", False)
+    )
     md_lines += [
         f"| Metric | Value |",
         f"|--------|-------|",
@@ -134,6 +168,8 @@ def _generate_markdown(
         f"| Passed | {n_pass} |",
         f"| Failed | {n_fail} |",
         f"| Pass rate | {100.0 * n_pass / max(total, 1):.1f}% |",
+        f"| **Empirical checks** | **{n_empirical}** |",
+        f"| **Empirical passed** | **{n_empirical_pass}** |",
         f"",
         f"---",
         f"",
@@ -154,12 +190,22 @@ def _generate_markdown(
             continue
         md_lines.append(f"## {title}")
         md_lines.append("")
-        headers = ["Check", "Modelled", "Observed", "Rel. Error", "Status"]
+        headers = ["Check", "Type", "Modelled", "Observed", "Rel. Error", "Status"]
         rows = _table_rows(sec_results)
         md_lines.append("| " + " | ".join(headers) + " |")
         md_lines.append("| " + " | ".join(["---"] * len(headers)) + " |")
         for row in rows:
             md_lines.append("| " + " | ".join(row) + " |")
+        md_lines.append("")
+        # Include pass criteria in a details block
+        md_lines.append("<details><summary>Pass criteria for this section</summary>")
+        md_lines.append("")
+        for r in sec_results:
+            criterion = r.get("pass_criterion", "")
+            if criterion:
+                md_lines.append(f"**`{r['name']}`** (`{r.get('check_type','?')}`): {criterion}")
+                md_lines.append("")
+        md_lines.append("</details>")
         md_lines.append("")
 
     # Checksums
@@ -198,9 +244,11 @@ def _generate_markdown(
         - **PDG 2022** lepton masses used for the Koide formula check.
 
         ### Validation Strategy
-        - Each mathematical construct is validated **twice**: once with SymPy
-          for exact symbolic verification and once with NumPy for numerical
-          floating-point confirmation.
+        - Each check is explicitly classified as `mathematical_identity`,
+          `numerical_precision`, or `empirical`.  Only `empirical` checks can
+          distinguish the Kernel framework from an incorrect model.
+        - Each check includes a `pass_criterion` string stating exactly what
+          tolerance is applied and why that threshold was chosen.
         - Relative error `|modelled − observed| / |observed|` is the primary
           pass/fail metric; domain-appropriate tolerances are set per check.
         - A cumulative checksum (SHA-256 of the serialised (name, value) pairs
@@ -334,7 +382,7 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
         cumulative.extend(results)
 
         # Print per-check results
-        headers = ["Check", "Modelled", "Observed", "Rel.Err", "Status"]
+        headers = ["Check", "Type", "Modelled", "Observed", "Rel.Err", "Status"]
         rows = _table_rows(results)
         if _HAS_TABULATE:
             print(tabulate(rows, headers=headers, tablefmt="simple"))
@@ -356,21 +404,30 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
     total  = len(all_results)
     n_pass = sum(1 for r in all_results if r.get("passed", False))
     n_fail = total - n_pass
+    n_empirical = sum(1 for r in all_results if r.get("check_type") == "empirical")
+    n_empirical_pass = sum(
+        1 for r in all_results
+        if r.get("check_type") == "empirical" and r.get("passed", False)
+    )
 
     print("\n" + "=" * 72)
     print("  FINAL SUMMARY")
     print("=" * 72)
     summary_rows = [
-        ["Total checks", str(total)],
-        ["Passed",       str(n_pass)],
-        ["Failed",       str(n_fail)],
-        ["Pass rate",    f"{100.0 * n_pass / max(total, 1):.1f}%"],
+        ["Total checks",         str(total)],
+        ["Passed",               str(n_pass)],
+        ["Failed",               str(n_fail)],
+        ["Pass rate",            f"{100.0 * n_pass / max(total, 1):.1f}%"],
+        ["",                     ""],
+        ["Empirical checks",     str(n_empirical)],
+        ["Empirical passed",     str(n_empirical_pass)],
+        ["Empirical pass rate",  f"{100.0 * n_empirical_pass / max(n_empirical, 1):.1f}%"],
     ]
     if _HAS_TABULATE:
         print(tabulate(summary_rows, tablefmt="simple"))
     else:
         for row in summary_rows:
-            print(f"  {row[0]:20s}: {row[1]}")
+            print(f"  {row[0]:25s}: {row[1]}")
 
     # Cumulative checksum
     final_ck = compute_checksum(all_results)
