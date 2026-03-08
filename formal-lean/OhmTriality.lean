@@ -215,7 +215,7 @@ theorem ohm_lyapunov_cosh_wing_symmetry :
 /-- The μ-orbit has perfect Ohm conductance G=1 at every orbit step n.
     Since |μⁿ| = 1, C(|μⁿ|) = 1, the μ-orbit never decoheres. -/
 theorem ohm_mu_orbit_conductance (n : ℕ) : C (Complex.abs (μ ^ n)) = 1 := by
-  rw [mu_pow_abs]; exact (coherence_eq_one_iff 1 le_rfl).mpr rfl
+  rw [mu_pow_abs]; exact (coherence_eq_one_iff 1 zero_le_one).mpr rfl
 
 /-- The μ-orbit has unit Ohm resistance at every orbit step n:
     R_eff(|μⁿ|) = (C(|μⁿ|))⁻¹ = 1. -/

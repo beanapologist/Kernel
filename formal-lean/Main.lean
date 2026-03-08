@@ -21,7 +21,8 @@ import OhmTriality
 import SilverCoherence
 import KernelAxle
 
-def main : IO Unit := do
+set_option maxRecDepth 2000 in
+def printCriticalEigenvalue : IO Unit := do
   IO.println "==================================================="
   IO.println " Kernel — Lean 4 Formal Verification"
   IO.println "==================================================="
@@ -152,6 +153,9 @@ def main : IO Unit := do
   IO.println ""
   IO.println "See CriticalEigenvalue.lean for full proof terms."
   IO.println ""
+
+set_option maxRecDepth 2000 in
+def printTimeCrystal : IO Unit := do
   IO.println "==================================================="
   IO.println " TimeCrystal.lean — Discrete Time Crystal Theory"
   IO.println "==================================================="
@@ -216,6 +220,9 @@ def main : IO Unit := do
   IO.println ""
   IO.println "See TimeCrystal.lean for full proof terms."
   IO.println ""
+
+set_option maxRecDepth 2000 in
+def printSpaceTime : IO Unit := do
   IO.println "==================================================="
   IO.println " SpaceTime.lean — Space-Time Unification via Reality"
   IO.println "==================================================="
@@ -285,6 +292,9 @@ def main : IO Unit := do
   IO.println ""
   IO.println "See SpaceTime.lean for full proof terms."
   IO.println ""
+
+set_option maxRecDepth 2000 in
+def printTurbulence : IO Unit := do
   IO.println "==================================================="
   IO.println " Turbulence.lean — Navier-Stokes Turbulence Theory"
   IO.println "==================================================="
@@ -343,6 +353,9 @@ def main : IO Unit := do
   IO.println ""
   IO.println "See Turbulence.lean for full proof terms."
   IO.println ""
+
+set_option maxRecDepth 2000 in
+def printFineStructure : IO Unit := do
   IO.println "==================================================="
   IO.println " FineStructure.lean — Fine Structure Constant α_FS"
   IO.println "==================================================="
@@ -399,6 +412,9 @@ def main : IO Unit := do
   IO.println ""
   IO.println "See FineStructure.lean for full proof terms."
   IO.println ""
+
+set_option maxRecDepth 2000 in
+def printParticleMass : IO Unit := do
   IO.println "==================================================="
   IO.println " ParticleMass.lean — Koide Formula & Mass Ratios"
   IO.println "==================================================="
@@ -469,6 +485,9 @@ def main : IO Unit := do
   IO.println ""
   IO.println "See ParticleMass.lean for full proof terms."
   IO.println ""
+
+set_option maxRecDepth 2000 in
+def printOhmTriality : IO Unit := do
   IO.println "════════════════════════════════════════════════════════════════════"
   IO.println "  OhmTriality.lean — Ohm–Coherence Duality at Triality Scales"
   IO.println "  G_eff = C(r)  (conductance = coherence)"
@@ -522,6 +541,9 @@ def main : IO Unit := do
   IO.println ""
   IO.println "See OhmTriality.lean for full proof terms."
   IO.println ""
+
+set_option maxRecDepth 2000 in
+def printSilverCoherence : IO Unit := do
   IO.println "════════════════════════════════════════════════════════════════════"
   IO.println "  SilverCoherence.lean — A machine-checked answer to a curiosity"
   IO.println "  Q: Does C(r) = 1/√2 = |Im(μ)| for any natural scale r?"
@@ -583,6 +605,9 @@ def main : IO Unit := do
   IO.println ""
   IO.println "See SilverCoherence.lean for full proof terms."
   IO.println ""
+
+set_option maxRecDepth 2000 in
+def printKernelAxle : IO Unit := do
   IO.println "════════════════════════════════════════════════════════════════════"
   IO.println "  KernelAxle.lean — The axle of the Kernel engine"
   IO.println "  The central rotating element μ connects every module."
@@ -627,3 +652,14 @@ def main : IO Unit := do
   IO.println "20 theorems — all machine-checked, zero sorry."
   IO.println ""
   IO.println "See KernelAxle.lean for full proof terms."
+
+def main : IO Unit := do
+  printCriticalEigenvalue
+  printTimeCrystal
+  printSpaceTime
+  printTurbulence
+  printFineStructure
+  printParticleMass
+  printOhmTriality
+  printSilverCoherence
+  printKernelAxle

@@ -15,7 +15,6 @@ import Lake
 open Lake DSL
 
 package «formalLean» where
-  name := "formalLean"
 
 -- Mathlib provides complex numbers, real analysis, linear algebra, and more.
 -- Pin to a specific tag for reproducibility; update with `lake update`.
