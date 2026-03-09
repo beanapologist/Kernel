@@ -15,7 +15,6 @@ import Lake
 open Lake DSL
 
 package «formalLean» where
-  name := "formalLean"
 
 -- Mathlib provides complex numbers, real analysis, linear algebra, and more.
 -- Pin to a specific tag for reproducibility; update with `lake update`.
@@ -24,7 +23,8 @@ require mathlib from git
 
 /-- Library containing the core Kernel formalizations. -/
 lean_lib «FormalLean» where
-  roots := #[`CriticalEigenvalue, `TimeCrystal, `SpaceTime, `BidirectionalTime]
+  roots := #[`CriticalEigenvalue, `TimeCrystal, `SpaceTime, `Turbulence, `FineStructure,
+             `ParticleMass, `OhmTriality, `SilverCoherence, `KernelAxle, `BidirectionalTime]
 
 /-- Executable entry point that prints a summary of verified theorems. -/
 @[default_target]
