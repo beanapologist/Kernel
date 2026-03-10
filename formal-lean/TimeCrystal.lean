@@ -71,7 +71,7 @@ theorem timeEvolution_zero (H : ℝ) : timeEvolution H 0 = 1 := by
     |exp z| = exp(Re z) and Re(−I·H·t) = 0. -/
 theorem timeEvolution_abs_one (H t : ℝ) : Complex.abs (timeEvolution H t) = 1 := by
   unfold timeEvolution
-  rw [map_exp, Complex.abs_exp]
+  rw [Complex.abs_exp]
   simp [Complex.neg_re, Complex.mul_re, Complex.I_re, Complex.I_im]
 
 /-- The time evolution operator satisfies the group law: U(t + s) = U(t) · U(s).
@@ -101,7 +101,7 @@ def floquetPhase (φ : ℝ) : ℂ := Complex.exp (-(Complex.I * ↑φ))
 /-- The Floquet phase factor lies on the unit circle: |e^{−iφ}| = 1. -/
 theorem floquetPhase_abs_one (φ : ℝ) : Complex.abs (floquetPhase φ) = 1 := by
   unfold floquetPhase
-  rw [map_exp, Complex.abs_exp]
+  rw [Complex.abs_exp]
   simp [Complex.neg_re, Complex.mul_re, Complex.I_re, Complex.I_im]
 
 /-- Floquet phase factors compose: e^{−i(φ₁+φ₂)} = e^{−iφ₁} · e^{−iφ₂}. -/

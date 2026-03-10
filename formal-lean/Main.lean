@@ -14,12 +14,6 @@
 import CriticalEigenvalue
 import TimeCrystal
 import SpaceTime
-import Turbulence
-import FineStructure
-import ParticleMass
-import OhmTriality
-import SilverCoherence
-import KernelAxle
 import SpeedOfLight
 import BidirectionalTime
 
