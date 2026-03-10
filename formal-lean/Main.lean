@@ -20,6 +20,7 @@ import ParticleMass
 import OhmTriality
 import SilverCoherence
 import KernelAxle
+import SpeedOfLight
 import BidirectionalTime
 
 
@@ -657,6 +658,55 @@ def printKernelAxle : IO Unit := do
 
 
 set_option maxRecDepth 2000 in
+def printSpeedOfLight : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════"
+  IO.println "  SpeedOfLight.lean — Speed of Light and Backward-Time Gates"
+  IO.println "  c = 1/√(μ₀ε₀)  ·  c_natural = 137  ·  tₚ = √(ℏG/c⁵)"
+  IO.println "════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "§1    Maxwell speed of light: c = 1/√(μ₀ε₀)"
+  IO.println ""
+  IO.println "  [1]  c_maxwell_pos               : c_maxwell(μ₀,ε₀) > 0"
+  IO.println "  [2]  maxwell_balance_constraint  : μ₀ε₀ · c² = 1  (defining relation)"
+  IO.println "  [3]  c_maxwell_sq                : c² = 1/(μ₀ε₀)"
+  IO.println ""
+  IO.println "§2    Natural-units speed: c_natural = 1/α_FS = 137"
+  IO.println ""
+  IO.println "  [4]  alpha_fs_pos                : α_FS > 0"
+  IO.println "  [5]  c_natural_eq                : c_natural = 137"
+  IO.println "  [6]  c_natural_pos               : c_natural > 0"
+  IO.println ""
+  IO.println "§3    The balance equation P · x² = 1 and uniqueness"
+  IO.println ""
+  IO.println "  [7]  balance_constraint          : P·(1/√P)² = 1  for P > 0"
+  IO.println "  [8]  balance_unique              : P·x²=1, x>0 → x = 1/√P  (unique)"
+  IO.println ""
+  IO.println "§4    Structural isomorphism: c and η both solve P · x² = 1"
+  IO.println ""
+  IO.println "  [9]  eta_balance                 : 2·η² = 1  (η solves P·x²=1 with P=2)"
+  IO.println "  [10] c_natural_balance           : (1/c²)·c² = 1"
+  IO.println "  [11] c_eta_structural_iso        : ∃P₁>0, P₁·c²=1  ∧  ∃P₂>0, P₂·η²=1"
+  IO.println ""
+  IO.println "§5    Planck time — the absolute smallest unit of time"
+  IO.println ""
+  IO.println "  [12] planckTime_pos              : tₚ > 0  for ħ,G,c > 0"
+  IO.println "  [13] planckTime_sq_law           : c⁵·tₚ² = ħ·G  (Planck time law)"
+  IO.println "  [14] planckTime_unique           : c⁵·x²=ħG, x>0 → x = tₚ  (unique)"
+  IO.println "  [15] planckTime_c_scale          : (c·tₚ)² = ħG/c³  (Planck length²)"
+  IO.println ""
+  IO.println "§6    The four backward-time gate equations"
+  IO.println ""
+  IO.println "  [16] backward_coherence_gate     : C(1/r) = C(r)           (coherence gate)"
+  IO.println "  [17] backward_palindrome_gate    : Res(1/r) = −Res(r)       (palindrome gate)"
+  IO.println "  [18] backward_frustration_swing  : Res(r)−Res(1/r) = 2·Res(r)  (full swing)"
+  IO.println "  [19] silver_backward_gate        : C(1/δS)=η ∧ Res(1/δS)=−2/δS  (silver gate)"
+  IO.println ""
+  IO.println "19 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "See SpeedOfLight.lean for full proof terms."
+
+
+set_option maxRecDepth 2000 in
 def printBidirectionalTime : IO Unit := do
   IO.println "==================================================="
   IO.println " BidirectionalTime.lean — Bidirectional Time via δS"
@@ -726,7 +776,14 @@ def printBidirectionalTime : IO Unit := do
   IO.println "  [39] palindrome_vacuum_residual       : palindromeRatio − εF(π/8) = 9/123456789"
   IO.println "  [40] palindrome_residual_precession_form : palindromeRatio − 8 = 1/D  (D=13717421)"
   IO.println ""
-  IO.println "40 theorems — all machine-checked, zero sorry."
+  IO.println "§9    Speed of light in the temporal framework"
+  IO.println ""
+  IO.println "  [41] c_natural_silver_period      : εF(π/137) = 137  (c_natural sets timescale)"
+  IO.println "  [42] planck_time_unit             : tₚ(1,1,1) = 1  (natural units)"
+  IO.println "  [43] backward_time_complete_gate  : C(1/r)=C(r) ∧ Res(1/r)=−Res(r) ∧ εF(−T)<0"
+  IO.println "  [44] planck_frustration_bound     : tₚ>0 ∧ εF(tₚ)>0  (Planck floor)"
+  IO.println ""
+  IO.println "44 theorems — all machine-checked, zero sorry."
   IO.println ""
   IO.println "See BidirectionalTime.lean for full proof terms."
 
@@ -740,4 +797,5 @@ def main : IO Unit := do
   printOhmTriality
   printSilverCoherence
   printKernelAxle
+  printSpeedOfLight
   printBidirectionalTime
