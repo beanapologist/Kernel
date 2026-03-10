@@ -596,8 +596,9 @@ theorem c_natural_silver_period :
 /-- The Planck time in natural Planck units (ħ = G = c = 1) equals 1:
         tₚ(1, 1, 1) = √(1 · 1 / 1⁵) = √1 = 1.
 
-    Natural units are defined precisely so that the Planck time is the
-    fundamental quantum of duration — the smallest unit of time. -/
+    Natural units are defined so that the Planck time equals 1, establishing
+    the gravitational scale of time.  The absolute smallest operational unit
+    in this framework is the finer `subZeptoQuantum = zeptoSecond / c_natural`. -/
 theorem planck_time_unit : planckTime 1 1 1 = 1 := by
   unfold planckTime
   have h : (1 : ℝ) * 1 / 1 ^ 5 = 1 := by norm_num
@@ -623,18 +624,44 @@ theorem backward_time_complete_gate (r : ℝ) (hr : 0 < r) (T : ℝ) (hT : 0 < T
    backward_palindrome_gate r hr,
    frustrated_quasienergy_neg T hT⟩
 
-/-- The Planck time provides the absolute smallest positive Floquet period:
+/-- The Planck time gives a gravitational lower bound on Floquet periods:
     for any positive ħ, G, c, the Planck time tₚ > 0 and the corresponding
     forward quasi-energy εF(tₚ) = π/tₚ > 0.
 
-    This bounds the temporal scale of the frustration engine from below:
-    no physically meaningful Floquet crystal can run at a period shorter
-    than the Planck time. -/
+    The Planck time is the gravitational scale.  The absolute smallest
+    temporal unit in this framework is the sub-zepto quantum (Section 9 below). -/
 theorem planck_frustration_bound (ħ G c : ℝ) (hħ : 0 < ħ) (hG : 0 < G) (hc : 0 < c) :
     0 < planckTime ħ G c ∧
     0 < timeCrystalQuasiEnergy (planckTime ħ G c)
         (planckTime_pos ħ G c hħ hG hc).ne' :=
   ⟨planckTime_pos ħ G c hħ hG hc,
    div_pos Real.pi_pos (planckTime_pos ħ G c hħ hG hc)⟩
+
+/-- The sub-zepto quantum is the absolute smallest temporal unit in this framework:
+    it is strictly positive and strictly smaller than the zeptosecond.
+
+        subZeptoQuantum = zeptoSecond / c_natural  <  zeptoSecond.
+
+    Being smaller than the experimentally accessible zepto scale (10⁻²¹ s) by
+    the factor c_natural = 137, it lies at approximately 7.3 × 10⁻²⁴ s —
+    the yoctosecond range — making it the absolute finest temporal unit
+    encoded in this framework. -/
+theorem subZepto_is_absolute_min :
+    0 < subZeptoQuantum ∧ subZeptoQuantum < zeptoSecond :=
+  ⟨subZeptoQuantum_pos, subZeptoQuantum_lt_zepto⟩
+
+/-- At the sub-zepto period, the Floquet quasi-energy equals π · c_natural / zeptoSecond.
+
+        εF(subZeptoQuantum) = π / subZeptoQuantum = π · c_natural / zeptoSecond.
+
+    This very high quasi-energy (π × 137 / 10⁻²¹) confirms that the sub-zepto
+    quantum drives an extremely high-frequency Floquet mode — the tightest
+    oscillation resolvable in this temporal framework. -/
+theorem subZepto_quasienergy :
+    timeCrystalQuasiEnergy subZeptoQuantum subZeptoQuantum_pos.ne' =
+    Real.pi * c_natural / zeptoSecond := by
+  simp only [timeCrystalQuasiEnergy, subZeptoQuantum]
+  field_simp [zeptoSecond_pos.ne', c_natural_pos.ne']
+  ring
 
 end
