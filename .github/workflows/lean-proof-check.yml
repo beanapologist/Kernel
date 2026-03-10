@@ -1,0 +1,76 @@
+name: Lean Proof Check
+
+on:
+  push:
+    branches: [main, copilot/add-bidirectional-time-model, copilot/recreate-bidirectional-time-lean]
+    paths:
+      - 'formal-lean/**'
+      - '.github/workflows/lean-proof-check.yml'
+  pull_request:
+    branches: [main, copilot/add-bidirectional-time-model, copilot/recreate-bidirectional-time-lean]
+    paths:
+      - 'formal-lean/**'
+      - '.github/workflows/lean-proof-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  lean-build:
+    name: Build and verify Lean proofs
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: formal-lean
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── Install elan (Lean version manager) ─────────────────────────────
+      - name: Install elan
+        run: |
+          curl -sSf https://raw.githubusercontent.com/leanprover/elan/v3.1.1/elan-init.sh \
+            | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      # ── Pin Lean toolchain from lean-toolchain file ──────────────────────
+      - name: Install Lean toolchain (leanprover/lean4:v4.14.0)
+        run: elan toolchain install "$(cat lean-toolchain)"
+
+      # ── Restore cached Mathlib build artefacts ───────────────────────────
+      - name: Cache Mathlib build artefacts
+        uses: actions/cache@v4
+        id: mathlib-cache
+        with:
+          path: |
+            formal-lean/.lake/packages
+            formal-lean/.lake/build
+            ~/.elan
+          key: lean-${{ hashFiles('formal-lean/lean-toolchain') }}-${{ hashFiles('formal-lean/lakefile.lean') }}-${{ hashFiles('formal-lean/lake-manifest.json') }}
+          restore-keys: |
+            lean-${{ hashFiles('formal-lean/lean-toolchain') }}-${{ hashFiles('formal-lean/lakefile.lean') }}-
+            lean-${{ hashFiles('formal-lean/lean-toolchain') }}-
+
+      # ── Fetch pre-built Mathlib object cache ─────────────────────────────
+      - name: Fetch pre-built Mathlib cache
+        run: lake exe cache get || true
+
+      # ── Build all modules (checks every proof) ───────────────────────────
+      - name: Build all Lean modules
+        run: lake build
+
+      # ── Run the executable (smoke-test the summary output) ───────────────
+      - name: Run formalLean executable
+        run: lake exe formalLean
+
+      # ── Upload build log on failure ──────────────────────────────────────
+      - name: Upload build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lean-build-log-${{ github.sha }}
+          path: formal-lean/.lake/build/log
+          if-no-files-found: ignore
+          retention-days: 14
