@@ -52,6 +52,7 @@ class TestStaticMap:
         "ohm_coherence_triality",
         "kernel_axle",
         "bidirectional_time",
+        "forward_classical_time",
     }
 
     # Required fields per entry
