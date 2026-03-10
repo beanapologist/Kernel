@@ -154,7 +154,7 @@ theorem fct_one_lt_cosh (l : ℝ) (hl : l ≠ 0) : 1 < Real.cosh l := by
     intro h
     have heq : Real.exp l = Real.exp 0 := by simp [h]
     exact hl (Real.exp_injective heq)
-  have hstrict : 0 < (Real.exp l - 1) ^ 2 := sq_pos_of_ne_zero _ (sub_ne_zero.mpr hexp1)
+  have hstrict : 0 < (Real.exp l - 1) ^ 2 := sq_pos_of_ne_zero (sub_ne_zero.mpr hexp1)
   have hdiv : Real.exp l + (Real.exp l)⁻¹ = ((Real.exp l) ^ 2 + 1) / Real.exp l := by
     field_simp; ring
   rw [hdiv, lt_div_iff₀ ha]
