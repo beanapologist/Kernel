@@ -230,8 +230,12 @@ theorem balance_iso_same_number (P x y : ℝ) (hP : 0 < P)
 
     This is the unique normalisation at which the two frameworks coincide
     exactly, demonstrating that the Maxwell and Kernel balance patterns are
-    not merely analogous — they share a common fixed point. -/
-theorem c_equals_eta_when_balance_two (μ₀ ε₀ : ℝ) (hμ : 0 < μ₀) (hε : 0 < ε₀)
+    not merely analogous — they share a common fixed point.
+
+    Note: positivity of μ₀ and ε₀ individually is not required — only their
+    product equals 2.  The definition of c_maxwell and η both unfold to
+    1 / Real.sqrt (·), so the equality follows purely by substitution. -/
+theorem c_equals_eta_when_balance_two (μ₀ ε₀ : ℝ)
     (h : μ₀ * ε₀ = 2) : c_maxwell μ₀ ε₀ = η := by
   unfold c_maxwell η
   rw [h]
