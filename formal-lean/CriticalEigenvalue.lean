@@ -89,7 +89,7 @@ theorem mu_eq_cart : μ = ((-1 + Complex.I) / Real.sqrt 2) := by
 theorem mu_abs_one : Complex.abs μ = 1 := by
   unfold μ
   -- Complex.abs (exp z) = Real.exp z.re; here z = I*(3π/4), z.re = 0
-  rw [map_exp, Complex.abs_exp]
+  rw [Complex.abs_exp]
   simp [Complex.mul_re, Complex.I_re, Complex.I_im]
 
 /-- μ^8 = 1: the eigenvalue closes an exact 8-cycle.
@@ -222,21 +222,17 @@ theorem rotMat_pow_eight : rotMat ^ 8 = 1 := by
     have hdef : rotMat = !![Real.cos θ, -Real.sin θ; Real.sin θ, Real.cos θ] := rfl
     rw [hdef, pow_two]
     ext i j; fin_cases i <;> fin_cases j <;>
-      simp only [Matrix.mul_apply, Fin.sum_univ_two, Matrix.cons_val_zero,
-                 Matrix.cons_val_one, Matrix.head_cons, Matrix.head_fin_const,
-                 neg_mul, mul_neg] <;>
+      simp [Matrix.mul_apply, Fin.sum_univ_two, neg_mul, mul_neg] <;>
       nlinarith [hc2, hs2, hsc, mul_comm (Real.cos θ) (Real.sin θ)]
   -- (4) rotMat^4 = −I
   have h4 : rotMat ^ 4 = -1 := by
     have : (4 : ℕ) = 2 * 2 := by norm_num
     rw [this, pow_mul, h2]
     ext i j; fin_cases i <;> fin_cases j <;>
-      simp [pow_two, Matrix.mul_apply, Fin.sum_univ_two, Matrix.cons_val_zero,
-            Matrix.cons_val_one, Matrix.head_cons, Matrix.head_fin_const,
+      simp [pow_two, Matrix.mul_apply, Fin.sum_univ_two,
             Matrix.neg_apply, Matrix.one_apply, Pi.neg_apply]
-  -- (5) rotMat^8 = I  (square both sides of step 4)
-  have : (8 : ℕ) = 2 * 4 := by norm_num
-  rw [this, pow_mul, h4]
+  -- (5) rotMat^8 = I  (square both sides of step 4: (R^4)^2 = (-I)^2 = I)
+  rw [show (8 : ℕ) = 4 * 2 from by norm_num, pow_mul, h4]
   simp [pow_two, Matrix.neg_mul, Matrix.mul_neg, Matrix.neg_neg]
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -288,13 +284,7 @@ private lemma eta_sq : η ^ 2 = 1 / 2 := by
 
 /-- |μ|² = 1 (μ lies on the unit circle). -/
 private lemma mu_normSq_one : Complex.normSq μ = 1 := by
-  -- normSq (exp(Iθ)) = cos²θ + sin²θ = 1 by the Pythagorean identity
-  unfold μ
-  rw [mul_comm, Complex.exp_mul_I]
-  simp only [Complex.normSq_apply, Complex.add_re, Complex.mul_re,
-             Complex.ofReal_re, Complex.I_re, Complex.I_im,
-             Complex.add_im, Complex.mul_im, Complex.ofReal_im]
-  nlinarith [Real.sin_sq_add_cos_sq (3 * Real.pi / 4)]
+  rw [Complex.normSq_eq_abs, mu_abs_one, one_pow]
 
 /-- The canonical state has norm 1:  η² + |μ·η|² = 1.
 
@@ -306,7 +296,7 @@ private lemma mu_normSq_one : Complex.normSq μ = 1 := by
 theorem canonical_norm : η ^ 2 + Complex.normSq (μ * ↑η) = 1 := by
   -- Reduce |μ·η|² to normSq μ · η²
   have h1 : Complex.normSq (μ * ↑η) = η ^ 2 := by
-    rw [map_mul, Complex.normSq_ofReal, mu_normSq_one]
+    rw [map_mul Complex.normSq, Complex.normSq_ofReal, mu_normSq_one]
     ring
   rw [h1, eta_sq]
   norm_num
@@ -383,7 +373,7 @@ theorem palindrome_residual_zero_iff (r : ℝ) (hr : 0 < r) : Res r = 0 ↔ r = 
     -- r − 1/r = 0  →  r·(r − 1/r) = 0  →  r² − 1 = 0  →  (r−1)(r+1) = 0
     have hrr : r * r = 1 := by
       have hstep : r * r - 1 = 0 := by
-        have : r * (r - 1 / r) = r * r - 1 := by field_simp; ring
+        have : r * (r - 1 / r) = r * r - 1 := by field_simp [hr']
         linarith [show r * (r - 1 / r) = 0 from by rw [h, mul_zero]]
       linarith
     have hfact : (r - 1) * (r + 1) = 0 := by linear_combination hrr
@@ -416,7 +406,7 @@ theorem palindrome_residual_neg (r : ℝ) (hr0 : 0 < r) (hr1 : r < 1) : Res r < 
 theorem palindrome_residual_antisymm (r : ℝ) (hr : 0 < r) : Res (1 / r) = -Res r := by
   unfold Res
   have hr' : r ≠ 0 := ne_of_gt hr
-  field_simp; ring
+  field_simp [hr']
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 10 — Lyapunov–Coherence Duality (Theorem 14)
@@ -424,31 +414,31 @@ theorem palindrome_residual_antisymm (r : ℝ) (hr : 0 < r) : Res (1 / r) = -Res
 -- ════════════════════════════════════════════════════════════════════════════
 
 /-- Key identity: C(exp λ) · (exp λ + exp(−λ)) = 2. -/
-private lemma lyapunov_key (λ : ℝ) :
-    C (Real.exp λ) * (Real.exp λ + Real.exp (-λ)) = 2 := by
-  have hmul : Real.exp λ * Real.exp (-λ) = 1 := by
+private lemma lyapunov_key (lam : ℝ) :
+    C (Real.exp lam) * (Real.exp lam + Real.exp (-lam)) = 2 := by
+  have hmul : Real.exp lam * Real.exp (-lam) = 1 := by
     rw [← Real.exp_add]; simp
   unfold C
-  have hd : (0 : ℝ) < 1 + Real.exp λ ^ 2 := one_add_sq_pos _
+  have hd : (0 : ℝ) < 1 + Real.exp lam ^ 2 := one_add_sq_pos _
   field_simp [ne_of_gt hd]
-  nlinarith [Real.exp_pos λ, Real.exp_pos (-λ), hmul, sq_nonneg (Real.exp λ)]
+  nlinarith [Real.exp_pos lam, Real.exp_pos (-lam), hmul, sq_nonneg (Real.exp lam)]
 
 /-- Lyapunov–coherence duality: C(exp λ) = 2/(exp λ + exp(−λ)) = sech λ.
     The coherence is the reciprocal of the hyperbolic cosine of the Lyapunov
     exponent λ = ln r.  At the balanced fixed point r = 1 (λ = 0):
     sech(0) = 1, recovering C = 1.
     Ref: docs/master_derivations.pdf §4 Theorem 14 -/
-theorem lyapunov_coherence_duality (λ : ℝ) :
-    C (Real.exp λ) = 2 / (Real.exp λ + Real.exp (-λ)) := by
-  have hpos : 0 < Real.exp λ + Real.exp (-λ) := by positivity
+theorem lyapunov_coherence_duality (lam : ℝ) :
+    C (Real.exp lam) = 2 / (Real.exp lam + Real.exp (-lam)) := by
+  have hpos : 0 < Real.exp lam + Real.exp (-lam) := by positivity
   rw [eq_div_iff (ne_of_gt hpos), mul_comm]
-  exact lyapunov_key λ
+  exact lyapunov_key lam
 
 /-- Corollary: C(exp λ) = (cosh λ)⁻¹ = sech λ.
     Uses: cosh λ = (exp λ + exp(−λ)) / 2. -/
-theorem lyapunov_coherence_sech (λ : ℝ) :
-    C (Real.exp λ) = (Real.cosh λ)⁻¹ := by
-  have hcosh : Real.cosh λ = (Real.exp λ + Real.exp (-λ)) / 2 := Real.cosh_eq λ
+theorem lyapunov_coherence_sech (lam : ℝ) :
+    C (Real.exp lam) = (Real.cosh lam)⁻¹ := by
+  have hcosh : Real.cosh lam = (Real.exp lam + Real.exp (-lam)) / 2 := Real.cosh_eq lam
   rw [lyapunov_coherence_duality, hcosh, inv_div]
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -501,8 +491,8 @@ theorem simultaneous_break (r : ℝ) (hr : 0 < r) :
 /-- **Derived**: the Lyapunov–coherence duality implies C ≤ 1 for all λ,
     since sech(λ) ≤ 1 = sech(0).  This recovers `coherence_le_one` via a
     completely different route (the hyperbolic bound). -/
-theorem lyapunov_bound (λ : ℝ) : C (Real.exp λ) ≤ 1 :=
-  coherence_le_one _ (le_of_lt (Real.exp_pos λ))
+theorem lyapunov_bound (lam : ℝ) : C (Real.exp lam) ≤ 1 :=
+  coherence_le_one _ (le_of_lt (Real.exp_pos lam))
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 12 — Orbit Magnitude and Trichotomy (Theorem 10)
@@ -523,7 +513,7 @@ theorem mu_pow_abs (n : ℕ) : Complex.abs (μ ^ n) = 1 := by
 theorem scaled_orbit_abs (r : ℝ) (hr : 0 ≤ r) (n : ℕ) :
     Complex.abs ((↑r * μ) ^ n) = r ^ n := by
   have habsr : Complex.abs (↑r * μ) = r := by
-    rw [map_mul, Complex.abs_ofReal, abs_of_nonneg hr, mu_abs_one, mul_one]
+    rw [map_mul Complex.abs, Complex.abs_ofReal, _root_.abs_of_nonneg hr, mu_abs_one, mul_one]
   calc Complex.abs ((↑r * μ) ^ n)
       = Complex.abs (↑r * μ) ^ n := map_pow Complex.abs _ _
     _ = r ^ n := by rw [habsr]
@@ -547,7 +537,9 @@ theorem trichotomy_grow (r : ℝ) (hr : 1 < r) (n : ℕ) :
 theorem trichotomy_shrink (r : ℝ) (hr0 : 0 < r) (hr1 : r < 1) (n : ℕ) :
     Complex.abs ((↑r * μ) ^ (n + 1)) < Complex.abs ((↑r * μ) ^ n) := by
   simp only [scaled_orbit_abs r (le_of_lt hr0)]
-  exact pow_lt_pow_of_lt_one (le_of_lt hr0) hr1 (Nat.lt_succ_self n)
+  calc r ^ (n + 1) = r ^ n * r := pow_succ r n
+    _ < r ^ n * 1 := mul_lt_mul_of_pos_left hr1 (pow_pos hr0 n)
+    _ = r ^ n := mul_one _
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 13 — Coherence Monotonicity
@@ -674,7 +666,7 @@ theorem precession_phasor_unit (θ : ℝ) :
     β ↦ e^{iθ}·β leaves |β| — and hence r = |β|/|α| — unchanged. -/
 theorem precession_preserves_abs (β : ℂ) (θ : ℝ) :
     Complex.abs (Complex.exp (Complex.I * ↑θ) * β) = Complex.abs β := by
-  rw [map_mul, precession_phasor_unit, one_mul]
+  rw [map_mul Complex.abs, precession_phasor_unit, one_mul]
 
 /-- **Derived**: precession preserves the coherence ratio.
     If α and β are the two state components and both are multiplied by the
@@ -698,8 +690,8 @@ theorem precession_preserves_coherence (α β : ℂ) (hα : Complex.abs α ≠ 0
     Here G_eff = (cosh λ)⁻¹ and R_eff = cosh λ.  The identity says that the
     coherence (conductance) and the effective resistance are always reciprocals.
     Ref: docs/master_derivations.pdf §9 eq. (single-channel) -/
-theorem geff_reff_one (λ : ℝ) : (Real.cosh λ)⁻¹ * Real.cosh λ = 1 :=
-  inv_mul_cancel₀ (ne_of_gt (Real.cosh_pos λ))
+theorem geff_reff_one (lam : ℝ) : (Real.cosh lam)⁻¹ * Real.cosh lam = 1 :=
+  inv_mul_cancel₀ (ne_of_gt (Real.cosh_pos lam))
 
 /-- At balance (λ = 0): G_eff = sech(0) = 1 — maximal conductance, no overhead.
     Ref: docs/master_derivations.pdf §9 -/
@@ -708,18 +700,18 @@ theorem geff_at_zero : (Real.cosh 0)⁻¹ = 1 := by simp [Real.cosh_zero]
 /-- Parallel-channel Ohm-Coherence law: N identical channels satisfy G_tot · R_tot = 1.
     G_tot = N · sech(λ) and R_tot = cosh(λ)/N; their product collapses to sech·cosh = 1.
     Ref: docs/master_derivations.pdf §9 Parallel Channels (MultiChannelSystem) -/
-theorem parallel_circuit_one (N : ℕ) (hN : 0 < N) (λ : ℝ) :
-    (↑N * (Real.cosh λ)⁻¹) * (Real.cosh λ / ↑N) = 1 := by
-  have hcosh : Real.cosh λ ≠ 0 := ne_of_gt (Real.cosh_pos λ)
+theorem parallel_circuit_one (N : ℕ) (hN : 0 < N) (lam : ℝ) :
+    (↑N * (Real.cosh lam)⁻¹) * (Real.cosh lam / ↑N) = 1 := by
+  have hcosh : Real.cosh lam ≠ 0 := ne_of_gt (Real.cosh_pos lam)
   have hN' : (N : ℝ) ≠ 0 := Nat.cast_pos.mpr hN |>.ne'
   field_simp [hcosh, hN']
 
 /-- Series-pipeline Ohm-Coherence law: M identical stages satisfy G_tot · R_tot = 1.
     R_tot = M · cosh(λ) and G_tot = (M · cosh(λ))⁻¹; their product is 1.
     Ref: docs/master_derivations.pdf §9 Series Pipeline (PipelineSystem) -/
-theorem series_circuit_one (M : ℕ) (hM : 0 < M) (λ : ℝ) :
-    (↑M * Real.cosh λ)⁻¹ * (↑M * Real.cosh λ) = 1 :=
-  inv_mul_cancel₀ (mul_ne_zero (Nat.cast_pos.mpr hM |>.ne') (ne_of_gt (Real.cosh_pos λ)))
+theorem series_circuit_one (M : ℕ) (hM : 0 < M) (lam : ℝ) :
+    (↑M * Real.cosh lam)⁻¹ * (↑M * Real.cosh lam) = 1 :=
+  inv_mul_cancel₀ (mul_ne_zero (Nat.cast_pos.mpr hM |>.ne') (ne_of_gt (Real.cosh_pos lam)))
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 18 — Pythagorean Coherence Identity
@@ -919,8 +911,8 @@ theorem sech_at_log_silverRatio : (Real.cosh (Real.log δS))⁻¹ = η :=
     C = sech λ (even) and δS · Res / 2 = sinh λ (odd): a sech/sinh dual pair
     paralleling the cos/sin pair in circular geometry.
     Machine-discovered: §9 (Res definition) + §10 (exp parametrisation). -/
-theorem lyapunov_tanh_residual (λ : ℝ) :
-    Res (Real.exp λ) = 2 * Real.sinh λ / δS := by
+theorem lyapunov_tanh_residual (lam : ℝ) :
+    Res (Real.exp lam) = 2 * Real.sinh lam / δS := by
   unfold Res
   simp only [Real.sinh_eq, Real.exp_neg, one_div]
   ring
@@ -929,16 +921,16 @@ theorem lyapunov_tanh_residual (λ : ℝ) :
     In Lyapunov variables C = sech λ, so this is just sech²λ + tanh²λ = 1.
     This is the λ-space companion to §18's `coherence_pythagorean`.
     Machine-discovered: §10 (C = sech) + standard hyperbolic identity. -/
-theorem coherence_lyapunov_pythag (λ : ℝ) :
-    C (Real.exp λ) ^ 2 + Real.tanh λ ^ 2 = 1 := by
+theorem coherence_lyapunov_pythag (lam : ℝ) :
+    C (Real.exp lam) ^ 2 + Real.tanh lam ^ 2 = 1 := by
   rw [lyapunov_coherence_sech, Real.tanh_eq_sinh_div_cosh]
-  have hc : Real.cosh λ ≠ 0 := ne_of_gt (Real.cosh_pos λ)
-  have hprod : Real.exp λ * Real.exp (-λ) = 1 := by rw [← Real.exp_add]; simp
-  have key : Real.sinh λ ^ 2 + 1 = Real.cosh λ ^ 2 := by
+  have hc : Real.cosh lam ≠ 0 := ne_of_gt (Real.cosh_pos lam)
+  have hprod : Real.exp lam * Real.exp (-lam) = 1 := by rw [← Real.exp_add]; simp
+  have key : Real.sinh lam ^ 2 + 1 = Real.cosh lam ^ 2 := by
     rw [Real.sinh_eq, Real.cosh_eq]
     field_simp
-    nlinarith [Real.exp_pos λ, Real.exp_pos (-λ), hprod,
-               sq_nonneg (Real.exp λ - Real.exp (-λ))]
+    nlinarith [Real.exp_pos lam, Real.exp_pos (-lam), hprod,
+               sq_nonneg (Real.exp lam - Real.exp (-lam))]
   field_simp [hc]
   linarith
 
@@ -982,8 +974,8 @@ theorem orbit_decoherence_rate (r : ℝ) (hr : 1 < r) (n : ℕ) :
 theorem mu_inv_eq_pow7 : μ ^ 7 = μ⁻¹ := by
   have hμ : μ ≠ 0 := Complex.exp_ne_zero _
   have h7 : μ ^ 7 * μ = 1 := by
-    rw [show μ = μ ^ 1 from (pow_one μ).symm, ← pow_add]
-    simp only [show 7 + 1 = 8 from rfl, mu_pow_eight]
+    have : μ ^ 7 * μ = μ ^ 8 := by ring
+    rw [this, mu_pow_eight]
   calc μ ^ 7
       = μ ^ 7 * (μ * μ⁻¹) := by rw [mul_inv_cancel₀ hμ, mul_one]
     _ = μ ^ 7 * μ * μ⁻¹   := (mul_assoc _ _ _).symm
