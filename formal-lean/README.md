@@ -22,6 +22,8 @@ formal-lean/
 ├── OhmTriality.lean        # 24 theorems on Ohm–Coherence duality at triality scales
 ├── SilverCoherence.lean    # 27 theorems: C(δS)=√2/2; uniqueness; Im(μ)=C(δS); 45°-physics
 ├── KernelAxle.lean         # 20 theorems: the axle μ — gear ratio 3:8, cross-section, engine loop
+├── ForwardClassicalTime.lean # 21 theorems on frustration harvesting in classical forward time
+├── SpeedOfLight.lean       # 19 theorems: c=1/√(μ₀ε₀); structural iso with η; fine structure bridge
 └── README.md              # This file
 ```
 
@@ -752,6 +754,67 @@ The central calculation: **8 × (3π/4) = 3 × (2π)** — the axle makes exactl
 | 18 | `axle_triality_3_scales` | C(1)=1 ∧ C(φ²)=2/3 ∧ C(1/φ²)=2/3 — triality connection |
 | 19 | `axle_gear_numerator` | ∃n=3, n×(2π) = 8×(3π/4) — exactly 3 full turns |
 | 20 | `axle_closes_loop` | \|μ\|=1 ∧ μ^8=1 ∧ C(\|μⁿ\|)=1 ∧ Im(μ)=C(δS) ∧ 8×(3π/4)=3×(2π) |
+
+---
+
+### `SpeedOfLight.lean`
+
+**Central result**: both `c = 1/√(μ₀ε₀)` (Maxwell) and `η = 1/√2` (Kernel) arise
+from the same abstract algebraic skeleton — the unique positive solution to `P·x² = 1`
+is `x = 1/√P`.
+
+**§1 Abstract balance derivation**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `balance_constraint` | P · (1/√P)² = 1 for P > 0 |
+| 2 | `balance_unique` | 1/√P is the unique positive solution to P·x²=1 |
+
+**§2–3 Maxwell speed of light**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 3 | `maxwell_vacuum_relation` | μ₀ε₀ · c² = 1 (Maxwell's fundamental relation) |
+| 4 | `c_maxwell_pos` | c > 0 for μ₀, ε₀ > 0 |
+| 5 | `c_maxwell_sq` | c² = 1/(μ₀ε₀) |
+| 6 | `c_maxwell_inv` | 1/c = √(μ₀ε₀) |
+| 7 | `c_maxwell_symm` | c(μ₀,ε₀) = c(ε₀,μ₀) — symmetric in vacuum constants |
+| 8 | `c_maxwell_unique` | c is uniquely determined by μ₀ε₀·c²=1 |
+
+**§4 Kernel canonical amplitude η as a balance instance**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `eta_squared` | η² = 1/2 |
+| 10 | `kernel_balance_constraint` | 2·η² = 1 (Kernel instance, P=2) |
+| 11 | `eta_unique` | η is the unique positive solution to 2·x²=1 |
+
+**§5 Structural isomorphism**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 12 | `maxwell_kernel_structural_iso` | (μ₀ε₀·c²=1) ∧ (2·η²=1) ∧ (c=1/√(μ₀ε₀)) ∧ (η=1/√2) |
+| 13 | `balance_iso_same_number` | Same P → same canonical value (uniqueness) |
+| 14 | `c_equals_eta_when_balance_two` | μ₀ε₀=2 → c_maxwell = η (exact alignment) |
+
+**§6 Fine structure connection**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 15 | `c_natural_val` | c_nat = 137 (Hartree atomic units, α_FS = 1/137) |
+| 16 | `c_natural_pos` | c_nat > 0 |
+| 17 | `α_FS_inv_c_natural` | α_FS = 1/c_nat — fine structure is 1/c in atomic units |
+| 18 | `c_natural_alpha_product` | α_FS · c_nat = 1 — natural-unit Maxwell relation |
+| 19 | `c_natural_unique` | c_nat is uniquely determined by α_FS·c=1 |
+
+All 19 theorems in `SpeedOfLight.lean` have complete machine-checked proofs (no `sorry`).
+
+**Limitations**
+- μ₀ and ε₀ are treated as abstract positive real parameters.  Their SI values are
+  physical measurements that Lean cannot verify from first principles.
+- The fine structure connection uses the Sommerfeld approximation α_FS = 1/137
+  (inherited from `FineStructure.lean`).
+- The structural isomorphism is algebraic, not physical.
 
 ---
 
