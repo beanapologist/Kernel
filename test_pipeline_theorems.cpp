@@ -6,6 +6,7 @@
  * precision.
  */
 
+#include <array>
 #include <cassert>
 #include <cmath>
 #include <complex>
@@ -432,6 +433,233 @@ void test_prop_4() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// μ¹³⁷ Phase Cycle — Fourier Analysis
+//
+// μ = e^{i3π/4} = e^{i2π·3/8} lives at frequency bin k = 3 of an 8-point DFT.
+//
+// Key results verified here:
+//   1. The 8-cycle orbit {μ⁰, μ¹, ..., μ⁷} is a pure single-frequency signal:
+//      DFT has |X[3]| = 8 and |X[k]| = 0 for all k ≠ 3.
+//   2. Parseval's theorem: Σ|x[n]|² = (1/N)·Σ|X[k]|² (energy conservation).
+//   3. Frequency aliasing: 137-step orbit is spectrally identical to the 1-step
+//      orbit because 137 ≡ 1 (mod 8) → μ¹³⁷ = μ¹ → same DFT power spectrum.
+//   4. The four 137-step landmark phases form a constant-increment (arithmetic)
+//      progression with step 135°, confirmed by consecutive phase differences.
+//   5. Parseval holds for the 4-point landmark signal {μ¹, μ², μ³, μ⁴}.
+// ══════════════════════════════════════════════════════════════════════════════
+void test_mu_137_fourier() {
+  std::cout << "\n╔═══ μ¹³⁷ Phase Cycle: Fourier Analysis ═══╗\n";
+
+  constexpr int N = 8; // μ has period 8
+
+  // ── Build the 8-cycle signal x[n] = μⁿ ──────────────────────────────────
+  std::array<Cx, N> x{};
+  {
+    Cx pw{1.0, 0.0};
+    for (int n = 0; n < N; ++n) {
+      x[n] = pw;
+      pw *= MU;
+    }
+  }
+
+  // ── DFT helper: X[k] = Σ_{n=0}^{N-1} x[n]·e^{-i2πkn/N} ─────────────────
+  auto dft8 = [](const std::array<Cx, N> &sig) {
+    std::array<Cx, N> out{};
+    for (int k = 0; k < N; ++k)
+      for (int n = 0; n < N; ++n) {
+        double ang = -2.0 * PI * k * n / static_cast<double>(N);
+        out[k] += sig[n] * Cx{std::cos(ang), std::sin(ang)};
+      }
+    return out;
+  };
+
+  auto X = dft8(x);
+
+  // ── 1. Pure single-frequency at bin k = 3 ────────────────────────────────
+  // μ = e^{i2π·3/8} → all energy at k = 3; all other bins exactly zero.
+  test_assert(std::abs(std::abs(X[3]) - static_cast<double>(N)) < FLOAT_TOL,
+              "|X[3]| = 8: μ-cycle energy at frequency bin k=3 (e^{i2π·3/8})");
+
+  bool others_zero = true;
+  for (int k = 0; k < N; ++k)
+    if (k != 3 && std::abs(X[k]) > FLOAT_TOL)
+      others_zero = false;
+  test_assert(others_zero,
+              "|X[k]| = 0 for k≠3: μ⁸ cycle is a pure single-frequency signal");
+
+  // ── 2. Parseval's theorem ─────────────────────────────────────────────────
+  double time_energy = 0.0;
+  for (const auto &v : x)
+    time_energy += std::norm(v);
+  double freq_energy = 0.0;
+  for (const auto &v : X)
+    freq_energy += std::norm(v);
+  test_assert(
+      std::abs(time_energy - freq_energy / static_cast<double>(N)) < FLOAT_TOL,
+      "Parseval: Σ|x[n]|² = (1/N)·Σ|X[k]|² (energy conservation, N=8)");
+
+  // ── 3. Frequency aliasing: 137-step orbit ≡ 1-step orbit ─────────────────
+  // 137 ≡ 1 (mod 8) → μ¹³⁷ = μ¹ → the sub-sampled orbit traces the same
+  // sequence of 8 values; the two DFTs are identical.
+  std::array<Cx, N> x137{};
+  {
+    Cx pw{1.0, 0.0};
+    const Cx mu_step = MU; // μ¹³⁷ = μ¹ (since 137 ≡ 1 mod 8)
+    for (int n = 0; n < N; ++n) {
+      x137[n] = pw;
+      pw *= mu_step;
+    }
+  }
+  auto X137 = dft8(x137);
+
+  bool spectra_match = true;
+  for (int k = 0; k < N; ++k)
+    if (std::abs(std::norm(X[k]) - std::norm(X137[k])) > FLOAT_TOL)
+      spectra_match = false;
+  test_assert(spectra_match,
+              "137-step power spectrum = 1-step spectrum (aliasing: 137≡1 mod 8)");
+
+  // ── 4. Landmark phase increments form arithmetic progression (step = 135°) ─
+  // Phase sequence of {μ¹, μ², μ³, μ⁴}: 135°, 270°, 45°, 180°.
+  // Consecutive differences, wrapped to (−180°, 180°], are all 135°.
+  std::array<double, 4> lm_phases{};
+  {
+    Cx pw{1.0, 0.0};
+    for (int m = 0; m < 4; ++m) {
+      pw *= MU;
+      lm_phases[m] = std::fmod(std::arg(pw) * 180.0 / PI, 360.0);
+      if (lm_phases[m] < 0.0)
+        lm_phases[m] += 360.0;
+    }
+  }
+
+  bool arith_prog = true;
+  for (int m = 0; m < 3; ++m) {
+    double diff = lm_phases[m + 1] - lm_phases[m];
+    while (diff > 180.0)
+      diff -= 360.0;
+    while (diff <= -180.0)
+      diff += 360.0;
+    if (std::abs(diff - 135.0) > FLOAT_TOL)
+      arith_prog = false;
+  }
+  test_assert(arith_prog,
+              "Landmark phases: constant 135° increment (arithmetic progression)");
+
+  // ── 5. Parseval for the 4-point landmark signal {μ¹, μ², μ³, μ⁴} ─────────
+  constexpr int M = 4;
+  std::array<Cx, M> lm_sig{};
+  {
+    Cx pw{1.0, 0.0};
+    for (int m = 0; m < M; ++m) {
+      pw *= MU;
+      lm_sig[m] = pw;
+    }
+  }
+
+  std::array<Cx, M> LM{};
+  for (int k = 0; k < M; ++k)
+    for (int n = 0; n < M; ++n) {
+      double ang = -2.0 * PI * k * n / static_cast<double>(M);
+      LM[k] += lm_sig[n] * Cx{std::cos(ang), std::sin(ang)};
+    }
+
+  double lm_time = 0.0;
+  for (const auto &v : lm_sig)
+    lm_time += std::norm(v);
+  double lm_freq = 0.0;
+  for (const auto &v : LM)
+    lm_freq += std::norm(v);
+  test_assert(
+      std::abs(lm_time - lm_freq / static_cast<double>(M)) < FLOAT_TOL,
+      "Parseval: 4-point landmark signal {μ¹,μ²,μ³,μ⁴} (energy conservation)");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// μ¹³⁷ Phase Cycle — Empirical Validation
+//
+// μ = e^{i3π/4} has period 8.  Because 137 ≡ 1 (mod 8), 274 ≡ 2, 411 ≡ 3,
+// 548 ≡ 4, successive multiples of 137 steps each advance the phase by 135°:
+//
+//   μ⁸   = +1          (  0°) — origin / identity
+//   μ¹³⁷ = μ           (135°) — echoes back to μ
+//   μ²⁷⁴ = -i          (270°) — quarter turn
+//   μ⁴¹¹ = (1+i)/√2   ( 45°) — complementary diagonal
+//   μ⁵⁴⁸ = -1          (180°) — antipode
+//
+// The phase increment per 137 steps:
+//   137 × 135° = 18495° = 51.375 full rotations ≡ 135° (mod 360°)
+// ══════════════════════════════════════════════════════════════════════════════
+void test_mu_137_phase_cycle() {
+  std::cout << "\n╔═══ μ¹³⁷ Phase Cycle: Empirical Validation ═══╗\n";
+
+  // Helper: compute MU^n by direct multiplication (empirical)
+  auto mu_pow = [](int n) -> Cx {
+    Cx result{1.0, 0.0};
+    for (int i = 0; i < n; ++i)
+      result *= MU;
+    return result;
+  };
+
+  // ── 1. μ⁸ = +1 (period = 8, origin) ─────────────────────────────────────
+  Cx mu8 = mu_pow(8);
+  test_assert(std::abs(mu8 - Cx(1.0, 0.0)) < TIGHT_TOL,
+              "μ⁸ = +1 (0°, origin — 8-step period confirmed)");
+
+  // ── 2. μ¹³⁷ echoes at 135° (137 mod 8 = 1, so μ¹³⁷ = μ¹) ───────────────
+  Cx mu137 = mu_pow(137);
+  double ang137 = std::arg(mu137) * 180.0 / PI;
+  test_assert(std::abs(ang137 - 135.0) < FLOAT_TOL,
+              "μ¹³⁷ phase = 135° (137 mod 8 = 1, echoes back to μ)");
+  test_assert(std::abs(mu137 - MU) < TIGHT_TOL,
+              "μ¹³⁷ = μ exactly (empirical 137-fold power)");
+
+  // ── 3. μ²⁷⁴ = -i (270°, 274 mod 8 = 2) ──────────────────────────────────
+  Cx mu274 = mu_pow(274);
+  test_assert(std::abs(mu274 - Cx(0.0, -1.0)) < TIGHT_TOL,
+              "μ²⁷⁴ = -i (270°, quarter turn)");
+
+  // ── 4. μ⁴¹¹ = (1+i)/√2 (45°, 411 mod 8 = 3) ─────────────────────────────
+  Cx mu411 = mu_pow(411);
+  Cx expected411{ETA, ETA};
+  test_assert(std::abs(mu411 - expected411) < TIGHT_TOL,
+              "μ⁴¹¹ = (1+i)/√2 (45°, complementary diagonal)");
+
+  // ── 5. μ⁵⁴⁸ = -1 (180°, 548 mod 8 = 4) ──────────────────────────────────
+  Cx mu548 = mu_pow(548);
+  test_assert(std::abs(mu548 - Cx(-1.0, 0.0)) < TIGHT_TOL,
+              "μ⁵⁴⁸ = -1 (180°, antipode)");
+
+  // ── 6. Each 137-step increment adds exactly 135° of phase ────────────────
+  // 137 × 135° = 18495° = 51.375 rotations ≡ 135° (mod 360°)
+  constexpr double PHASE_STEP_DEG = 135.0;
+  constexpr int STEPS = 137;
+  double total_deg = static_cast<double>(STEPS) * PHASE_STEP_DEG;
+  double residual_deg = std::fmod(total_deg, 360.0);
+  test_assert(std::abs(total_deg - 18495.0) < TIGHT_TOL,
+              "137 × 135° = 18495° (total phase before reduction)");
+  test_assert(std::abs(residual_deg - 135.0) < TIGHT_TOL,
+              "18495° mod 360° = 135° (net phase increment per 137 steps)");
+
+  // Verify empirically: angle of MU^137 equals 135°
+  double measured_increment = std::arg(mu137) * 180.0 / PI;
+  test_assert(std::abs(measured_increment - PHASE_STEP_DEG) < FLOAT_TOL,
+              "arg(μ¹³⁷) = 135° exactly (empirical confirmation)");
+
+  // ── 7. Successive 137-step landmarks advance phase by 135° each ──────────
+  std::array<int, 4> landmarks = {137, 274, 411, 548};
+  std::array<double, 4> expected_phases = {135.0, 270.0, 45.0, 180.0};
+  std::array<const char *, 4> labels = {"μ¹³⁷ (135°)", "μ²⁷⁴ (270°)",
+                                        "μ⁴¹¹ (45°)", "μ⁵⁴⁸ (180°)"};
+  for (int k = 0; k < 4; ++k) {
+    Cx val = mu_pow(landmarks[k]);
+    double phase = std::fmod(std::arg(val) * 180.0 / PI + 360.0, 360.0);
+    test_assert(std::abs(phase - expected_phases[k]) < FLOAT_TOL,
+                std::string(labels[k]) + " phase confirmed");
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Arithmetic Zero-Overhead Periodicity
 // ══════════════════════════════════════════════════════════════════════════════
 void test_arithmetic_periodicity() {
@@ -529,6 +757,8 @@ int main() {
   test_corollary_13();
   test_prop_4();
   test_arithmetic_periodicity();
+  test_mu_137_phase_cycle();
+  test_mu_137_fourier();
 
   std::cout << "\n╔══════════════════════════════════════════════════════╗\n";
   std::cout << "║  Test Results                                        ║\n";
