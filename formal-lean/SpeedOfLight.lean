@@ -96,8 +96,8 @@ theorem alpha_fs_pos : 0 < α_FS := by unfold α_FS; norm_num
 
 /-- The natural-units speed of light equals 137.
 
-    In Planck units where ℏ = 1 the speed of light in electromagnetic
-    interactions is the inverse of the fine-structure constant. -/
+    In natural electromagnetic units where ℏ = c = 1, the fine-structure
+    constant α_FS = e²/(4πε₀ℏc) ≈ 1/137 determines c_natural = 1/α_FS. -/
 theorem c_natural_eq : c_natural = 137 := by unfold c_natural α_FS; norm_num
 
 /-- The natural-units speed of light is positive. -/
@@ -215,8 +215,8 @@ theorem planckTime_c_scale (ħ G c : ℝ) (hħ : 0 < ħ) (hG : 0 < G) (hc : 0 < 
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 6 — The Four Backward-Time Gate Equations
--- These four conditions must hold simultaneously to frustrate time to flow
--- backward.  They form the complete gate for reverse temporal flow.
+-- These four conditions must hold simultaneously to enable backward temporal
+-- flow.  They form the complete gate for reverse temporal flow.
 -- ════════════════════════════════════════════════════════════════════════════
 
 /-- **Coherence gate**: C(1/r) = C(r).

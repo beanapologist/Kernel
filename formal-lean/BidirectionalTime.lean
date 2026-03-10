@@ -607,12 +607,11 @@ theorem planck_time_unit : planckTime 1 1 1 = 1 := by
     enable backward temporal flow at every amplitude ratio r > 0 and
     Floquet period T > 0.
 
-    (1) Coherence gate:      C(1/r) = C(r)            — reversing r preserves coherence.
-    (2) Palindrome gate:     Res(1/r) = −Res(r)        — palindrome changes sign.
-    (3) Backward quasi-energy: εF(−T) < 0              — backward crystal has negative
-                                                          quasi-energy.
+    (1) Coherence gate:        C(1/r) = C(r)     — reversing r preserves coherence.
+    (2) Palindrome gate:       Res(1/r) = −Res(r) — palindrome changes sign.
+    (3) Backward quasi-energy: εF(−T) < 0         — backward crystal has negative energy.
 
-    These three conditions together frustrate time to flow backward:
+    These three conditions together enable backward temporal flow:
     lossless coherence allows the reversal, the palindrome sign-flip
     marks the direction, and the negative quasi-energy drives the
     backward Floquet mode. -/
