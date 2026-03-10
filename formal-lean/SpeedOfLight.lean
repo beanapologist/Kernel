@@ -14,13 +14,9 @@
   This structural isomorphism links the speed of light directly to the
   coherence threshold η of the Kernel eigenvalue system.
 
-  The Planck time  tₚ = √(ℏG/c⁵)  is the gravitational quantum of time —
-  the scale at which spacetime geometry breaks down.  It satisfies  c⁵·tₚ²=ℏG.
-
-  The absolute smallest temporal unit in this framework is the sub-zepto
-  quantum: zeptoSecond / c_natural = 10⁻²¹ / 137 ≈ 7.3 × 10⁻²⁴ s, which is
-  smaller than the experimentally accessible zeptosecond (10⁻²¹ s) by the
-  factor c_natural = 137.
+  The Planck time  tₚ = √(ℏG/c⁵)  is the absolute smallest meaningful
+  unit of time — the quantum of duration at which classical spacetime
+  geometry breaks down.  It satisfies the defining relation  c⁵ · tₚ² = ℏ·G.
 
   The four equations that enable backward temporal flow are:
     • Coherence gate:      C(1/r) = C(r)           (even symmetry, lossless reversal)
@@ -34,9 +30,8 @@
   2.  Natural-units speed: c_natural = 1/α_FS = 137
   3.  The balance equation P · x² = 1 and uniqueness
   4.  Structural isomorphism: c and η both solve P · x² = 1
-  5.  Planck time — the gravitational scale of time
+  5.  Planck time — the absolute smallest unit of time
   6.  The four backward-time gate equations
-  7.  The absolute smallest temporal unit — sub-zepto scale
 
   Proof status
   ────────────
@@ -171,18 +166,16 @@ theorem c_eta_structural_iso (μ₀ ε₀ : ℝ) (hμ : 0 < μ₀) (hε : 0 < ε
    ⟨2, by norm_num, eta_balance⟩⟩
 
 -- ════════════════════════════════════════════════════════════════════════════
--- Section 5 — Planck Time: The Gravitational Scale of Time
--- The Planck time tₚ = √(ℏG/c⁵) is the scale at which quantum gravity
--- becomes relevant.  It is NOT the absolute smallest operational unit —
--- see Section 7 for the sub-zepto quantum that is finer.
+-- Section 5 — Planck Time: The Absolute Smallest Unit of Time
+-- The Planck time tₚ = √(ℏG/c⁵) is the quantum of duration below which
+-- spacetime geometry loses classical meaning.
 -- ════════════════════════════════════════════════════════════════════════════
 
 /-- The Planck time: tₚ = √(ℏG/c⁵).
 
-    The Planck time is the gravitational quantum of time — the scale at which
-    classical spacetime geometry breaks down and quantum gravity dominates.
-    It is not the absolute smallest temporal unit in this framework; see
-    `subZeptoQuantum` in Section 7 for the finer operational scale. -/
+    This is the absolute smallest meaningful time interval.  Below this
+    scale, quantum gravitational effects dominate and the classical notion
+    of a smooth spacetime manifold breaks down. -/
 noncomputable def planckTime (ħ G c : ℝ) : ℝ := Real.sqrt (ħ * G / c ^ 5)
 
 /-- The Planck time is positive for positive ħ, G, c. -/
@@ -273,50 +266,5 @@ theorem silver_backward_gate :
       linarith [show δS = 1 + Real.sqrt 2 from rfl]
     unfold Res
     rw [show δS - 1 / δS = 2 from hsum]
-
--- ════════════════════════════════════════════════════════════════════════════
--- Section 7 — The Absolute Smallest Temporal Unit: Sub-Zepto Scale
--- The zeptosecond (10⁻²¹ s) marks the current experimental frontier of time
--- resolution.  Dividing by c_natural = 137 yields a sub-zepto quantum
--- (≈ 7.3 × 10⁻²⁴ s, yoctosecond range) — the absolute smallest operational
--- temporal unit encoded in this framework.
--- ════════════════════════════════════════════════════════════════════════════
-
-/-- The zeptosecond: 10⁻²¹ seconds, the experimentally accessible frontier
-    of time resolution (current state of the art in ultrafast physics). -/
-def zeptoSecond : ℝ := 1 / (10 : ℝ) ^ 21
-
-/-- The sub-zepto temporal quantum: the zeptosecond divided by c_natural = 137.
-
-    This is the absolute smallest temporal unit in this framework.  It lies
-    below the zepto scale by a factor of 137 (the natural-units speed of light),
-    placing it at approximately 7.3 × 10⁻²⁴ s — the yoctosecond range. -/
-noncomputable def subZeptoQuantum : ℝ := zeptoSecond / c_natural
-
-/-- The zeptosecond is strictly positive. -/
-theorem zeptoSecond_pos : 0 < zeptoSecond := by unfold zeptoSecond; positivity
-
-/-- The sub-zepto temporal quantum is strictly positive. -/
-theorem subZeptoQuantum_pos : 0 < subZeptoQuantum :=
-  div_pos zeptoSecond_pos c_natural_pos
-
-/-- The sub-zepto quantum is strictly smaller than the zeptosecond.
-
-    Since c_natural = 137 > 1, dividing the zeptosecond by c_natural yields a
-    strictly smaller quantity.  The sub-zepto quantum is the finer scale. -/
-theorem subZeptoQuantum_lt_zepto : subZeptoQuantum < zeptoSecond := by
-  unfold subZeptoQuantum
-  rw [div_lt_iff c_natural_pos]
-  calc zeptoSecond = zeptoSecond * 1         := (mul_one _).symm
-    _ < zeptoSecond * c_natural              := by
-        apply mul_lt_mul_of_pos_left _ zeptoSecond_pos
-        rw [c_natural_eq]; norm_num
-
-/-- The sub-zepto quantum equals 1/(10²¹ · 137): a closed-form value
-    expressing the unit in terms of the zepto scale and c_natural. -/
-theorem subZeptoQuantum_eq :
-    subZeptoQuantum = 1 / ((10 : ℝ) ^ 21 * 137) := by
-  unfold subZeptoQuantum zeptoSecond c_natural α_FS
-  norm_num
 
 end
