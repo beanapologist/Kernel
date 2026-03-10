@@ -21,6 +21,7 @@ import OhmTriality
 import SilverCoherence
 import KernelAxle
 import ForwardClassicalTime
+import SpeedOfLight
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -717,6 +718,62 @@ def printForwardClassicalTime : IO Unit := do
   IO.println ""
   IO.println "See ForwardClassicalTime.lean for full proof terms."
 
+set_option maxRecDepth 2000 in
+def printSpeedOfLight : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════"
+  IO.println "  SpeedOfLight.lean — Speed of light c = 1/√(μ₀ε₀)"
+  IO.println "  Structural isomorphism with the Kernel critical eigenvalue μ"
+  IO.println "════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "§1    Abstract balance derivation: P·x² = 1 → x = 1/√P"
+  IO.println ""
+  IO.println "  [1]  balance_constraint   : P · (1/√P)² = 1  for P > 0"
+  IO.println "  [2]  balance_unique       : x = 1/√P is the unique positive solution"
+  IO.println ""
+  IO.println "§2    Vacuum constants and Maxwell's c"
+  IO.println ""
+  IO.println "  [3]  maxwell_vacuum_relation : μ₀ε₀ · c² = 1  (Maxwell's relation)"
+  IO.println ""
+  IO.println "§3    Properties of c_maxwell"
+  IO.println ""
+  IO.println "  [4]  c_maxwell_pos    : c > 0  for μ₀, ε₀ > 0"
+  IO.println "  [5]  c_maxwell_sq     : c² = 1/(μ₀ε₀)"
+  IO.println "  [6]  c_maxwell_inv    : 1/c = √(μ₀ε₀)"
+  IO.println "  [7]  c_maxwell_symm   : c(μ₀,ε₀) = c(ε₀,μ₀)  (symmetric in vacuum constants)"
+  IO.println "  [8]  c_maxwell_unique : c is uniquely determined by μ₀ε₀ · c² = 1"
+  IO.println ""
+  IO.println "§4    Kernel canonical amplitude η = 1/√2 as a balance instance"
+  IO.println ""
+  IO.println "  [9]  eta_squared              : η² = 1/2"
+  IO.println "  [10] kernel_balance_constraint: 2·η² = 1  (Kernel balance, P=2)"
+  IO.println "  [11] eta_unique               : η is the unique positive solution to 2·x²=1"
+  IO.println ""
+  IO.println "§5    Structural isomorphism: Maxwell ≅ Kernel"
+  IO.println ""
+  IO.println "  [12] maxwell_kernel_structural_iso :"
+  IO.println "         (μ₀ε₀·c²=1) ∧ (2·η²=1) ∧ (c=1/√(μ₀ε₀)) ∧ (η=1/√2)"
+  IO.println "         ← BOTH ARE INSTANCES OF THE SAME BALANCE PATTERN"
+  IO.println "  [13] balance_iso_same_number  : same P → same canonical value"
+  IO.println "  [14] c_equals_eta_when_balance_two : μ₀ε₀=2 → c_maxwell = η"
+  IO.println "         ← EXACT ALIGNMENT at the Kernel normalisation"
+  IO.println ""
+  IO.println "§6    Fine structure connection: c in Hartree atomic units"
+  IO.println ""
+  IO.println "  [15] c_natural_val         : c_nat = 137  (α_FS = 1/137 → c_nat = 1/α_FS)"
+  IO.println "  [16] c_natural_pos         : c_nat > 0"
+  IO.println "  [17] α_FS_inv_c_natural    : α_FS = 1/c_nat  (EM coupling = 1/speed)"
+  IO.println "  [18] c_natural_alpha_product: α_FS · c_nat = 1  (natural-unit Maxwell)"
+  IO.println "  [19] c_natural_unique      : c_nat is uniquely determined by α_FS · c = 1"
+  IO.println ""
+  IO.println "19 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key result: c = 1/√(μ₀ε₀) and η = 1/√2 are both instances of the"
+  IO.println "  abstract balance derivation P·x²=1 → x=1/√P."
+  IO.println "  When μ₀ε₀ = 2, Maxwell's c equals the Kernel amplitude η exactly."
+  IO.println ""
+  IO.println "See SpeedOfLight.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -728,3 +785,4 @@ def main : IO Unit := do
   printSilverCoherence
   printKernelAxle
   printForwardClassicalTime
+  printSpeedOfLight
