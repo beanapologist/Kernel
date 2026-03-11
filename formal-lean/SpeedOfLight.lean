@@ -200,10 +200,8 @@ theorem planckTime_unique (hbar G c x : ℝ) (hhbar : 0 < hbar) (hG : 0 < G) (hc
   unfold planckTime
   have hP : 0 < c ^ 5 := pow_pos hc 5
   have hx2 : x ^ 2 = hbar * G / c ^ 5 := by
-    rw [eq_comm, div_eq_iff hP.ne']
-    calc hbar * G = c ^ 5 * x ^ 2 := h.symm
-              _ = x ^ 2 * c ^ 5 := mul_comm _ _
-  rw [← Real.sqrt_sq hx.le, hx2]
+    rw [div_eq_iff hP.ne', mul_comm]; exact h
+  rw [← hx2, Real.sqrt_sq hx.le]
 
 /-- The Planck length lₚ = c · tₚ satisfies lₚ² = ℏG/c³. -/
 theorem planckTime_c_scale (hbar G c : ℝ) (hhbar : 0 < hbar) (hG : 0 < G) (hc : 0 < c) :
