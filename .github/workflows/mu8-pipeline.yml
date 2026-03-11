@@ -1,0 +1,292 @@
+name: μ⁸ Optimizer — Validation & Benchmark Pipeline
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'empirical-validation/**'
+      - '.github/workflows/mu8-pipeline.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'empirical-validation/**'
+      - '.github/workflows/mu8-pipeline.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # ── Tests ─────────────────────────────────────────────────────────────────
+  test:
+    name: pytest — μ⁸ optimizer & validators
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r empirical-validation/requirements.txt pytest
+
+      - name: Run μ⁸ optimizer unit tests
+        working-directory: empirical-validation
+        run: pytest tests/test_mu8_optimizer.py -v --tb=short
+
+      - name: Run full validation test suite
+        working-directory: empirical-validation
+        run: pytest tests/ -v --tb=short
+
+  # ── Validation pipeline ───────────────────────────────────────────────────
+  validate:
+    name: Full validation pipeline (7 validators + checksum)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r empirical-validation/requirements.txt
+
+      - name: Run validation pipeline
+        working-directory: empirical-validation
+        run: |
+          python run_validation.py \
+            --output-dir reports \
+            --no-plots
+
+      - name: Upload validation report
+        uses: actions/upload-artifact@v4
+        with:
+          name: validation-report-${{ github.sha }}
+          path: |
+            empirical-validation/reports/validation_report.md
+            empirical-validation/reports/*.md
+          if-no-files-found: warn
+          retention-days: 90
+
+  # ── Benchmark ─────────────────────────────────────────────────────────────
+  benchmark:
+    name: μ⁸ benchmark (latency + convergence + invariants)
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r empirical-validation/requirements.txt
+
+      - name: Run μ⁸ benchmark suite
+        working-directory: empirical-validation
+        run: |
+          python benchmarks/mu8_benchmark.py \
+            --output-dir benchmarks/results
+
+      - name: Print benchmark summary
+        run: cat empirical-validation/benchmarks/results/mu8_benchmark_report.md
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: mu8-benchmark-results-${{ github.sha }}
+          path: |
+            empirical-validation/benchmarks/results/mu8_benchmark_report.md
+            empirical-validation/benchmarks/results/mu8_summary.json
+            empirical-validation/benchmarks/results/mu8_latency.csv
+            empirical-validation/benchmarks/results/mu8_convergence.csv
+            empirical-validation/benchmarks/results/mu8_latency.png
+            empirical-validation/benchmarks/results/mu8_convergence.png
+          if-no-files-found: warn
+          retention-days: 90
+
+  # ── Publish results to GitHub Pages ───────────────────────────────────────
+  publish:
+    name: Publish results to GitHub Pages
+    runs-on: ubuntu-latest
+    needs: [validate, benchmark]
+    # Only publish on main branch pushes (not PRs)
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r empirical-validation/requirements.txt
+
+      - name: Run validation pipeline (generate plots)
+        working-directory: empirical-validation
+        run: |
+          python run_validation.py \
+            --output-dir reports
+
+      - name: Run benchmark (generate plots)
+        working-directory: empirical-validation
+        run: |
+          python benchmarks/mu8_benchmark.py \
+            --output-dir benchmarks/results
+
+      - name: Copy results to docs/results/
+        run: |
+          mkdir -p docs/results
+          cp -f empirical-validation/reports/*.png docs/results/ 2>/dev/null || true
+          cp -f empirical-validation/reports/*.md  docs/results/ 2>/dev/null || true
+          cp -f empirical-validation/benchmarks/results/*.png docs/results/ 2>/dev/null || true
+          cp -f empirical-validation/benchmarks/results/*.md  docs/results/ 2>/dev/null || true
+          cp -f empirical-validation/benchmarks/results/*.csv docs/results/ 2>/dev/null || true
+          cp -f empirical-validation/benchmarks/results/*.json docs/results/ 2>/dev/null || true
+
+      - name: Generate μ⁸ results page
+        run: |
+          python3 - <<'PYEOF'
+          import os, glob, json, datetime
+
+          result_dir = "docs/results"
+          os.makedirs(result_dir, exist_ok=True)
+
+          # Load benchmark summary if available
+          summary_path = os.path.join(result_dir, "mu8_summary.json")
+          summary = {}
+          if os.path.exists(summary_path):
+              with open(summary_path) as f:
+                  summary = json.load(f)
+
+          images = sorted(glob.glob(os.path.join(result_dir, "*.png")))
+          image_cards = ""
+          for img in images:
+              fname = os.path.basename(img)
+              label = fname.replace("_", " ").replace(".png", "").title()
+              image_cards += f"""
+              <div class="card">
+                <h3>{label}</h3>
+                <img src="results/{fname}" alt="{label}" loading="lazy">
+              </div>"""
+
+          if not image_cards:
+              image_cards = '<p class="no-results">No results yet — run the workflow to generate plots.</p>'
+
+          # Build metrics table from summary
+          metrics_rows = ""
+          if summary:
+              inv = summary.get("invariants", {})
+              gate = summary.get("gate_overhead", {})
+              metrics = [
+                  ("Lean fingerprint",     summary.get("lean_fingerprint", "")[:32] + "…"),
+                  ("μ angle (3π/4)",        f"{summary.get('mu_angle', 0):.10f} rad"),
+                  ("Silver ratio δS",       f"{summary.get('silver_ratio', 0):.10f}"),
+                  ("c_natural (1/α_FS)",    str(summary.get("c_natural", ""))),
+                  ("Gate overhead (median)", f"{gate.get('construct_median_ms', 0):.3f} ms"),
+                  ("Cycle latency (N=8)",   f"{gate.get('cycle_median_ms', 0):.4f} ms"),
+                  ("Invariants passed",     "✓ YES" if inv.get("passed") else "✗ NO"),
+                  ("ΔR over 40 cycles",     f"{inv.get('delta_R_total', 0):+.6f}"),
+                  ("ΔE over 40 cycles",     f"{inv.get('delta_E_total', 0):.4e}"),
+                  ("All checks passed",     "✓ YES" if summary.get("all_passed") else "✗ NO"),
+              ]
+              for name, val in metrics:
+                  metrics_rows += f"<tr><td>{name}</td><td><code>{val}</code></td></tr>\n"
+
+          now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+          html = f"""<!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Kernel — μ⁸ Optimizer Results</title>
+            <style>
+              body {{ font-family: system-ui, sans-serif; margin: 0; background: #0d1117; color: #c9d1d9; }}
+              header {{ background: #161b22; padding: 1.5rem 2rem; border-bottom: 1px solid #30363d; }}
+              header h1 {{ margin: 0; font-size: 1.6rem; color: #58a6ff; }}
+              header p {{ margin: 0.3rem 0 0; color: #8b949e; font-size: 0.9rem; }}
+              main {{ padding: 2rem; max-width: 1200px; margin: 0 auto; }}
+              h2 {{ color: #58a6ff; border-bottom: 1px solid #30363d; padding-bottom: 0.4rem; }}
+              .grid {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 1.5rem; }}
+              .card {{ background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; }}
+              .card h3 {{ margin: 0 0 0.75rem; color: #e3b341; font-size: 1rem; }}
+              .card img {{ width: 100%; border-radius: 4px; }}
+              table {{ border-collapse: collapse; width: 100%; max-width: 600px; margin: 1rem 0; }}
+              th, td {{ padding: 0.5rem 1rem; text-align: left; border: 1px solid #30363d; }}
+              th {{ background: #161b22; color: #58a6ff; }}
+              code {{ background: #161b22; padding: 0.1rem 0.3rem; border-radius: 3px; font-size: 0.9em; }}
+              .no-results {{ color: #8b949e; font-style: italic; }}
+              footer {{ text-align: center; padding: 1.5rem; color: #8b949e; font-size: 0.8rem;
+                        border-top: 1px solid #30363d; margin-top: 2rem; }}
+              .badge-pass {{ background: #238636; color: #fff; padding: 0.2rem 0.6rem;
+                             border-radius: 12px; font-size: 0.85em; }}
+              .badge-fail {{ background: #da3633; color: #fff; padding: 0.2rem 0.6rem;
+                             border-radius: 12px; font-size: 0.85em; }}
+            </style>
+          </head>
+          <body>
+            <header>
+              <h1>⚛ Kernel — μ⁸=1 Spiral Cycle Optimizer Results</h1>
+              <p>Five-phase cycle: Coherence → Frustration → Generation → Extraction → Optimization · Updated: {now}</p>
+            </header>
+            <main>
+              <h2>Benchmark Summary</h2>
+              {'<p><span class="badge-pass">✓ ALL CHECKS PASSED</span></p>' if summary.get("all_passed") else '<p><span class="badge-fail">✗ CHECKS FAILED</span></p>'}
+              <table>
+                <tr><th>Metric</th><th>Value</th></tr>
+                {metrics_rows if metrics_rows else '<tr><td colspan="2">No data yet</td></tr>'}
+              </table>
+
+              <h2>Plots</h2>
+              <div class="grid">
+                {image_cards}
+              </div>
+
+              <h2>Data Downloads</h2>
+              <ul>
+                <li><a href="results/mu8_benchmark_report.md" style="color:#58a6ff">mu8_benchmark_report.md</a> — Full benchmark report</li>
+                <li><a href="results/mu8_summary.json" style="color:#58a6ff">mu8_summary.json</a> — Machine-readable summary</li>
+                <li><a href="results/mu8_latency.csv" style="color:#58a6ff">mu8_latency.csv</a> — Per-N latency table</li>
+                <li><a href="results/mu8_convergence.csv" style="color:#58a6ff">mu8_convergence.csv</a> — R &amp; E convergence curves</li>
+              </ul>
+            </main>
+            <footer>
+              Generated by GitHub Actions ·
+              <a href="https://github.com/beanapologist/Kernel" style="color:#58a6ff">beanapologist/Kernel</a> ·
+              Grounded in Lean 4 formal proofs (CriticalEigenvalue.lean)
+            </footer>
+          </body>
+          </html>"""
+
+          with open("docs/index.html", "w") as f:
+              f.write(html)
+          print("Generated docs/index.html")
+          PYEOF
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
