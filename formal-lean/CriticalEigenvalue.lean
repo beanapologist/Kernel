@@ -72,13 +72,15 @@ theorem mu_eq_cart : μ = ((-1 + Complex.I) / Real.sqrt 2) := by
   have hsin : Real.sin (3 * Real.pi / 4) = 1 / Real.sqrt 2 := by
     rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring,
         Real.sin_pi_sub, Real.sin_pi_div_four]; field_simp
+  have h2c : (Real.sqrt 2 : ℂ) ≠ 0 := by exact_mod_cast h2
   unfold μ
   -- exp(I · 3π/4) = cos(3π/4) + I·sin(3π/4) = −(1/√2) + I·(1/√2) = (−1 + I)/√2
   rw [show Complex.I * (3 * ↑Real.pi / 4) = ↑(3 * Real.pi / 4 : ℝ) * Complex.I from by
     push_cast; ring, Complex.exp_mul_I]
-  rw [show (Real.cos (3 * Real.pi / 4) : ℂ) = -(1 / Real.sqrt 2) from by exact_mod_cast hcos]
-  rw [show (Real.sin (3 * Real.pi / 4) : ℂ) = 1 / Real.sqrt 2 from by exact_mod_cast hsin]
-  have h2c : (Real.sqrt 2 : ℂ) ≠ 0 := by exact_mod_cast h2
+  -- After exp_mul_I, goal has Complex.cos ↑(3π/4) + Complex.sin ↑(3π/4) * I
+  -- Convert Complex.cos/sin to ↑(Real.cos/sin) using ofReal lemmas
+  rw [← Complex.ofReal_cos, ← Complex.ofReal_sin, hcos, hsin]
+  push_cast
   field_simp [h2c]
   ring
 
@@ -137,7 +139,7 @@ theorem mu_powers_distinct :
     ∀ j k : Fin 8, (j : ℕ) ≠ k → μ ^ (j : ℕ) ≠ μ ^ (k : ℕ) := by
   -- (a) ζ = exp(2πi/8) is the standard primitive 8th root of unity
   have hprim8 : IsPrimitiveRoot (Complex.exp (2 * ↑Real.pi * Complex.I / 8)) 8 :=
-    Complex.isPrimitiveRoot_exp (n := 8)
+    Complex.isPrimitiveRoot_exp 8 (by norm_num)
   -- (b) μ = ζ^3, since exp(3 · (2πi/8)) = exp(3πi/4) = exp(I · 3π/4)
   have hmu_eq : μ = Complex.exp (2 * ↑Real.pi * Complex.I / 8) ^ 3 := by
     unfold μ
@@ -176,16 +178,23 @@ theorem rotMat_det : Matrix.det rotMat = 1 := by
     Proof: direct computation using cos²θ + sin²θ = 1 and
            c·(−s) + s·c = 0. -/
 theorem rotMat_orthog : rotMat * rotMatᵀ = 1 := by
-  -- Use explicit matrix form to avoid let-binding issues with simp
+  have hpy := Real.sin_sq_add_cos_sq (3 * Real.pi / 4)
   have hdef : rotMat = !![Real.cos (3 * Real.pi / 4), -Real.sin (3 * Real.pi / 4);
                            Real.sin (3 * Real.pi / 4), Real.cos (3 * Real.pi / 4)] := rfl
-  rw [hdef]
+  -- Compute the transpose explicitly to avoid vecHead reduction issues
+  have htrans : rotMatᵀ = !![Real.cos (3 * Real.pi / 4), Real.sin (3 * Real.pi / 4);
+                              -Real.sin (3 * Real.pi / 4), Real.cos (3 * Real.pi / 4)] := by
+    rw [hdef]; ext i j
+    fin_cases i <;> fin_cases j <;>
+      simp [Matrix.transpose_apply, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons]
+  -- Multiply two explicit !! matrices (no transpose_apply needed now)
+  rw [hdef, htrans]
   ext i j
   fin_cases i <;> fin_cases j <;>
-    simp [Matrix.mul_apply, Matrix.transpose_apply, Fin.sum_univ_two,
+    simp [Matrix.mul_apply, Fin.sum_univ_two,
           Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
           Matrix.one_apply] <;>
-    nlinarith [Real.sin_sq_add_cos_sq (3 * Real.pi / 4)]
+    nlinarith [hpy]
 
 /-- R(3π/4)^8 = I (8-fold application returns to identity).
 
@@ -520,7 +529,7 @@ theorem mu_pow_abs (n : ℕ) : Complex.abs (μ ^ n) = 1 := by
 theorem scaled_orbit_abs (r : ℝ) (hr : 0 ≤ r) (n : ℕ) :
     Complex.abs ((↑r * μ) ^ n) = r ^ n := by
   have habsr : Complex.abs (↑r * μ) = r := by
-    rw [Complex.abs_mul, Complex.abs_ofReal, _root_.abs_of_nonneg hr, mu_abs_one, mul_one]
+    rw [Complex.abs.map_mul, Complex.abs_ofReal, _root_.abs_of_nonneg hr, mu_abs_one, mul_one]
   calc Complex.abs ((↑r * μ) ^ n)
       = Complex.abs (↑r * μ) ^ n := map_pow _ _ _
     _ = r ^ n := by rw [habsr]
@@ -528,7 +537,7 @@ theorem scaled_orbit_abs (r : ℝ) (hr : 0 ≤ r) (n : ℕ) :
 /-- Trichotomy — r = 1: orbit has unit magnitude at every step (stable 8-cycle).
     Ref: docs/master_derivations.pdf §5 Theorem 10 case (1) -/
 theorem trichotomy_unit_orbit (n : ℕ) : Complex.abs ((1 : ℂ) * μ ^ n) = 1 := by
-  simp [map_mul, mu_pow_abs]
+  rw [one_mul, mu_pow_abs]
 
 /-- Trichotomy — r > 1: magnitudes are strictly increasing (spiral outward).
     |(r·μ)^n| < |(r·μ)^(n+1)| since r^n < r^(n+1) when r > 1.
