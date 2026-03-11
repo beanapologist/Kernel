@@ -163,7 +163,10 @@ jobs:
       - name: Generate μ⁸ results page
         run: |
           python3 - <<'PYEOF'
-          import os, glob, json, datetime
+          import datetime
+          import glob
+          import json
+          import os
 
           result_dir = "docs/results"
           os.makedirs(result_dir, exist_ok=True)

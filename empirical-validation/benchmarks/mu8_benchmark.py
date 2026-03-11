@@ -270,8 +270,6 @@ def _generate_plots(
     if not _HAS_PLOTS:
         return
 
-    import numpy as np  # noqa: F811
-
     # ── Plot 1: median cycle latency vs. N ──────────────────────────────────
     ns   = [r["N"] for r in latency_rows]
     meds = [r["median_us"] for r in latency_rows]
