@@ -65,19 +65,22 @@ def μ : ℂ := Complex.exp (Complex.I * (3 * ↑Real.pi / 4))
 
 /-- μ can equivalently be written as (−1 + I)/√2. -/
 theorem mu_eq_cart : μ = ((-1 + Complex.I) / Real.sqrt 2) := by
-  unfold μ
-  -- exp(I · 3π/4) = cos(3π/4) + I·sin(3π/4)
-  --              = −(1/√2) + I·(1/√2) = (−1 + I)/√2
-  rw [mul_comm, Complex.exp_mul_I]
+  have h2 : Real.sqrt 2 ≠ 0 := Real.sqrt_ne_zero'.mpr (by norm_num)
   have hcos : Real.cos (3 * Real.pi / 4) = -(1 / Real.sqrt 2) := by
-    rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring]
-    rw [Real.cos_pi_sub, Real.cos_pi_div_four]
-    norm_num
+    rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring,
+        Real.cos_pi_sub, Real.cos_pi_div_four]; field_simp
   have hsin : Real.sin (3 * Real.pi / 4) = 1 / Real.sqrt 2 := by
-    rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring]
-    rw [Real.sin_pi_sub, Real.sin_pi_div_four]
-  simp [Complex.ext_iff, hcos, hsin]
-  constructor <;> ring
+    rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring,
+        Real.sin_pi_sub, Real.sin_pi_div_four]; field_simp
+  unfold μ
+  -- exp(I · 3π/4) = cos(3π/4) + I·sin(3π/4) = −(1/√2) + I·(1/√2) = (−1 + I)/√2
+  rw [show Complex.I * (3 * ↑Real.pi / 4) = ↑(3 * Real.pi / 4 : ℝ) * Complex.I from by
+    push_cast; ring, Complex.exp_mul_I]
+  rw [show (Real.cos (3 * Real.pi / 4) : ℂ) = -(1 / Real.sqrt 2) from by exact_mod_cast hcos]
+  rw [show (Real.sin (3 * Real.pi / 4) : ℂ) = 1 / Real.sqrt 2 from by exact_mod_cast hsin]
+  have h2c : (Real.sqrt 2 : ℂ) ≠ 0 := by exact_mod_cast h2
+  field_simp [h2c]
+  ring
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 2 — 8-cycle closure:  μ^8 = 1
@@ -134,7 +137,7 @@ theorem mu_powers_distinct :
     ∀ j k : Fin 8, (j : ℕ) ≠ k → μ ^ (j : ℕ) ≠ μ ^ (k : ℕ) := by
   -- (a) ζ = exp(2πi/8) is the standard primitive 8th root of unity
   have hprim8 : IsPrimitiveRoot (Complex.exp (2 * ↑Real.pi * Complex.I / 8)) 8 :=
-    Complex.isPrimitiveRoot_exp (by norm_num : (8 : ℕ) ≠ 0)
+    Complex.isPrimitiveRoot_exp (n := 8)
   -- (b) μ = ζ^3, since exp(3 · (2πi/8)) = exp(3πi/4) = exp(I · 3π/4)
   have hmu_eq : μ = Complex.exp (2 * ↑Real.pi * Complex.I / 8) ^ 3 := by
     unfold μ
@@ -145,10 +148,10 @@ theorem mu_powers_distinct :
   -- (c) gcd(3, 8) = 1, so μ = ζ^3 is also a primitive 8th root
   have hmuprim : IsPrimitiveRoot μ 8 := by
     rw [hmu_eq]
-    exact hprim8.pow_of_coprime (by decide : Nat.Coprime 3 8)
+    exact hprim8.pow_of_coprime 3 (by decide)
   -- (d) Distinctness: μ^j = μ^k with j, k < 8 implies j = k
   intro j k hjk heq
-  exact hjk ((hmuprim.pow_inj j.isLt k.isLt).mp heq)
+  exact hjk (hmuprim.pow_inj j.isLt k.isLt heq)
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 4 — Rotation matrix R(3π/4)
@@ -173,10 +176,15 @@ theorem rotMat_det : Matrix.det rotMat = 1 := by
     Proof: direct computation using cos²θ + sin²θ = 1 and
            c·(−s) + s·c = 0. -/
 theorem rotMat_orthog : rotMat * rotMatᵀ = 1 := by
-  unfold rotMat
+  -- Use explicit matrix form to avoid let-binding issues with simp
+  have hdef : rotMat = !![Real.cos (3 * Real.pi / 4), -Real.sin (3 * Real.pi / 4);
+                           Real.sin (3 * Real.pi / 4), Real.cos (3 * Real.pi / 4)] := rfl
+  rw [hdef]
   ext i j
   fin_cases i <;> fin_cases j <;>
-    simp [Matrix.mul_apply, Matrix.transpose_apply, Fin.sum_univ_two] <;>
+    simp [Matrix.mul_apply, Matrix.transpose_apply, Fin.sum_univ_two,
+          Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+          Matrix.one_apply] <;>
     nlinarith [Real.sin_sq_add_cos_sq (3 * Real.pi / 4)]
 
 /-- R(3π/4)^8 = I (8-fold application returns to identity).
@@ -233,7 +241,7 @@ theorem rotMat_pow_eight : rotMat ^ 8 = 1 := by
             Matrix.neg_apply, Matrix.one_apply, Pi.neg_apply]
   -- (5) rotMat^8 = I  (square both sides of step 4: (R^4)^2 = (-I)^2 = I)
   rw [show (8 : ℕ) = 4 * 2 from by norm_num, pow_mul, h4]
-  simp [pow_two, Matrix.neg_mul, Matrix.mul_neg, Matrix.neg_neg]
+  simp [pow_two, Matrix.neg_mul, Matrix.mul_neg, neg_neg]
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 5 — Coherence function  C(r) = 2r / (1 + r²)
@@ -431,7 +439,7 @@ private lemma lyapunov_key (lam : ℝ) :
 theorem lyapunov_coherence_duality (lam : ℝ) :
     C (Real.exp lam) = 2 / (Real.exp lam + Real.exp (-lam)) := by
   have hpos : 0 < Real.exp lam + Real.exp (-lam) := by positivity
-  rw [eq_div_iff (ne_of_gt hpos), mul_comm]
+  rw [eq_div_iff (ne_of_gt hpos)]
   exact lyapunov_key lam
 
 /-- Corollary: C(exp λ) = (cosh λ)⁻¹ = sech λ.
@@ -504,8 +512,7 @@ theorem lyapunov_bound (lam : ℝ) : C (Real.exp lam) ≤ 1 :=
 /-- |μ^n| = 1 for all n: the orbit of μ stays on the unit circle.
     Follows immediately from |μ| = 1 and multiplicativity of the absolute value. -/
 theorem mu_pow_abs (n : ℕ) : Complex.abs (μ ^ n) = 1 := by
-  have h : Complex.abs (μ ^ n) = Complex.abs μ ^ n := map_pow Complex.abs μ n
-  rw [h, mu_abs_one, one_pow]
+  rw [map_pow, mu_abs_one, one_pow]
 
 /-- |(r·μ)^n| = r^n for r ≥ 0.
     The amplitude of the orbit is purely radial; the phase factor μ contributes
@@ -513,9 +520,9 @@ theorem mu_pow_abs (n : ℕ) : Complex.abs (μ ^ n) = 1 := by
 theorem scaled_orbit_abs (r : ℝ) (hr : 0 ≤ r) (n : ℕ) :
     Complex.abs ((↑r * μ) ^ n) = r ^ n := by
   have habsr : Complex.abs (↑r * μ) = r := by
-    rw [map_mul Complex.abs, Complex.abs_ofReal, _root_.abs_of_nonneg hr, mu_abs_one, mul_one]
+    rw [Complex.abs_mul, Complex.abs_ofReal, _root_.abs_of_nonneg hr, mu_abs_one, mul_one]
   calc Complex.abs ((↑r * μ) ^ n)
-      = Complex.abs (↑r * μ) ^ n := map_pow Complex.abs _ _
+      = Complex.abs (↑r * μ) ^ n := map_pow _ _ _
     _ = r ^ n := by rw [habsr]
 
 /-- Trichotomy — r = 1: orbit has unit magnitude at every step (stable 8-cycle).
