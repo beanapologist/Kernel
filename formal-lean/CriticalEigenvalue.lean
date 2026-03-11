@@ -82,7 +82,6 @@ theorem mu_eq_cart : μ = ((-1 + Complex.I) / Real.sqrt 2) := by
   rw [← Complex.ofReal_cos, ← Complex.ofReal_sin, hcos, hsin]
   push_cast
   field_simp [h2c]
-  ring
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 2 — 8-cycle closure:  μ^8 = 1
@@ -187,8 +186,10 @@ theorem rotMat_orthog : rotMat * rotMatᵀ = 1 := by
     rw [hdef]; ext i j
     fin_cases i <;> fin_cases j <;>
       simp [Matrix.transpose_apply, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons]
-  -- Multiply two explicit !! matrices (no transpose_apply needed now)
-  rw [hdef, htrans]
+  -- Rewrite rotMatᵀ first, then rotMat — order matters!
+  -- After rw [htrans], goal has !![c,s;-s,c] for rotMatᵀ.
+  -- After rw [hdef], goal has explicit !! on both sides: no transpose left.
+  rw [htrans, hdef]
   ext i j
   fin_cases i <;> fin_cases j <;>
     simp [Matrix.mul_apply, Fin.sum_univ_two,
