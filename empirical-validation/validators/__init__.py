@@ -12,6 +12,7 @@ from .particle_mass import validate as validate_particle_mass
 from .coherence import validate as validate_coherence
 from .golden_ratio import validate as validate_golden_ratio
 from .spacetime import validate as validate_spacetime
+from .mu8_optimizer import validate as validate_mu8_optimizer
 
 __all__ = [
     "validate_eigenvalue",
@@ -20,4 +21,5 @@ __all__ = [
     "validate_coherence",
     "validate_golden_ratio",
     "validate_spacetime",
+    "validate_mu8_optimizer",
 ]
