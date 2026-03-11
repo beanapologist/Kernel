@@ -176,40 +176,40 @@ theorem c_eta_structural_iso (μ₀ ε₀ : ℝ) (hμ : 0 < μ₀) (hε : 0 < ε
     This is the absolute smallest meaningful time interval.  Below this
     scale, quantum gravitational effects dominate and the classical notion
     of a smooth spacetime manifold breaks down. -/
-noncomputable def planckTime (ħ G c : ℝ) : ℝ := Real.sqrt (ħ * G / c ^ 5)
+noncomputable def planckTime (hbar G c : ℝ) : ℝ := Real.sqrt (hbar * G / c ^ 5)
 
-/-- The Planck time is positive for positive ħ, G, c. -/
-theorem planckTime_pos (ħ G c : ℝ) (hħ : 0 < ħ) (hG : 0 < G) (hc : 0 < c) :
-    0 < planckTime ħ G c :=
-  Real.sqrt_pos.mpr (div_pos (mul_pos hħ hG) (pow_pos hc 5))
+/-- The Planck time is positive for positive hbar, G, c. -/
+theorem planckTime_pos (hbar G c : ℝ) (hhbar : 0 < hbar) (hG : 0 < G) (hc : 0 < c) :
+    0 < planckTime hbar G c :=
+  Real.sqrt_pos.mpr (div_pos (mul_pos hhbar hG) (pow_pos hc 5))
 
 /-- **Planck time law**: c⁵ · tₚ² = ℏ · G.
 
     The Planck time satisfies this fundamental relation, which defines
     the scale at which quantum gravity becomes relevant. -/
-theorem planckTime_sq_law (ħ G c : ℝ) (hħ : 0 < ħ) (hG : 0 < G) (hc : 0 < c) :
-    c ^ 5 * planckTime ħ G c ^ 2 = ħ * G := by
+theorem planckTime_sq_law (hbar G c : ℝ) (hhbar : 0 < hbar) (hG : 0 < G) (hc : 0 < c) :
+    c ^ 5 * planckTime hbar G c ^ 2 = hbar * G := by
   unfold planckTime
-  rw [Real.sq_sqrt (div_nonneg (mul_nonneg hħ.le hG.le) (pow_pos hc 5).le)]
+  rw [Real.sq_sqrt (div_nonneg (mul_nonneg hhbar.le hG.le) (pow_pos hc 5).le)]
   field_simp [(pow_pos hc 5).ne']
 
 /-- The Planck time is the unique positive x satisfying c⁵ · x² = ℏ · G. -/
-theorem planckTime_unique (ħ G c x : ℝ) (hħ : 0 < ħ) (hG : 0 < G) (hc : 0 < c)
-    (hx : 0 < x) (h : c ^ 5 * x ^ 2 = ħ * G) :
-    x = planckTime ħ G c := by
+theorem planckTime_unique (hbar G c x : ℝ) (hhbar : 0 < hbar) (hG : 0 < G) (hc : 0 < c)
+    (hx : 0 < x) (h : c ^ 5 * x ^ 2 = hbar * G) :
+    x = planckTime hbar G c := by
   unfold planckTime
   have hP : 0 < c ^ 5 := pow_pos hc 5
-  have hx2 : x ^ 2 = ħ * G / c ^ 5 := by
+  have hx2 : x ^ 2 = hbar * G / c ^ 5 := by
     rw [eq_comm, div_eq_iff hP.ne']
-    calc ħ * G = c ^ 5 * x ^ 2 := h.symm
+    calc hbar * G = c ^ 5 * x ^ 2 := h.symm
               _ = x ^ 2 * c ^ 5 := mul_comm _ _
   rw [← Real.sqrt_sq hx.le, hx2]
 
 /-- The Planck length lₚ = c · tₚ satisfies lₚ² = ℏG/c³. -/
-theorem planckTime_c_scale (ħ G c : ℝ) (hħ : 0 < ħ) (hG : 0 < G) (hc : 0 < c) :
-    (c * planckTime ħ G c) ^ 2 = ħ * G / c ^ 3 := by
+theorem planckTime_c_scale (hbar G c : ℝ) (hhbar : 0 < hbar) (hG : 0 < G) (hc : 0 < c) :
+    (c * planckTime hbar G c) ^ 2 = hbar * G / c ^ 3 := by
   unfold planckTime
-  rw [mul_pow, Real.sq_sqrt (div_nonneg (mul_nonneg hħ.le hG.le) (pow_pos hc 5).le)]
+  rw [mul_pow, Real.sq_sqrt (div_nonneg (mul_nonneg hhbar.le hG.le) (pow_pos hc 5).le)]
   field_simp [hc.ne', (pow_pos hc 3).ne', (pow_pos hc 5).ne']
   ring
 

@@ -407,7 +407,7 @@ theorem mu_driven_breaks_symmetry (ψ : ℝ → ℂ) (T : ℝ)
 /-- **Kernel recipe — Step 5**: The coherence at amplitude ratio 1 is maximal.
     Since |μ| = 1 the amplitude ratio in any μ-driven state is always 1, so
     the Kernel time crystal operates at the coherence maximum C(1) = 1. -/
-theorem mu_crystal_max_coherence : C 1 = 1 := (coherence_eq_one_iff 1 le_rfl).mpr rfl
+theorem mu_crystal_max_coherence : C 1 = 1 := (coherence_eq_one_iff 1 zero_le_one).mpr rfl
 
 /-- **Kernel recipe — Step 5b**: Coherence is maximally maintained across all
     n periods of a μ-driven state:
@@ -417,7 +417,7 @@ theorem mu_crystal_coherence_stability (ψ : ℝ → ℂ) (T : ℝ)
     (h : isMuDrivenState ψ T) (n : ℕ) (t : ℝ) (hψ : ψ t ≠ 0) :
     C (Complex.abs (ψ (t + ↑n * T)) / Complex.abs (ψ t)) = 1 := by
   have habs : Complex.abs (ψ t) ≠ 0 := by
-    intro h0; exact hψ (Complex.abs_eq_zero.mp h0)
+    intro h0; exact hψ (Complex.abs.eq_zero.mp h0)
   rw [mu_driven_norm_n ψ T h n t, div_self habs]
   exact mu_crystal_max_coherence
 

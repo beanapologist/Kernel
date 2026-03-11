@@ -593,7 +593,7 @@ theorem c_natural_silver_period :
   simp only [timeCrystalQuasiEnergy]
   field_simp [Real.pi_pos.ne', c_natural_pos.ne']
 
-/-- The Planck time in natural Planck units (ħ = G = c = 1) equals 1:
+/-- The Planck time in natural Planck units (hbar = G = c = 1) equals 1:
         tₚ(1, 1, 1) = √(1 · 1 / 1⁵) = √1 = 1.
 
     Natural units are defined precisely so that the Planck time is the
@@ -624,17 +624,17 @@ theorem backward_time_complete_gate (r : ℝ) (hr : 0 < r) (T : ℝ) (hT : 0 < T
    frustrated_quasienergy_neg T hT⟩
 
 /-- The Planck time provides the absolute smallest positive Floquet period:
-    for any positive ħ, G, c, the Planck time tₚ > 0 and the corresponding
+    for any positive hbar, G, c, the Planck time tₚ > 0 and the corresponding
     forward quasi-energy εF(tₚ) = π/tₚ > 0.
 
     This bounds the temporal scale of the frustration engine from below:
     no physically meaningful Floquet crystal can run at a period shorter
     than the Planck time. -/
-theorem planck_frustration_bound (ħ G c : ℝ) (hħ : 0 < ħ) (hG : 0 < G) (hc : 0 < c) :
-    0 < planckTime ħ G c ∧
-    0 < timeCrystalQuasiEnergy (planckTime ħ G c)
-        (planckTime_pos ħ G c hħ hG hc).ne' :=
-  ⟨planckTime_pos ħ G c hħ hG hc,
-   div_pos Real.pi_pos (planckTime_pos ħ G c hħ hG hc)⟩
+theorem planck_frustration_bound (hbar G c : ℝ) (hhbar : 0 < hbar) (hG : 0 < G) (hc : 0 < c) :
+    0 < planckTime hbar G c ∧
+    0 < timeCrystalQuasiEnergy (planckTime hbar G c)
+        (planckTime_pos hbar G c hhbar hG hc).ne' :=
+  ⟨planckTime_pos hbar G c hhbar hG hc,
+   div_pos Real.pi_pos (planckTime_pos hbar G c hhbar hG hc)⟩
 
 end
