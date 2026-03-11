@@ -45,6 +45,7 @@ from validators import (  # noqa: E402
     validate_eigenvalue,
     validate_fine_structure,
     validate_golden_ratio,
+    validate_mu8_optimizer,
     validate_particle_mass,
     validate_spacetime,
 )
@@ -183,6 +184,7 @@ def _generate_markdown(
         ("Coherence Function C(r)", "coherence"),
         ("Golden & Silver Ratios", "golden_ratio"),
         ("Space-Time Framework", "spacetime"),
+        ("μ⁸=1 Spiral Cycle Optimizer", "mu8_optimizer"),
     ]
     for title, key in sections:
         sec_results = [r for r in all_results if r.get("section") == key]
@@ -348,7 +350,7 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
     print("=" * 72)
 
     # ── Step 0: Data ingestion ──────────────────────────────────────────────
-    print("\n[1/7] Ingesting datasets …")
+    print("\n[1/8] Ingesting datasets …")
     codata = load_codata()
     nist   = load_nist()
     cosmo  = load_cosmological()
@@ -357,7 +359,7 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
           f"{len(nist)} NIST constants, "
           f"{len(cosmo)} cosmological constants.")
 
-    # ── Step 1–6: Validators ────────────────────────────────────────────────
+    # ── Step 1–7: Validators ────────────────────────────────────────────────
     validator_steps = [
         ("Eigenvalue Dynamics",          "eigenvalue",     validate_eigenvalue),
         ("Fine-Structure Constant",      "fine_structure", validate_fine_structure),
@@ -365,6 +367,7 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
         ("Coherence Function C(r)",      "coherence",      validate_coherence),
         ("Golden & Silver Ratios",       "golden_ratio",   validate_golden_ratio),
         ("Space-Time Framework",         "spacetime",      validate_spacetime),
+        ("μ⁸=1 Spiral Cycle Optimizer", "mu8_optimizer",  validate_mu8_optimizer),
     ]
 
     all_results: list[dict[str, Any]] = []
@@ -373,7 +376,7 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
 
     step_n = 2
     for label, section_key, validator_fn in validator_steps:
-        print(f"\n[{step_n}/7] {label} …")
+        print(f"\n[{step_n}/8] {label} …")
         results = validator_fn(data)
         # Tag each result with its section
         for r in results:
@@ -439,7 +442,7 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
     print(f"  SHA-256 : {final_ck.sha256}")
 
     # ── Reports ──────────────────────────────────────────────────────────────
-    print(f"\n[7/7] Writing reports to {output_dir} …")
+    print(f"\n[8/8] Writing reports to {output_dir} …")
     md_path = _generate_markdown(all_results, checksums, output_dir)
     print(f"  Markdown report : {md_path}")
     if not no_plots:
