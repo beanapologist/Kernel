@@ -71,7 +71,7 @@ theorem timeEvolution_zero (H : ℝ) : timeEvolution H 0 = 1 := by
     |exp z| = exp(Re z) and Re(−I·H·t) = 0. -/
 theorem timeEvolution_abs_one (H t : ℝ) : Complex.abs (timeEvolution H t) = 1 := by
   unfold timeEvolution
-  rw [map_exp, Complex.abs_exp]
+  rw [Complex.abs_exp]
   simp [Complex.neg_re, Complex.mul_re, Complex.I_re, Complex.I_im]
 
 /-- The time evolution operator satisfies the group law: U(t + s) = U(t) · U(s).
@@ -101,7 +101,7 @@ def floquetPhase (φ : ℝ) : ℂ := Complex.exp (-(Complex.I * ↑φ))
 /-- The Floquet phase factor lies on the unit circle: |e^{−iφ}| = 1. -/
 theorem floquetPhase_abs_one (φ : ℝ) : Complex.abs (floquetPhase φ) = 1 := by
   unfold floquetPhase
-  rw [map_exp, Complex.abs_exp]
+  rw [Complex.abs_exp]
   simp [Complex.neg_re, Complex.mul_re, Complex.I_re, Complex.I_im]
 
 /-- Floquet phase factors compose: e^{−i(φ₁+φ₂)} = e^{−iφ₁} · e^{−iφ₂}. -/
@@ -407,7 +407,7 @@ theorem mu_driven_breaks_symmetry (ψ : ℝ → ℂ) (T : ℝ)
 /-- **Kernel recipe — Step 5**: The coherence at amplitude ratio 1 is maximal.
     Since |μ| = 1 the amplitude ratio in any μ-driven state is always 1, so
     the Kernel time crystal operates at the coherence maximum C(1) = 1. -/
-theorem mu_crystal_max_coherence : C 1 = 1 := (coherence_eq_one_iff 1 le_rfl).mpr rfl
+theorem mu_crystal_max_coherence : C 1 = 1 := (coherence_eq_one_iff 1 zero_le_one).mpr rfl
 
 /-- **Kernel recipe — Step 5b**: Coherence is maximally maintained across all
     n periods of a μ-driven state:
@@ -417,7 +417,7 @@ theorem mu_crystal_coherence_stability (ψ : ℝ → ℂ) (T : ℝ)
     (h : isMuDrivenState ψ T) (n : ℕ) (t : ℝ) (hψ : ψ t ≠ 0) :
     C (Complex.abs (ψ (t + ↑n * T)) / Complex.abs (ψ t)) = 1 := by
   have habs : Complex.abs (ψ t) ≠ 0 := by
-    intro h0; exact hψ (Complex.abs_eq_zero.mp h0)
+    intro h0; exact hψ (Complex.abs.eq_zero.mp h0)
   rw [mu_driven_norm_n ψ T h n t, div_self habs]
   exact mu_crystal_max_coherence
 

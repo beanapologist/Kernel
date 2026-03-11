@@ -65,19 +65,23 @@ def μ : ℂ := Complex.exp (Complex.I * (3 * ↑Real.pi / 4))
 
 /-- μ can equivalently be written as (−1 + I)/√2. -/
 theorem mu_eq_cart : μ = ((-1 + Complex.I) / Real.sqrt 2) := by
-  unfold μ
-  -- exp(I · 3π/4) = cos(3π/4) + I·sin(3π/4)
-  --              = −(1/√2) + I·(1/√2) = (−1 + I)/√2
-  rw [mul_comm, Complex.exp_mul_I]
+  have h2 : Real.sqrt 2 ≠ 0 := Real.sqrt_ne_zero'.mpr (by norm_num)
   have hcos : Real.cos (3 * Real.pi / 4) = -(1 / Real.sqrt 2) := by
-    rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring]
-    rw [Real.cos_pi_sub, Real.cos_pi_div_four]
-    norm_num
+    rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring,
+        Real.cos_pi_sub, Real.cos_pi_div_four]; field_simp
   have hsin : Real.sin (3 * Real.pi / 4) = 1 / Real.sqrt 2 := by
-    rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring]
-    rw [Real.sin_pi_sub, Real.sin_pi_div_four]
-  simp [Complex.ext_iff, hcos, hsin]
-  constructor <;> ring
+    rw [show (3 : ℝ) * Real.pi / 4 = Real.pi - Real.pi / 4 by ring,
+        Real.sin_pi_sub, Real.sin_pi_div_four]; field_simp
+  have h2c : (Real.sqrt 2 : ℂ) ≠ 0 := by exact_mod_cast h2
+  unfold μ
+  -- exp(I · 3π/4) = cos(3π/4) + I·sin(3π/4) = −(1/√2) + I·(1/√2) = (−1 + I)/√2
+  rw [show Complex.I * (3 * ↑Real.pi / 4) = ↑(3 * Real.pi / 4 : ℝ) * Complex.I from by
+    push_cast; ring, Complex.exp_mul_I]
+  -- After exp_mul_I, goal has Complex.cos ↑(3π/4) + Complex.sin ↑(3π/4) * I
+  -- Convert Complex.cos/sin to ↑(Real.cos/sin) using ofReal lemmas
+  rw [← Complex.ofReal_cos, ← Complex.ofReal_sin, hcos, hsin]
+  push_cast
+  field_simp [h2c]
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 2 — 8-cycle closure:  μ^8 = 1
@@ -89,7 +93,7 @@ theorem mu_eq_cart : μ = ((-1 + Complex.I) / Real.sqrt 2) := by
 theorem mu_abs_one : Complex.abs μ = 1 := by
   unfold μ
   -- Complex.abs (exp z) = Real.exp z.re; here z = I*(3π/4), z.re = 0
-  rw [map_exp, Complex.abs_exp]
+  rw [Complex.abs_exp]
   simp [Complex.mul_re, Complex.I_re, Complex.I_im]
 
 /-- μ^8 = 1: the eigenvalue closes an exact 8-cycle.
@@ -134,7 +138,7 @@ theorem mu_powers_distinct :
     ∀ j k : Fin 8, (j : ℕ) ≠ k → μ ^ (j : ℕ) ≠ μ ^ (k : ℕ) := by
   -- (a) ζ = exp(2πi/8) is the standard primitive 8th root of unity
   have hprim8 : IsPrimitiveRoot (Complex.exp (2 * ↑Real.pi * Complex.I / 8)) 8 :=
-    Complex.isPrimitiveRoot_exp (by norm_num : (8 : ℕ) ≠ 0)
+    Complex.isPrimitiveRoot_exp 8 (by norm_num)
   -- (b) μ = ζ^3, since exp(3 · (2πi/8)) = exp(3πi/4) = exp(I · 3π/4)
   have hmu_eq : μ = Complex.exp (2 * ↑Real.pi * Complex.I / 8) ^ 3 := by
     unfold μ
@@ -145,10 +149,10 @@ theorem mu_powers_distinct :
   -- (c) gcd(3, 8) = 1, so μ = ζ^3 is also a primitive 8th root
   have hmuprim : IsPrimitiveRoot μ 8 := by
     rw [hmu_eq]
-    exact hprim8.pow_of_coprime (by decide : Nat.Coprime 3 8)
+    exact hprim8.pow_of_coprime 3 (by decide)
   -- (d) Distinctness: μ^j = μ^k with j, k < 8 implies j = k
   intro j k hjk heq
-  exact hjk ((hmuprim.pow_inj j.isLt k.isLt).mp heq)
+  exact hjk (hmuprim.pow_inj j.isLt k.isLt heq)
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 4 — Rotation matrix R(3π/4)
@@ -173,11 +177,25 @@ theorem rotMat_det : Matrix.det rotMat = 1 := by
     Proof: direct computation using cos²θ + sin²θ = 1 and
            c·(−s) + s·c = 0. -/
 theorem rotMat_orthog : rotMat * rotMatᵀ = 1 := by
-  unfold rotMat
+  have hpy := Real.sin_sq_add_cos_sq (3 * Real.pi / 4)
+  have hdef : rotMat = !![Real.cos (3 * Real.pi / 4), -Real.sin (3 * Real.pi / 4);
+                           Real.sin (3 * Real.pi / 4), Real.cos (3 * Real.pi / 4)] := rfl
+  -- Compute the transpose explicitly to avoid vecHead reduction issues
+  have htrans : rotMatᵀ = !![Real.cos (3 * Real.pi / 4), Real.sin (3 * Real.pi / 4);
+                              -Real.sin (3 * Real.pi / 4), Real.cos (3 * Real.pi / 4)] := by
+    rw [hdef]; ext i j
+    fin_cases i <;> fin_cases j <;>
+      simp [Matrix.transpose_apply, Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons]
+  -- Rewrite rotMatᵀ first, then rotMat — order matters!
+  -- After rw [htrans], goal has !![c,s;-s,c] for rotMatᵀ.
+  -- After rw [hdef], goal has explicit !! on both sides: no transpose left.
+  rw [htrans, hdef]
   ext i j
   fin_cases i <;> fin_cases j <;>
-    simp [Matrix.mul_apply, Matrix.transpose_apply, Fin.sum_univ_two] <;>
-    nlinarith [Real.sin_sq_add_cos_sq (3 * Real.pi / 4)]
+    simp [Matrix.mul_apply, Fin.sum_univ_two,
+          Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+          Matrix.one_apply] <;>
+    nlinarith [hpy]
 
 /-- R(3π/4)^8 = I (8-fold application returns to identity).
 
@@ -222,22 +240,18 @@ theorem rotMat_pow_eight : rotMat ^ 8 = 1 := by
     have hdef : rotMat = !![Real.cos θ, -Real.sin θ; Real.sin θ, Real.cos θ] := rfl
     rw [hdef, pow_two]
     ext i j; fin_cases i <;> fin_cases j <;>
-      simp only [Matrix.mul_apply, Fin.sum_univ_two, Matrix.cons_val_zero,
-                 Matrix.cons_val_one, Matrix.head_cons, Matrix.head_fin_const,
-                 neg_mul, mul_neg] <;>
+      simp [Matrix.mul_apply, Fin.sum_univ_two, neg_mul, mul_neg] <;>
       nlinarith [hc2, hs2, hsc, mul_comm (Real.cos θ) (Real.sin θ)]
   -- (4) rotMat^4 = −I
   have h4 : rotMat ^ 4 = -1 := by
     have : (4 : ℕ) = 2 * 2 := by norm_num
     rw [this, pow_mul, h2]
     ext i j; fin_cases i <;> fin_cases j <;>
-      simp [pow_two, Matrix.mul_apply, Fin.sum_univ_two, Matrix.cons_val_zero,
-            Matrix.cons_val_one, Matrix.head_cons, Matrix.head_fin_const,
+      simp [pow_two, Matrix.mul_apply, Fin.sum_univ_two,
             Matrix.neg_apply, Matrix.one_apply, Pi.neg_apply]
-  -- (5) rotMat^8 = I  (square both sides of step 4)
-  have : (8 : ℕ) = 2 * 4 := by norm_num
-  rw [this, pow_mul, h4]
-  simp [pow_two, Matrix.neg_mul, Matrix.mul_neg, Matrix.neg_neg]
+  -- (5) rotMat^8 = I  (square both sides of step 4: (R^4)^2 = (-I)^2 = I)
+  rw [show (8 : ℕ) = 4 * 2 from by norm_num, pow_mul, h4]
+  simp [pow_two, Matrix.neg_mul, Matrix.mul_neg, neg_neg]
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 5 — Coherence function  C(r) = 2r / (1 + r²)
@@ -288,13 +302,7 @@ private lemma eta_sq : η ^ 2 = 1 / 2 := by
 
 /-- |μ|² = 1 (μ lies on the unit circle). -/
 private lemma mu_normSq_one : Complex.normSq μ = 1 := by
-  -- normSq (exp(Iθ)) = cos²θ + sin²θ = 1 by the Pythagorean identity
-  unfold μ
-  rw [mul_comm, Complex.exp_mul_I]
-  simp only [Complex.normSq_apply, Complex.add_re, Complex.mul_re,
-             Complex.ofReal_re, Complex.I_re, Complex.I_im,
-             Complex.add_im, Complex.mul_im, Complex.ofReal_im]
-  nlinarith [Real.sin_sq_add_cos_sq (3 * Real.pi / 4)]
+  rw [Complex.normSq_eq_abs, mu_abs_one, one_pow]
 
 /-- The canonical state has norm 1:  η² + |μ·η|² = 1.
 
@@ -306,7 +314,7 @@ private lemma mu_normSq_one : Complex.normSq μ = 1 := by
 theorem canonical_norm : η ^ 2 + Complex.normSq (μ * ↑η) = 1 := by
   -- Reduce |μ·η|² to normSq μ · η²
   have h1 : Complex.normSq (μ * ↑η) = η ^ 2 := by
-    rw [map_mul, Complex.normSq_ofReal, mu_normSq_one]
+    rw [map_mul Complex.normSq, Complex.normSq_ofReal, mu_normSq_one]
     ring
   rw [h1, eta_sq]
   norm_num
@@ -383,7 +391,7 @@ theorem palindrome_residual_zero_iff (r : ℝ) (hr : 0 < r) : Res r = 0 ↔ r = 
     -- r − 1/r = 0  →  r·(r − 1/r) = 0  →  r² − 1 = 0  →  (r−1)(r+1) = 0
     have hrr : r * r = 1 := by
       have hstep : r * r - 1 = 0 := by
-        have : r * (r - 1 / r) = r * r - 1 := by field_simp; ring
+        have : r * (r - 1 / r) = r * r - 1 := by field_simp [hr']
         linarith [show r * (r - 1 / r) = 0 from by rw [h, mul_zero]]
       linarith
     have hfact : (r - 1) * (r + 1) = 0 := by linear_combination hrr
@@ -416,7 +424,7 @@ theorem palindrome_residual_neg (r : ℝ) (hr0 : 0 < r) (hr1 : r < 1) : Res r < 
 theorem palindrome_residual_antisymm (r : ℝ) (hr : 0 < r) : Res (1 / r) = -Res r := by
   unfold Res
   have hr' : r ≠ 0 := ne_of_gt hr
-  field_simp; ring
+  field_simp [hr']
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 10 — Lyapunov–Coherence Duality (Theorem 14)
@@ -424,31 +432,31 @@ theorem palindrome_residual_antisymm (r : ℝ) (hr : 0 < r) : Res (1 / r) = -Res
 -- ════════════════════════════════════════════════════════════════════════════
 
 /-- Key identity: C(exp λ) · (exp λ + exp(−λ)) = 2. -/
-private lemma lyapunov_key (λ : ℝ) :
-    C (Real.exp λ) * (Real.exp λ + Real.exp (-λ)) = 2 := by
-  have hmul : Real.exp λ * Real.exp (-λ) = 1 := by
+private lemma lyapunov_key (lam : ℝ) :
+    C (Real.exp lam) * (Real.exp lam + Real.exp (-lam)) = 2 := by
+  have hmul : Real.exp lam * Real.exp (-lam) = 1 := by
     rw [← Real.exp_add]; simp
   unfold C
-  have hd : (0 : ℝ) < 1 + Real.exp λ ^ 2 := one_add_sq_pos _
+  have hd : (0 : ℝ) < 1 + Real.exp lam ^ 2 := one_add_sq_pos _
   field_simp [ne_of_gt hd]
-  nlinarith [Real.exp_pos λ, Real.exp_pos (-λ), hmul, sq_nonneg (Real.exp λ)]
+  nlinarith [Real.exp_pos lam, Real.exp_pos (-lam), hmul, sq_nonneg (Real.exp lam)]
 
 /-- Lyapunov–coherence duality: C(exp λ) = 2/(exp λ + exp(−λ)) = sech λ.
     The coherence is the reciprocal of the hyperbolic cosine of the Lyapunov
     exponent λ = ln r.  At the balanced fixed point r = 1 (λ = 0):
     sech(0) = 1, recovering C = 1.
     Ref: docs/master_derivations.pdf §4 Theorem 14 -/
-theorem lyapunov_coherence_duality (λ : ℝ) :
-    C (Real.exp λ) = 2 / (Real.exp λ + Real.exp (-λ)) := by
-  have hpos : 0 < Real.exp λ + Real.exp (-λ) := by positivity
-  rw [eq_div_iff (ne_of_gt hpos), mul_comm]
-  exact lyapunov_key λ
+theorem lyapunov_coherence_duality (lam : ℝ) :
+    C (Real.exp lam) = 2 / (Real.exp lam + Real.exp (-lam)) := by
+  have hpos : 0 < Real.exp lam + Real.exp (-lam) := by positivity
+  rw [eq_div_iff (ne_of_gt hpos)]
+  exact lyapunov_key lam
 
 /-- Corollary: C(exp λ) = (cosh λ)⁻¹ = sech λ.
     Uses: cosh λ = (exp λ + exp(−λ)) / 2. -/
-theorem lyapunov_coherence_sech (λ : ℝ) :
-    C (Real.exp λ) = (Real.cosh λ)⁻¹ := by
-  have hcosh : Real.cosh λ = (Real.exp λ + Real.exp (-λ)) / 2 := Real.cosh_eq λ
+theorem lyapunov_coherence_sech (lam : ℝ) :
+    C (Real.exp lam) = (Real.cosh lam)⁻¹ := by
+  have hcosh : Real.cosh lam = (Real.exp lam + Real.exp (-lam)) / 2 := Real.cosh_eq lam
   rw [lyapunov_coherence_duality, hcosh, inv_div]
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -501,8 +509,8 @@ theorem simultaneous_break (r : ℝ) (hr : 0 < r) :
 /-- **Derived**: the Lyapunov–coherence duality implies C ≤ 1 for all λ,
     since sech(λ) ≤ 1 = sech(0).  This recovers `coherence_le_one` via a
     completely different route (the hyperbolic bound). -/
-theorem lyapunov_bound (λ : ℝ) : C (Real.exp λ) ≤ 1 :=
-  coherence_le_one _ (le_of_lt (Real.exp_pos λ))
+theorem lyapunov_bound (lam : ℝ) : C (Real.exp lam) ≤ 1 :=
+  coherence_le_one _ (le_of_lt (Real.exp_pos lam))
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 12 — Orbit Magnitude and Trichotomy (Theorem 10)
@@ -514,8 +522,7 @@ theorem lyapunov_bound (λ : ℝ) : C (Real.exp λ) ≤ 1 :=
 /-- |μ^n| = 1 for all n: the orbit of μ stays on the unit circle.
     Follows immediately from |μ| = 1 and multiplicativity of the absolute value. -/
 theorem mu_pow_abs (n : ℕ) : Complex.abs (μ ^ n) = 1 := by
-  have h : Complex.abs (μ ^ n) = Complex.abs μ ^ n := map_pow Complex.abs μ n
-  rw [h, mu_abs_one, one_pow]
+  rw [map_pow, mu_abs_one, one_pow]
 
 /-- |(r·μ)^n| = r^n for r ≥ 0.
     The amplitude of the orbit is purely radial; the phase factor μ contributes
@@ -523,15 +530,15 @@ theorem mu_pow_abs (n : ℕ) : Complex.abs (μ ^ n) = 1 := by
 theorem scaled_orbit_abs (r : ℝ) (hr : 0 ≤ r) (n : ℕ) :
     Complex.abs ((↑r * μ) ^ n) = r ^ n := by
   have habsr : Complex.abs (↑r * μ) = r := by
-    rw [map_mul, Complex.abs_ofReal, abs_of_nonneg hr, mu_abs_one, mul_one]
+    rw [Complex.abs.map_mul, Complex.abs_ofReal, _root_.abs_of_nonneg hr, mu_abs_one, mul_one]
   calc Complex.abs ((↑r * μ) ^ n)
-      = Complex.abs (↑r * μ) ^ n := map_pow Complex.abs _ _
+      = Complex.abs (↑r * μ) ^ n := map_pow _ _ _
     _ = r ^ n := by rw [habsr]
 
 /-- Trichotomy — r = 1: orbit has unit magnitude at every step (stable 8-cycle).
     Ref: docs/master_derivations.pdf §5 Theorem 10 case (1) -/
 theorem trichotomy_unit_orbit (n : ℕ) : Complex.abs ((1 : ℂ) * μ ^ n) = 1 := by
-  simp [map_mul, mu_pow_abs]
+  rw [one_mul, mu_pow_abs]
 
 /-- Trichotomy — r > 1: magnitudes are strictly increasing (spiral outward).
     |(r·μ)^n| < |(r·μ)^(n+1)| since r^n < r^(n+1) when r > 1.
@@ -547,7 +554,9 @@ theorem trichotomy_grow (r : ℝ) (hr : 1 < r) (n : ℕ) :
 theorem trichotomy_shrink (r : ℝ) (hr0 : 0 < r) (hr1 : r < 1) (n : ℕ) :
     Complex.abs ((↑r * μ) ^ (n + 1)) < Complex.abs ((↑r * μ) ^ n) := by
   simp only [scaled_orbit_abs r (le_of_lt hr0)]
-  exact pow_lt_pow_of_lt_one (le_of_lt hr0) hr1 (Nat.lt_succ_self n)
+  calc r ^ (n + 1) = r ^ n * r := pow_succ r n
+    _ < r ^ n * 1 := mul_lt_mul_of_pos_left hr1 (pow_pos hr0 n)
+    _ = r ^ n := mul_one _
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 13 — Coherence Monotonicity
@@ -674,7 +683,7 @@ theorem precession_phasor_unit (θ : ℝ) :
     β ↦ e^{iθ}·β leaves |β| — and hence r = |β|/|α| — unchanged. -/
 theorem precession_preserves_abs (β : ℂ) (θ : ℝ) :
     Complex.abs (Complex.exp (Complex.I * ↑θ) * β) = Complex.abs β := by
-  rw [map_mul, precession_phasor_unit, one_mul]
+  rw [map_mul Complex.abs, precession_phasor_unit, one_mul]
 
 /-- **Derived**: precession preserves the coherence ratio.
     If α and β are the two state components and both are multiplied by the
@@ -698,8 +707,8 @@ theorem precession_preserves_coherence (α β : ℂ) (hα : Complex.abs α ≠ 0
     Here G_eff = (cosh λ)⁻¹ and R_eff = cosh λ.  The identity says that the
     coherence (conductance) and the effective resistance are always reciprocals.
     Ref: docs/master_derivations.pdf §9 eq. (single-channel) -/
-theorem geff_reff_one (λ : ℝ) : (Real.cosh λ)⁻¹ * Real.cosh λ = 1 :=
-  inv_mul_cancel₀ (ne_of_gt (Real.cosh_pos λ))
+theorem geff_reff_one (lam : ℝ) : (Real.cosh lam)⁻¹ * Real.cosh lam = 1 :=
+  inv_mul_cancel₀ (ne_of_gt (Real.cosh_pos lam))
 
 /-- At balance (λ = 0): G_eff = sech(0) = 1 — maximal conductance, no overhead.
     Ref: docs/master_derivations.pdf §9 -/
@@ -708,18 +717,18 @@ theorem geff_at_zero : (Real.cosh 0)⁻¹ = 1 := by simp [Real.cosh_zero]
 /-- Parallel-channel Ohm-Coherence law: N identical channels satisfy G_tot · R_tot = 1.
     G_tot = N · sech(λ) and R_tot = cosh(λ)/N; their product collapses to sech·cosh = 1.
     Ref: docs/master_derivations.pdf §9 Parallel Channels (MultiChannelSystem) -/
-theorem parallel_circuit_one (N : ℕ) (hN : 0 < N) (λ : ℝ) :
-    (↑N * (Real.cosh λ)⁻¹) * (Real.cosh λ / ↑N) = 1 := by
-  have hcosh : Real.cosh λ ≠ 0 := ne_of_gt (Real.cosh_pos λ)
+theorem parallel_circuit_one (N : ℕ) (hN : 0 < N) (lam : ℝ) :
+    (↑N * (Real.cosh lam)⁻¹) * (Real.cosh lam / ↑N) = 1 := by
+  have hcosh : Real.cosh lam ≠ 0 := ne_of_gt (Real.cosh_pos lam)
   have hN' : (N : ℝ) ≠ 0 := Nat.cast_pos.mpr hN |>.ne'
   field_simp [hcosh, hN']
 
 /-- Series-pipeline Ohm-Coherence law: M identical stages satisfy G_tot · R_tot = 1.
     R_tot = M · cosh(λ) and G_tot = (M · cosh(λ))⁻¹; their product is 1.
     Ref: docs/master_derivations.pdf §9 Series Pipeline (PipelineSystem) -/
-theorem series_circuit_one (M : ℕ) (hM : 0 < M) (λ : ℝ) :
-    (↑M * Real.cosh λ)⁻¹ * (↑M * Real.cosh λ) = 1 :=
-  inv_mul_cancel₀ (mul_ne_zero (Nat.cast_pos.mpr hM |>.ne') (ne_of_gt (Real.cosh_pos λ)))
+theorem series_circuit_one (M : ℕ) (hM : 0 < M) (lam : ℝ) :
+    (↑M * Real.cosh lam)⁻¹ * (↑M * Real.cosh lam) = 1 :=
+  inv_mul_cancel₀ (mul_ne_zero (Nat.cast_pos.mpr hM |>.ne') (ne_of_gt (Real.cosh_pos lam)))
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 18 — Pythagorean Coherence Identity
@@ -919,8 +928,8 @@ theorem sech_at_log_silverRatio : (Real.cosh (Real.log δS))⁻¹ = η :=
     C = sech λ (even) and δS · Res / 2 = sinh λ (odd): a sech/sinh dual pair
     paralleling the cos/sin pair in circular geometry.
     Machine-discovered: §9 (Res definition) + §10 (exp parametrisation). -/
-theorem lyapunov_tanh_residual (λ : ℝ) :
-    Res (Real.exp λ) = 2 * Real.sinh λ / δS := by
+theorem lyapunov_tanh_residual (lam : ℝ) :
+    Res (Real.exp lam) = 2 * Real.sinh lam / δS := by
   unfold Res
   simp only [Real.sinh_eq, Real.exp_neg, one_div]
   ring
@@ -929,16 +938,16 @@ theorem lyapunov_tanh_residual (λ : ℝ) :
     In Lyapunov variables C = sech λ, so this is just sech²λ + tanh²λ = 1.
     This is the λ-space companion to §18's `coherence_pythagorean`.
     Machine-discovered: §10 (C = sech) + standard hyperbolic identity. -/
-theorem coherence_lyapunov_pythag (λ : ℝ) :
-    C (Real.exp λ) ^ 2 + Real.tanh λ ^ 2 = 1 := by
+theorem coherence_lyapunov_pythag (lam : ℝ) :
+    C (Real.exp lam) ^ 2 + Real.tanh lam ^ 2 = 1 := by
   rw [lyapunov_coherence_sech, Real.tanh_eq_sinh_div_cosh]
-  have hc : Real.cosh λ ≠ 0 := ne_of_gt (Real.cosh_pos λ)
-  have hprod : Real.exp λ * Real.exp (-λ) = 1 := by rw [← Real.exp_add]; simp
-  have key : Real.sinh λ ^ 2 + 1 = Real.cosh λ ^ 2 := by
+  have hc : Real.cosh lam ≠ 0 := ne_of_gt (Real.cosh_pos lam)
+  have hprod : Real.exp lam * Real.exp (-lam) = 1 := by rw [← Real.exp_add]; simp
+  have key : Real.sinh lam ^ 2 + 1 = Real.cosh lam ^ 2 := by
     rw [Real.sinh_eq, Real.cosh_eq]
     field_simp
-    nlinarith [Real.exp_pos λ, Real.exp_pos (-λ), hprod,
-               sq_nonneg (Real.exp λ - Real.exp (-λ))]
+    nlinarith [Real.exp_pos lam, Real.exp_pos (-lam), hprod,
+               sq_nonneg (Real.exp lam - Real.exp (-lam))]
   field_simp [hc]
   linarith
 
@@ -982,8 +991,8 @@ theorem orbit_decoherence_rate (r : ℝ) (hr : 1 < r) (n : ℕ) :
 theorem mu_inv_eq_pow7 : μ ^ 7 = μ⁻¹ := by
   have hμ : μ ≠ 0 := Complex.exp_ne_zero _
   have h7 : μ ^ 7 * μ = 1 := by
-    rw [show μ = μ ^ 1 from (pow_one μ).symm, ← pow_add]
-    simp only [show 7 + 1 = 8 from rfl, mu_pow_eight]
+    have : μ ^ 7 * μ = μ ^ 8 := by ring
+    rw [this, mu_pow_eight]
   calc μ ^ 7
       = μ ^ 7 * (μ * μ⁻¹) := by rw [mul_inv_cancel₀ hμ, mul_one]
     _ = μ ^ 7 * μ * μ⁻¹   := (mul_assoc _ _ _).symm

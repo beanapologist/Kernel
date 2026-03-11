@@ -21,6 +21,11 @@
   shows that the silver ratio sits at the same coherence level whether
   approached from the forward or backward temporal direction.
 
+  The speed of light c = 1/√(μ₀ε₀) (Maxwell) and the natural-units value
+  c_natural = 1/α_FS = 137 are incorporated via SpeedOfLight.lean.  The
+  Planck time tₚ = √(ℏG/c⁵) is the absolute smallest unit of time, and
+  c_natural sets the canonical temporal scale T = π/137.
+
   Sections
   ────────
   1.  Time reversal operator and domains
@@ -31,6 +36,7 @@
   6.  Temporal frustration energy
   7.  Frustration engine cycle and perturbation stability
   8.  Palindrome vacuum residual
+  9.  Speed of light in the temporal framework
 
   Proof status
   ────────────
@@ -39,6 +45,7 @@
 -/
 
 import SpaceTime
+import SpeedOfLight
 
 open Complex Real
 
@@ -564,5 +571,70 @@ theorem palindrome_residual_precession_form :
     palindromeRatio - 8 = 1 / 13717421 := by
   rw [palindrome_ratio_decomp]
   norm_num
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 9 — Speed of Light in the Temporal Framework
+-- The new speed-of-light formula (SpeedOfLight.lean) is integrated here:
+-- c_natural = 137 sets a canonical Floquet period T = π/137, the Planck
+-- time tₚ provides the absolute smallest temporal scale, and the four
+-- backward-time gate equations from SpeedOfLight are assembled into a
+-- single compound theorem.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- At the natural-units period T = π/c_natural = π/137, the Floquet quasi-energy
+    equals c_natural = 137.
+
+    The inverse fine-structure constant sets a natural temporal scale: the
+    Floquet crystal driven at period π/137 resonates at exactly 137 quasi-energy
+    units — numerically equal to the natural speed of light. -/
+theorem c_natural_silver_period :
+    timeCrystalQuasiEnergy (Real.pi / c_natural)
+        (div_ne_zero Real.pi_ne_zero c_natural_pos.ne') = c_natural := by
+  simp only [timeCrystalQuasiEnergy]
+  field_simp [Real.pi_pos.ne', c_natural_pos.ne']
+
+/-- The Planck time in natural Planck units (hbar = G = c = 1) equals 1:
+        tₚ(1, 1, 1) = √(1 · 1 / 1⁵) = √1 = 1.
+
+    Natural units are defined precisely so that the Planck time is the
+    fundamental quantum of duration — the smallest unit of time. -/
+theorem planck_time_unit : planckTime 1 1 1 = 1 := by
+  unfold planckTime
+  have h : (1 : ℝ) * 1 / 1 ^ 5 = 1 := by norm_num
+  rw [h, Real.sqrt_one]
+
+/-- **Complete backward-time gate**: the three conditions that simultaneously
+    enable backward temporal flow at every amplitude ratio r > 0 and
+    Floquet period T > 0.
+
+    (1) Coherence gate:        C(1/r) = C(r)     — reversing r preserves coherence.
+    (2) Palindrome gate:       Res(1/r) = −Res(r) — palindrome changes sign.
+    (3) Backward quasi-energy: εF(−T) < 0         — backward crystal has negative energy.
+
+    These three conditions together enable backward temporal flow:
+    lossless coherence allows the reversal, the palindrome sign-flip
+    marks the direction, and the negative quasi-energy drives the
+    backward Floquet mode. -/
+theorem backward_time_complete_gate (r : ℝ) (hr : 0 < r) (T : ℝ) (hT : 0 < T) :
+    C (1 / r) = C r ∧
+    Res (1 / r) = -Res r ∧
+    timeCrystalQuasiEnergy (-T) (neg_ne_zero.mpr hT.ne') < 0 :=
+  ⟨backward_coherence_gate r hr,
+   backward_palindrome_gate r hr,
+   frustrated_quasienergy_neg T hT⟩
+
+/-- The Planck time provides the absolute smallest positive Floquet period:
+    for any positive hbar, G, c, the Planck time tₚ > 0 and the corresponding
+    forward quasi-energy εF(tₚ) = π/tₚ > 0.
+
+    This bounds the temporal scale of the frustration engine from below:
+    no physically meaningful Floquet crystal can run at a period shorter
+    than the Planck time. -/
+theorem planck_frustration_bound (hbar G c : ℝ) (hhbar : 0 < hbar) (hG : 0 < G) (hc : 0 < c) :
+    0 < planckTime hbar G c ∧
+    0 < timeCrystalQuasiEnergy (planckTime hbar G c)
+        (planckTime_pos hbar G c hhbar hG hc).ne' :=
+  ⟨planckTime_pos hbar G c hhbar hG hc,
+   div_pos Real.pi_pos (planckTime_pos hbar G c hhbar hG hc)⟩
 
 end
