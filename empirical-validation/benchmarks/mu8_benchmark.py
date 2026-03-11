@@ -58,6 +58,7 @@ from optimizers.mu8_cycle_optimizer import (  # noqa: E402
     SILVER_RATIO,
     C_NATURAL,
     Mu8CycleOptimizer,
+    bit_strength,
     lean_coherence,
 )
 
@@ -149,17 +150,18 @@ def benchmark_latency() -> list[dict]:
             per_cycle_times.append(time.perf_counter() - t0)
 
         rows.append({
-            "N":                 N,
-            "gain":              LATENCY_GAIN,
-            "revolutions":       LATENCY_REVOLUTIONS,
-            "median_us":         median(per_cycle_times) * 1e6,
-            "min_us":            min(per_cycle_times) * 1e6,
-            "max_us":            max(per_cycle_times) * 1e6,
-            "stdev_us":          stdev(per_cycle_times) * 1e6 if len(per_cycle_times) > 1 else 0.0,
-            "total_orbit_ms":    sum(per_cycle_times) * 1000,
-            "final_coherence":   m.coherence_out,
-            "final_frustration": m.frustration_out,
-            "mu_power_final":    m.mu_power,
+            "N":                  N,
+            "gain":               LATENCY_GAIN,
+            "revolutions":        LATENCY_REVOLUTIONS,
+            "median_us":          median(per_cycle_times) * 1e6,
+            "min_us":             min(per_cycle_times) * 1e6,
+            "max_us":             max(per_cycle_times) * 1e6,
+            "stdev_us":           stdev(per_cycle_times) * 1e6 if len(per_cycle_times) > 1 else 0.0,
+            "total_orbit_ms":     sum(per_cycle_times) * 1000,
+            "final_coherence":    m.coherence_out,
+            "final_frustration":  m.frustration_out,
+            "final_bit_strength": m.bit_strength_out,
+            "mu_power_final":     m.mu_power,
         })
     return rows
 
@@ -169,7 +171,7 @@ def benchmark_latency() -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def benchmark_convergence() -> list[dict]:
-    """Run CONVERGENCE_REVOLUTIONS cycles for each gain; record R and E."""
+    """Run CONVERGENCE_REVOLUTIONS cycles for each gain; record R, E, and bit strength."""
     rows: list[dict] = []
     for gain in CONVERGENCE_GAINS:
         opt = Mu8CycleOptimizer(N=CONVERGENCE_N, gain=gain, seed=SEED)
@@ -178,19 +180,21 @@ def benchmark_convergence() -> list[dict]:
         rows.append({
             "N": CONVERGENCE_N, "gain": gain, "revolution": -1,
             "coherence": R0, "frustration": E0,
+            "bit_strength": bit_strength(R0, CONVERGENCE_N),
             "lean_C_r": lean_coherence(R0),
             "mu_power": -1,
         })
         for _ in range(CONVERGENCE_REVOLUTIONS):
             m = opt.run_cycle()
             rows.append({
-                "N":          CONVERGENCE_N,
-                "gain":       gain,
-                "revolution": m.revolution,
-                "coherence":  m.coherence_out,
+                "N":           CONVERGENCE_N,
+                "gain":        gain,
+                "revolution":  m.revolution,
+                "coherence":   m.coherence_out,
                 "frustration": m.frustration_out,
-                "lean_C_r":   lean_coherence(m.coherence_out),
-                "mu_power":   m.mu_power,
+                "bit_strength": m.bit_strength_out,
+                "lean_C_r":    lean_coherence(m.coherence_out),
+                "mu_power":    m.mu_power,
             })
     return rows
 
@@ -198,6 +202,26 @@ def benchmark_convergence() -> list[dict]:
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. Invariant verification over full run
 # ─────────────────────────────────────────────────────────────────────────────
+
+def _check_monotonic(
+    vals: list[float],
+    name: str,
+    violations: list[str],
+    *,
+    increasing: bool,
+    fmt: str = ".6e",
+    tol: float = 1e-10,
+) -> None:
+    """Append violation strings for non-monotone sequences."""
+    for i in range(1, len(vals)):
+        breach = (vals[i] < vals[i - 1] - tol) if increasing else (vals[i] > vals[i - 1] + tol)
+        if breach:
+            direction = "decreased" if increasing else "increased"
+            violations.append(
+                f"{name} {direction} at revolution {i}: "
+                f"{vals[i - 1]:{fmt}} → {vals[i]:{fmt}}"
+            )
+
 
 def verify_invariants() -> dict:
     """Run 40 cycles and verify all Lean-grounded invariants hold."""
@@ -216,13 +240,16 @@ def verify_invariants() -> dict:
             )
 
     # Frustration non-increasing (allow tiny numerical noise: 1e-10)
-    E_vals = [m.frustration_out for m in history]
-    for i in range(1, len(E_vals)):
-        if E_vals[i] > E_vals[i - 1] + 1e-10:
-            violations.append(
-                f"frustration increased at revolution {i}: "
-                f"{E_vals[i - 1]:.6e} → {E_vals[i]:.6e}"
-            )
+    _check_monotonic(
+        [m.frustration_out for m in history], "frustration",
+        violations, increasing=False,
+    )
+
+    # Bit strength non-decreasing
+    _check_monotonic(
+        [m.bit_strength_out for m in history], "bit_strength",
+        violations, increasing=True, fmt=".4f",
+    )
 
     # Lean fingerprint stable
     fps = {m.lean_fingerprint for m in history}
@@ -234,18 +261,24 @@ def verify_invariants() -> dict:
     R_final   = history[-1].coherence_out
     spiral_ok = R_final > R_initial
 
+    B_initial = history[0].bit_strength_in
+    B_final   = history[-1].bit_strength_out
+
     return {
-        "n_cycles":        N_CYCLES,
-        "n_violations":    len(violations),
-        "violations":      violations,
-        "R_initial":       R_initial,
-        "R_final":         R_final,
-        "delta_R_total":   R_final - R_initial,
-        "E_initial":       history[0].frustration_in,
-        "E_final":         history[-1].frustration_out,
-        "delta_E_total":   history[-1].frustration_out - history[0].frustration_in,
-        "spiral_ok":       spiral_ok,
-        "passed":          len(violations) == 0 and spiral_ok,
+        "n_cycles":          N_CYCLES,
+        "n_violations":      len(violations),
+        "violations":        violations,
+        "R_initial":         R_initial,
+        "R_final":           R_final,
+        "delta_R_total":     R_final - R_initial,
+        "E_initial":         history[0].frustration_in,
+        "E_final":           history[-1].frustration_out,
+        "delta_E_total":     history[-1].frustration_out - history[0].frustration_in,
+        "B_initial":         B_initial,
+        "B_final":           B_final,
+        "delta_B_total":     B_final - B_initial,
+        "spiral_ok":         spiral_ok,
+        "passed":            len(violations) == 0 and spiral_ok,
     }
 
 
@@ -297,8 +330,8 @@ def _generate_plots(
                 facecolor=fig.get_facecolor())
     plt.close(fig)
 
-    # ── Plot 2: convergence R(revolution) for each gain ─────────────────────
-    fig2, (ax_r, ax_e) = plt.subplots(1, 2, figsize=(13, 5))
+    # ── Plot 2: convergence R(revolution) + E(revolution) + B(revolution) ────
+    fig2, (ax_r, ax_e, ax_b) = plt.subplots(1, 3, figsize=(18, 5))
     fig2.patch.set_facecolor("#0d1117")
 
     colours = ["#58a6ff", "#3fb950", "#e3b341", "#f78166"]
@@ -307,10 +340,12 @@ def _generate_plots(
         revs = [r["revolution"] for r in subset]
         R    = [r["coherence"]  for r in subset]
         E    = [r["frustration"] for r in subset]
+        B    = [r["bit_strength"] for r in subset]
         ax_r.plot(revs, R, color=colour, linewidth=1.8, label=f"g={gain}")
         ax_e.plot(revs, E, color=colour, linewidth=1.8, label=f"g={gain}")
+        ax_b.plot(revs, B, color=colour, linewidth=1.8, label=f"g={gain}")
 
-    for ax in (ax_r, ax_e):
+    for ax in (ax_r, ax_e, ax_b):
         ax.set_facecolor("#0d1117")
         ax.tick_params(colors="#c9d1d9")
         ax.xaxis.label.set_color("#c9d1d9")
@@ -330,6 +365,11 @@ def _generate_plots(
     ax_e.set_ylabel("Frustration E", fontsize=11)
     ax_e.set_title("Frustration vs. Revolution  (N=32)", fontsize=11)
     ax_e.title.set_color("#58a6ff")
+
+    ax_b.set_xlabel("Revolution", fontsize=11)
+    ax_b.set_ylabel("Bit Strength B (bits)", fontsize=11)
+    ax_b.set_title("Bit Strength vs. Revolution  (N=32)", fontsize=11)
+    ax_b.title.set_color("#58a6ff")
 
     plt.tight_layout()
     fig2.savefig(output_dir / "mu8_convergence.png", dpi=150, bbox_inches="tight",
@@ -386,12 +426,13 @@ def _generate_markdown(
     a(f"")
     a(f"Gain = {LATENCY_GAIN}, {LATENCY_REVOLUTIONS} revolutions (one full μ⁸ orbit).")
     a(f"")
-    a(f"| N | Median (μs) | Min (μs) | Max (μs) | σ (μs) | Final R | Final E |")
-    a(f"|---|-------------|----------|----------|--------|---------|---------|")
+    a(f"| N | Median (μs) | Min (μs) | Max (μs) | σ (μs) | Final R | Final B (bits) | Final E |")
+    a(f"|---|-------------|----------|----------|--------|---------|----------------|---------|")
     for r in latency_rows:
         a(f"| {r['N']} | {r['median_us']:.2f} | {r['min_us']:.2f} | "
           f"{r['max_us']:.2f} | {r['stdev_us']:.2f} | "
-          f"{r['final_coherence']:.6f} | {r['final_frustration']:.6e} |")
+          f"{r['final_coherence']:.6f} | {r['final_bit_strength']:.4f} | "
+          f"{r['final_frustration']:.6e} |")
     a(f"")
 
     # Invariant checks
@@ -404,10 +445,13 @@ def _generate_markdown(
     a(f"|-----------|--------|")
     a(f"| μ-power cycles 0→7 | {'✓' if invariants['n_violations'] == 0 else '✗'} |")
     a(f"| Frustration non-increasing | {'✓' if invariants['n_violations'] == 0 else '✗'} |")
+    a(f"| Bit strength non-decreasing | {'✓' if invariants['n_violations'] == 0 else '✗'} |")
     a(f"| Lean fingerprint stable | ✓ |")
     a(f"| Spiral: R_final > R_initial | {'✓' if invariants['spiral_ok'] else '✗'} |")
     a(f"| R initial → final | {invariants['R_initial']:.6f} → {invariants['R_final']:.6f} "
       f"(Δ={invariants['delta_R_total']:+.6f}) |")
+    a(f"| B initial → final (bits) | {invariants['B_initial']:.4f} → {invariants['B_final']:.4f} "
+      f"(Δ={invariants['delta_B_total']:+.4f}) |")
     a(f"| E initial → final | {invariants['E_initial']:.4e} → {invariants['E_final']:.4e} "
       f"(Δ={invariants['delta_E_total']:.4e}) |")
     if invariants["violations"]:
@@ -417,13 +461,28 @@ def _generate_markdown(
             a(f"- `{v}`")
     a(f"")
 
+    # Bit strength definition
+    a(f"## Bit Strength Measure")
+    a(f"")
+    a(f"Coherence is encoded as bit strength **B = −log₂(1 − R + ε)**, capped at log₂(N).")
+    a(f"")
+    a(f"| R | B (bits) | Interpretation |")
+    a(f"|---|----------|----------------|")
+    a(f"| 0.0 | 0.000 | No coherence |")
+    a(f"| 0.5 | 1.000 | Half coherence — 1 bit locked |")
+    a(f"| 0.75 | 2.000 | 2 bits locked |")
+    a(f"| 0.875 | 3.000 | Natural threshold for N=8 (= log₂(8)) |")
+    a(f"| 0.9375 | 4.000 | Natural threshold for N=16 (= log₂(16)) |")
+    a(f"| → 1 | → log₂(N) | Perfect coherence — all bits locked |")
+    a(f"")
+
     # Plots
     a(f"## Plots")
     a(f"")
     a(f"| Plot | Description |")
     a(f"|------|-------------|")
     a(f"| `mu8_latency.png` | Median cycle time vs. N (bar chart) |")
-    a(f"| `mu8_convergence.png` | R and E vs. revolution for 4 gain values |")
+    a(f"| `mu8_convergence.png` | R, E, and bit strength vs. revolution for 4 gain values |")
     a(f"")
 
     md_path.write_text("\n".join(lines), encoding="utf-8")
@@ -466,13 +525,13 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
     print(f"[2/4] Latency sweep  (N ∈ {LATENCY_N_VALUES}, "
           f"gain={LATENCY_GAIN}, {LATENCY_REVOLUTIONS} revolutions each) …")
     latency_rows = benchmark_latency()
-    header = f"  {'N':>5}  {'median μs':>12}  {'min μs':>8}  {'max μs':>8}  {'final R':>9}"
+    header = f"  {'N':>5}  {'median μs':>12}  {'min μs':>8}  {'max μs':>8}  {'final R':>9}  {'B (bits)':>9}"
     print(header)
     print("  " + "-" * (len(header) - 2))
     for r in latency_rows:
         print(f"  {r['N']:>5}  {r['median_us']:>12.2f}  "
               f"{r['min_us']:>8.2f}  {r['max_us']:>8.2f}  "
-              f"{r['final_coherence']:>9.6f}")
+              f"{r['final_coherence']:>9.6f}  {r['final_bit_strength']:>9.4f}")
 
     # 3. Convergence
     print()
@@ -483,6 +542,7 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
     for gain in CONVERGENCE_GAINS:
         final = [r for r in convergence_rows if r["gain"] == gain][-1]
         print(f"      gain={gain:.1f}: R_final={final['coherence']:.6f}  "
+              f"B_final={final['bit_strength']:.4f} bits  "
               f"E_final={final['frustration']:.4e}")
 
     # 4. Invariant verification
@@ -492,6 +552,7 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
     if invariants["passed"]:
         print(f"      ALL INVARIANTS HELD ✓  "
               f"ΔR={invariants['delta_R_total']:+.6f}  "
+              f"ΔB={invariants['delta_B_total']:+.4f} bits  "
               f"ΔE={invariants['delta_E_total']:.4e}")
     else:
         print(f"      VIOLATIONS: {invariants['n_violations']}")
@@ -506,15 +567,16 @@ def run(output_dir: Path, no_plots: bool = False) -> int:
 
     # JSON summary
     summary = {
-        "generated":      timestamp,
+        "generated":       timestamp,
         "lean_fingerprint": LEAN_FINGERPRINT,
-        "mu_angle":       MU_ANGLE,
-        "silver_ratio":   SILVER_RATIO,
-        "c_natural":      C_NATURAL,
-        "gate_overhead":  gate_row,
-        "latency_rows":   latency_rows,
-        "invariants":     invariants,
-        "all_passed":     invariants["passed"],
+        "mu_angle":        MU_ANGLE,
+        "silver_ratio":    SILVER_RATIO,
+        "c_natural":       C_NATURAL,
+        "bit_strength_definition": "B = -log2(1 - R + eps), capped at log2(N)",
+        "gate_overhead":   gate_row,
+        "latency_rows":    latency_rows,
+        "invariants":      invariants,
+        "all_passed":      invariants["passed"],
     }
     json_path = output_dir / "mu8_summary.json"
     json_path.write_text(json.dumps(summary, indent=2), encoding="utf-8")

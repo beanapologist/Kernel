@@ -49,6 +49,7 @@ from optimizers.mu8_cycle_optimizer import (
     MU_ANGLE,
     SILVER_RATIO,
     Mu8CycleOptimizer,
+    bit_strength,
     lean_coherence,
 )
 
@@ -464,6 +465,100 @@ def _check_convergence() -> list[dict[str, Any]]:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+# Bit-strength checks
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _check_bit_strength() -> list[dict[str, Any]]:
+    """Verify bit-strength properties over a 16-cycle run (N=8, gain=0.3)."""
+    results = []
+    opt = Mu8CycleOptimizer(N=8, gain=0.3, seed=42)
+    metrics_list = opt.run(16)
+
+    # 1. At R=0.875 (=1-1/8), B should equal log₂(8)=3 bits exactly.
+    expected_threshold = math.log2(8)
+    actual_threshold = bit_strength(0.875, N=8)
+    results.append(_make_result(
+        name="bit_strength_threshold_n8",
+        check_type="mathematical_identity",
+        pass_criterion="bit_strength(0.875, N=8) = log₂(8) = 3 bits exactly "
+                       "(natural μ⁸ threshold: R* = 1 − 1/N).",
+        modelled=expected_threshold,
+        observed=actual_threshold,
+        passed=abs(actual_threshold - expected_threshold) < 1e-10,
+        method="−log₂(1 − 0.875) = −log₂(0.125) = 3",
+        description="B = log₂(N) at the natural threshold R* = 1 − 1/N",
+        rel_error=abs(actual_threshold - expected_threshold) / max(expected_threshold, 1e-15),
+    ))
+
+    # 2. B = 0 at R = 0.
+    b_zero = bit_strength(0.0)
+    results.append(_make_result(
+        name="bit_strength_zero_coherence",
+        check_type="mathematical_identity",
+        pass_criterion="bit_strength(0) = 0 (no coherence → zero bit strength).",
+        modelled=0.0,
+        observed=b_zero,
+        passed=b_zero == 0.0,
+        method="−log₂(1 − 0 + ε) clipped to 0 for R ≤ 0",
+        description="Zero coherence yields zero bit strength",
+        rel_error=abs(b_zero),
+    ))
+
+    # 3. B = 1 at R = 0.5 (approximately, within tolerance of ε).
+    b_half = bit_strength(0.5)
+    results.append(_make_result(
+        name="bit_strength_half_coherence",
+        check_type="mathematical_identity",
+        pass_criterion="bit_strength(0.5) ≈ 1.0 bit (R=0.5 → half-coherence).",
+        modelled=1.0,
+        observed=b_half,
+        passed=abs(b_half - 1.0) < 1e-10,
+        method="−log₂(1 − 0.5) = −log₂(0.5) = 1",
+        description="Half coherence (R=0.5) yields one bit of strength",
+        rel_error=abs(b_half - 1.0),
+    ))
+
+    # 4. bit_strength_out is non-decreasing over the run (spiral deepening).
+    bs_out = [m.bit_strength_out for m in metrics_list]
+    # Allow tiny numerical noise (1e-10) as with coherence non-decreasing check.
+    nondec = all(bs_out[i] >= bs_out[i - 1] - 1e-10 for i in range(1, len(bs_out)))
+    worst = min(bs_out[i] - bs_out[i - 1] for i in range(1, len(bs_out)))
+    results.append(_make_result(
+        name="bit_strength_nondecreasing",
+        check_type="cycle_invariant",
+        pass_criterion="bit_strength_out non-decreasing over 16 cycles (N=8, g=0.3). "
+                       "Monotone in R means monotone in B.",
+        modelled=0.0,
+        observed=worst,
+        passed=nondec,
+        method="bit_strength_out[i] >= bit_strength_out[i-1] - 1e-10",
+        description="Bit strength grows monotonically as coherence spirals deeper",
+        rel_error=max(0.0, -worst),
+    ))
+
+    # 5. bit_strength_in of each cycle matches bit_strength of coherence_in.
+    mismatches = [
+        abs(m.bit_strength_in - bit_strength(m.coherence_in, 8))
+        for m in metrics_list
+    ]
+    consistent = all(e < 1e-12 for e in mismatches)
+    results.append(_make_result(
+        name="bit_strength_consistent_with_coherence",
+        check_type="cycle_invariant",
+        pass_criterion="m.bit_strength_in = bit_strength(m.coherence_in, N) "
+                       "for all cycles. Internal consistency.",
+        modelled=0.0,
+        observed=max(mismatches) if mismatches else 0.0,
+        passed=consistent,
+        method="element-wise comparison over 16 cycles",
+        description="CycleMetrics bit_strength fields are consistent with coherence values",
+        rel_error=max(mismatches) if mismatches else 0.0,
+    ))
+
+    return results
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 # Reproducibility / cross-language portability checks
 # ─────────────────────────────────────────────────────────────────────────────
 
@@ -573,6 +668,9 @@ def validate(_data: dict | None = None) -> list[dict[str, Any]]:
 
     # Cycle invariants
     results.extend(_check_cycle_invariants())
+
+    # Bit strength
+    results.extend(_check_bit_strength())
 
     # Convergence
     results.extend(_check_convergence())

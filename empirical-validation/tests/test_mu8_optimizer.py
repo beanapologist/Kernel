@@ -28,6 +28,7 @@ from optimizers.mu8_cycle_optimizer import (
     SILVER_RATIO,
     Mu8CycleOptimizer,
     CycleMetrics,
+    bit_strength,
     lean_coherence,
     _wrap,
 )
@@ -503,3 +504,123 @@ class TestDeepSpiral:
         # Next group starts at 0 (μ⁸ = 1 wraps back to identity)
         m_next = opt.run_cycle()
         assert m_next.mu_power == 0
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 12. Bit-strength coherence measure
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TestBitStrength:
+    """bit_strength(R, N) = −log₂(1 − R + ε), capped at log₂(N)."""
+
+    def test_zero_coherence_gives_zero_bits(self):
+        """R = 0 → B = 0."""
+        assert bit_strength(0.0) == 0.0
+
+    def test_negative_coherence_gives_zero_bits(self):
+        """Negative R (should not occur, but guarded) → B = 0."""
+        assert bit_strength(-0.1) == 0.0
+
+    def test_half_coherence_gives_one_bit(self):
+        """R = 0.5 → B = 1.0 bit exactly."""
+        assert abs(bit_strength(0.5) - 1.0) < 1e-10
+
+    def test_three_quarter_coherence_gives_two_bits(self):
+        """R = 0.75 → B = 2.0 bits exactly."""
+        assert abs(bit_strength(0.75) - 2.0) < 1e-10
+
+    def test_threshold_n8_gives_three_bits(self):
+        """R = 0.875 (= 1 − 1/8) → B = log₂(8) = 3 bits exactly."""
+        assert abs(bit_strength(0.875) - 3.0) < 1e-10
+
+    def test_threshold_n8_with_cap(self):
+        """With N=8 cap, bit_strength(0.875, 8) = 3.0 exactly."""
+        assert abs(bit_strength(0.875, N=8) - 3.0) < 1e-10
+
+    def test_cap_at_log2_n(self):
+        """High R (near 1) is capped at log₂(N) when N is provided."""
+        B_capped = bit_strength(0.9999, N=8)
+        assert B_capped <= math.log2(8) + 1e-12
+
+    def test_uncapped_exceeds_log2_n_at_high_r(self):
+        """Without N cap, bit_strength > log₂(N) for R very close to 1."""
+        B_uncapped = bit_strength(0.9999)
+        assert B_uncapped > math.log2(8)
+
+    def test_monotone_in_r(self):
+        """bit_strength is strictly increasing in R ∈ (0, 1)."""
+        R_vals = [0.1, 0.25, 0.5, 0.7, 0.875, 0.95, 0.99]
+        B_vals = [bit_strength(R) for R in R_vals]
+        for i in range(1, len(B_vals)):
+            assert B_vals[i] > B_vals[i - 1], (
+                f"Not monotone: B({R_vals[i-1]})={B_vals[i-1]:.4f} "
+                f">= B({R_vals[i]})={B_vals[i]:.4f}"
+            )
+
+    def test_cycle_metrics_has_bit_strength_fields(self):
+        """CycleMetrics contains bit_strength_in and bit_strength_out fields."""
+        opt = Mu8CycleOptimizer(N=8, gain=0.3, seed=42)
+        m = opt.run_cycle()
+        assert hasattr(m, "bit_strength_in")
+        assert hasattr(m, "bit_strength_out")
+
+    def test_cycle_metrics_bit_strength_nonneg(self):
+        """bit_strength_in and bit_strength_out are non-negative."""
+        opt = Mu8CycleOptimizer(N=8, gain=0.3, seed=42)
+        for m in opt.run(8):
+            assert m.bit_strength_in >= 0.0
+            assert m.bit_strength_out >= 0.0
+
+    def test_cycle_metrics_bit_strength_consistent(self):
+        """bit_strength_in matches bit_strength(coherence_in, N) independently."""
+        opt = Mu8CycleOptimizer(N=8, gain=0.3, seed=42)
+        for m in opt.run(8):
+            expected_in  = bit_strength(m.coherence_in,  8)
+            expected_out = bit_strength(m.coherence_out, 8)
+            assert abs(m.bit_strength_in  - expected_in)  < 1e-12
+            assert abs(m.bit_strength_out - expected_out) < 1e-12
+
+    def test_bit_strength_nondecreasing_over_spiral(self):
+        """bit_strength_out is non-decreasing over 16 cycles (mirrors R)."""
+        opt = Mu8CycleOptimizer(N=8, gain=0.3, seed=42)
+        metrics = opt.run(16)
+        for i in range(1, len(metrics)):
+            assert metrics[i].bit_strength_out >= metrics[i - 1].bit_strength_out - 1e-10, (
+                f"Bit strength decreased at revolution {i}: "
+                f"{metrics[i-1].bit_strength_out:.4f} → {metrics[i].bit_strength_out:.4f}"
+            )
+
+    def test_bit_strength_in_export_state(self):
+        """export_state() includes 'bit_strength' key with correct value."""
+        opt = Mu8CycleOptimizer(N=8, gain=0.3, seed=42)
+        opt.run(5)
+        state = opt.export_state()
+        assert "bit_strength" in state
+        R = state["coherence"]
+        expected_B = bit_strength(R, opt.N)
+        assert abs(state["bit_strength"] - expected_B) < 1e-12
+
+    def test_bit_strength_json_serialisable(self):
+        """export_state() bit_strength survives a JSON round-trip."""
+        opt = Mu8CycleOptimizer(N=8, gain=0.3, seed=42)
+        opt.run(3)
+        state = opt.export_state()
+        decoded = json.loads(json.dumps(state))
+        assert abs(decoded["bit_strength"] - state["bit_strength"]) < 1e-15
+
+    def test_validator_includes_bit_strength_checks(self):
+        """validate() returns at least one check named bit_strength_*."""
+        from validators.mu8_optimizer import validate as mu8_validate
+        results = mu8_validate()
+        bs_checks = [r for r in results if "bit_strength" in r.get("name", "")]
+        assert len(bs_checks) >= 1
+
+    def test_validator_bit_strength_checks_pass(self):
+        """All bit_strength validator checks pass."""
+        from validators.mu8_optimizer import validate as mu8_validate
+        results = mu8_validate()
+        for r in results:
+            if "bit_strength" in r.get("name", ""):
+                assert r.get("passed"), (
+                    f"Validator check '{r['name']}' failed: {r}"
+                )

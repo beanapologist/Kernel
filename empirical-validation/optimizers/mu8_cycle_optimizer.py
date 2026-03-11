@@ -117,6 +117,17 @@ class CycleMetrics(NamedTuple):
     delta_frustration: float
     """frustration_out − frustration_in  (≤ 0 when optimizer is working)."""
 
+    bit_strength_in: float
+    """Coherence bit strength B = −log₂(1 − R) *before* the cycle.
+
+    B = 0 when R = 0 (no coherence); B → ∞ as R → 1.
+    When R = 1 − 1/N (the natural threshold for N oscillators), B exactly
+    equals log₂(N) (e.g. N=8, R=0.875 → B=3 bits = log₂(8)).
+    """
+
+    bit_strength_out: float
+    """B = −log₂(1 − R) *after* the cycle."""
+
     state_checksum: str
     """SHA-256 of the phase array *after* the cycle (32 hex chars)."""
 
@@ -151,6 +162,63 @@ def lean_coherence(r: float) -> float:
       C(r) ≤ 1 for all r ≥ 0  (with equality iff r=1)
     """
     return 2.0 * r / (1.0 + r * r)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Bit strength: information-theoretic coherence measure
+# ─────────────────────────────────────────────────────────────────────────────
+
+def bit_strength(R: float, N: int | None = None) -> float:
+    """Coherence bit strength  B = −log₂(1 − R + ε).
+
+    Encodes the Kuramoto order parameter R ∈ [0, 1] as an effective number
+    of bits of phase coherence.
+
+    Definition
+    ----------
+    B = −log₂(1 − R + ε),  ε = 2⁻⁵² (machine epsilon, prevents log(0))
+
+    This is the information-theoretic "surprise" of the incoherent fraction
+    (1 − R): as R approaches 1, more and more bits are required to describe
+    the deviation from perfect synchrony.
+
+    Connection to μ⁸=1
+    -------------------
+    For N oscillators the μ⁸ group has natural order log₂(N) bits.  The
+    threshold R* = 1 − 1/N yields B = log₂(N) exactly:
+      N=8  → R*=0.875 → B=3 bits  (= log₂(8) ✓)
+      N=16 → R*=0.9375 → B=4 bits (= log₂(16) ✓)
+
+    Parameters
+    ----------
+    R:
+        Kuramoto order parameter ∈ [0, 1].
+    N:
+        Optional oscillator count.  When provided, the result is capped at
+        ``log₂(N)`` to stay within the natural μ⁸ group range.  If omitted
+        the uncapped value is returned.
+
+    Returns
+    -------
+    float
+        B ≥ 0.  Returns 0.0 for R ≤ 0.
+
+    Examples
+    --------
+    >>> round(bit_strength(0.875), 10)   # N=8 threshold
+    3.0
+    >>> bit_strength(0.0)
+    0.0
+    >>> bit_strength(0.5)   # ≈ 1 bit
+    1.0
+    """
+    if R <= 0.0:
+        return 0.0
+    eps = 2.0 ** -52  # Offset to prevent log₂(0) when R → 1
+    B = -math.log2(1.0 - R + eps)
+    if N is not None:
+        B = min(B, math.log2(N))
+    return B
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -375,6 +443,8 @@ class Mu8CycleOptimizer:
             frustration_out=E_out,
             delta_coherence=R_out - R_in,
             delta_frustration=E_out - E_in,
+            bit_strength_in=bit_strength(R_in, self.N),
+            bit_strength_out=bit_strength(R_out, self.N),
             state_checksum=chk,
             lean_fingerprint=LEAN_FINGERPRINT,
         )
@@ -414,7 +484,9 @@ class Mu8CycleOptimizer:
           ``lean_fingerprint``— SHA-256 of Lean grounding constants
           ``coherence``       — current R
           ``frustration``     — current E
+          ``bit_strength``    — −log₂(1 − R + ε), capped at log₂(N)
         """
+        R = self._circular_coherence()
         return {
             "phases": self.phases.tolist(),
             "revolution": self.revolution,
@@ -422,6 +494,7 @@ class Mu8CycleOptimizer:
             "gain": self.gain,
             "mu_angle": MU_ANGLE,
             "lean_fingerprint": LEAN_FINGERPRINT,
-            "coherence": self._circular_coherence(),
+            "coherence": R,
             "frustration": self._frustration(),
+            "bit_strength": bit_strength(R, self.N),
         }
