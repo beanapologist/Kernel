@@ -107,6 +107,7 @@ rust/sanity_checkpoint/target/
 
 # Go build artifacts
 go/sanity_checkpoint/sanity_checkpoint
+go/gen_pi_digits/gen_pi_digits
 
 # C++ sanity checkpoint binary
 sanity_checkpoint_cpp

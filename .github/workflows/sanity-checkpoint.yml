@@ -7,6 +7,7 @@ on:
       - 'sanity_checkpoint.cpp'
       - 'rust/sanity_checkpoint/**'
       - 'go/sanity_checkpoint/**'
+      - 'go/gen_pi_digits/**'
       - '.github/workflows/sanity-checkpoint.yml'
   pull_request:
     branches: [main]
@@ -14,6 +15,7 @@ on:
       - 'sanity_checkpoint.cpp'
       - 'rust/sanity_checkpoint/**'
       - 'go/sanity_checkpoint/**'
+      - 'go/gen_pi_digits/**'
       - '.github/workflows/sanity-checkpoint.yml'
 
 permissions:
@@ -68,6 +70,10 @@ jobs:
       - name: Build
         working-directory: go/sanity_checkpoint
         run: go build ./...
+
+      - name: Build gen_pi_digits
+        working-directory: go/gen_pi_digits
+        run: go build .
 
       - name: Run
         working-directory: go/sanity_checkpoint
