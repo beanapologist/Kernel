@@ -67,6 +67,7 @@ if(KERNEL_BUILD_TESTS)
         test_palindrome_precession
         test_pipeline_theorems
         test_qudit_kernel
+        sanity_checkpoint
     )
 
     foreach(_test IN LISTS _kernel_tests)

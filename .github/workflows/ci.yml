@@ -56,7 +56,8 @@ jobs:
             MasterEigenOracle.hpp \
             test_master_eigen_oracle.cpp \
             test_bft_stress.cpp \
-            test_bft_extended.cpp
+            test_bft_extended.cpp \
+            sanity_checkpoint.cpp
 
   # ── Build & Test ─────────────────────────────────────────────────────────
   build-and-test:
@@ -152,6 +153,12 @@ jobs:
       - name: Run test_bft_extended
         run: ./test_bft_extended
 
+      - name: Build sanity_checkpoint
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o sanity_checkpoint_cpp sanity_checkpoint.cpp -lm
+
+      - name: Run sanity_checkpoint
+        run: ./sanity_checkpoint_cpp
+
   # ── Benchmarks ───────────────────────────────────────────────────────────
   benchmarks:
     name: Run benchmarks
@@ -214,6 +221,7 @@ jobs:
           g++ -std=c++17 -O0 --coverage -o test_master_eigen_oracle     test_master_eigen_oracle.cpp     -lm
           g++ -std=c++17 -O0 --coverage -o test_bft_stress          test_bft_stress.cpp      -lm
           g++ -std=c++17 -O0 --coverage -o test_bft_extended        test_bft_extended.cpp    -lm
+          g++ -std=c++17 -O0 --coverage -o sanity_checkpoint_cpp    sanity_checkpoint.cpp    -lm
 
       - name: Run tests to collect coverage data
         run: |
@@ -230,6 +238,7 @@ jobs:
           ./test_master_eigen_oracle
           ./test_bft_stress
           ./test_bft_extended
+          ./sanity_checkpoint_cpp
 
       - name: Generate lcov report
         run: |
