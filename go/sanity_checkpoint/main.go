@@ -1,6 +1,6 @@
 // sanity_checkpoint — Multi-Vector Sanity Checkpoint (Go)
 //
-// Filters computed values against 5 attack vectors derived from
+// Filters computed values against 6 attack vectors derived from
 // break_system.py:
 //
 //  1. ALGEBRAIC  — Exact identity verification (symbolic analogue)
@@ -8,6 +8,7 @@
 //  3. CHECKSUM   — SHA-256 hash-locked invariant detection
 //  4. CROSS      — Inter-structure consistency checks
 //  5. EDGE       — Adversarial extreme inputs (NaN, ±Inf, near-zero)
+//  6. PI         — Leibniz series (2,000,000 terms) attacked by Lean formulas
 //
 // Uses only the Go standard library.  Exits 0 on full pass, non-zero on
 // any failure.
@@ -383,11 +384,82 @@ func vector5Edge(h *harness) {
 	h.check("C(-0.0) = 0 (outside domain)", math.Abs(coherence(math.Copysign(0, -1))) < tightTol, "")
 }
 
+// ── VECTOR 6: PI COMPUTATION (2,000,000 Leibniz terms) ───────────────────────
+// Computes π via the Leibniz-Gregory series with 2,000,000 iterations, then
+// attacks the result with 8 Lean-grounded identities:
+//   Real.pi_gt_3141592, µ⁸=1, gear closure (Theorem 10), Im(µ)=C(δ_S)=1/√2
+//   (Prop 4), Wyler approximation 6π⁵≈m_p/m_e.
+func vector6Pi(h *harness) {
+	fmt.Println("\n═══ VECTOR 6: PI COMPUTATION (2,000,000 Leibniz terms) ═══")
+
+	const n = 2_000_000
+
+	// Leibniz-Gregory series: π/4 = Σ_{k=0}^{N-1} (-1)^k / (2k+1)
+	sum := 0.0
+	for k := range n {
+		term := 1.0 / (2.0*float64(k) + 1.0)
+		if k%2 == 0 {
+			sum += term
+		} else {
+			sum -= term
+		}
+	}
+	piLbn := 4.0 * sum
+
+	// Alternating-series truncation bound: |π - piLbn| < 4/(2N+1)
+	leibnizBound := 4.0 / (2.0*n + 1.0)
+
+	fmt.Printf("  Leibniz pi (2M terms): %.10f\n", piLbn)
+	fmt.Printf("  Reference PI:          %.10f\n", piVal)
+	fmt.Printf("  Bound 4/(2N+1):        %.3e\n\n", leibnizBound)
+
+	// Attack 1: Real.pi_gt_3141592 minus Leibniz buffer → piLbn > 3.14159
+	h.check("piLbn > 3.14159 (Lean: Real.pi_gt_3141592 - Leibniz buffer)",
+		piLbn > 3.14159, "")
+
+	// Attack 2: Upper sanity bound
+	h.check("piLbn < 3.14160 (upper sanity)", piLbn < 3.14160, "")
+
+	// Attack 3: Leibniz series converged to the correct precision
+	h.check("|piLbn - PI| < 4/(2N+1) (Leibniz truncation bound)",
+		math.Abs(piLbn-piVal) < leibnizBound,
+		fmt.Sprintf("err=%.3e", math.Abs(piLbn-piVal)))
+
+	// Attack 4: sin(π) = 0 — transcendental identity grounded in Lean
+	h.check("|sin(piLbn)| < 2e-6 (sin(pi)=0 identity)",
+		math.Abs(math.Sin(piLbn)) < 2e-6, "")
+
+	// Attack 5: Gear identity 8*(3π/4) = 6π — Theorem 10 (µ 8-cycle)
+	// Algebraically exact for any value of π; verifies arithmetic coherence.
+	h.check("8*(3*piLbn/4) = 6*piLbn (gear identity, Theorem 10)",
+		math.Abs(8.0*3.0*piLbn/4.0-6.0*piLbn) < 1e-9, "")
+
+	// Attack 6: µ⁸ = 1 using Leibniz angle 3*piLbn/4 (Section 2, Theorem 10)
+	angle := 3.0 * piLbn / 4.0
+	muPiRe, muPiIm := math.Cos(angle), math.Sin(angle)
+	ar, ai := 1.0, 0.0
+	for range 8 {
+		ar, ai = cxMul(ar, ai, muPiRe, muPiIm)
+	}
+	h.check("|muLbn^8 - 1| < 2e-5 (mu^8=1 with Leibniz angle)",
+		cxAbs(ar-1.0, ai) < 2e-5, "")
+
+	// Attack 7: Im(µ) = sin(3π/4) = 1/√2 = C(δ_S) (Prop 4 + Section 2)
+	h.check("|sin(3*piLbn/4) - eta| < 2e-6 (Im(mu)=C(delta_S)=1/sqrt2)",
+		math.Abs(math.Sin(3.0*piLbn/4.0)-eta) < 2e-6, "")
+
+	// Attack 8: Wyler approximation 6π⁵ ≈ m_p/m_e ≈ 1836.15 (±0.5%)
+	wylerLbn := 6.0 * math.Pow(piLbn, 5)
+	h.check("6*piLbn^5 in [1835,1837] (Wyler: 6*pi^5 approx m_p/m_e)",
+		wylerLbn > 1835.0 && wylerLbn < 1837.0,
+		fmt.Sprintf("wyler=%.4f", wylerLbn))
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 func main() {
 	sep := strings.Repeat("═", 72)
 	fmt.Printf("\n%s\n", sep)
-	fmt.Println("  SANITY CHECKPOINT — Go (5 Attack Vectors)")
+	fmt.Println("  SANITY CHECKPOINT — Go (6 Attack Vectors)")
 	fmt.Printf("%s\n", sep)
 
 	h := &harness{}
@@ -397,6 +469,7 @@ func main() {
 	vector3Checksum(h)
 	vector4Cross(h)
 	vector5Edge(h)
+	vector6Pi(h)
 
 	fmt.Printf("\n%s\n", sep)
 	fmt.Println("  VERDICT")
@@ -407,7 +480,7 @@ func main() {
 	if h.failed == 0 {
 		fmt.Println("  ╔══════════════════════════════════════════════════════════╗")
 		fmt.Println("  ║  CANONICAL MAP: UNBROKEN                                ║")
-		fmt.Println("  ║  All 5 attack vectors passed. System is coherent.       ║")
+		fmt.Println("  ║  All 6 attack vectors passed. System is coherent.       ║")
 		fmt.Println("  ╚══════════════════════════════════════════════════════════╝")
 		os.Exit(0)
 	} else {

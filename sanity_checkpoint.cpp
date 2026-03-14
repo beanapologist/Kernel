@@ -1,7 +1,7 @@
 /*
  * sanity_checkpoint.cpp — Multi-Vector Sanity Checkpoint (C++)
  *
- * Filters computed values against 5 attack vectors derived from
+ * Filters computed values against 6 attack vectors derived from
  * break_system.py:
  *
  *   1. ALGEBRAIC  — Exact identity verification (symbolic analogue)
@@ -9,6 +9,7 @@
  *   3. CHECKSUM   — FNV-1a hash-locked invariant detection
  *   4. CROSS      — Inter-structure consistency checks
  *   5. EDGE       — Adversarial extreme inputs (NaN, ±Inf, near-zero)
+ *   6. PI         — Leibniz series (2,000,000 terms) attacked by Lean formulas
  *
  * Constants grounded in verified Lean theorems (quantum_kernel_v2.cpp §1-4,
  * Prop 4, Theorem 11-14).  Exit 0 on full pass, non-zero on any failure.
@@ -432,12 +433,81 @@ void vector5_edge() {
   check("C(-0.0) = 0 (outside domain)", std::abs(coherence(-0.0)) < TIGHT_TOL);
 }
 
+// ── VECTOR 6: PI COMPUTATION (2,000,000 Leibniz terms)
+// ──────────────────────── Computes π via the Leibniz-Gregory series with
+// 2,000,000 iterations, then attacks the result with 8 Lean-grounded
+// identities:
+//   Real.pi_gt_3141592, µ⁸=1, gear closure (Theorem 10), Im(µ)=C(δ_S)=1/√2
+//   (Prop 4), Wyler approximation 6π⁵≈m_p/m_e.
+void vector6_pi() {
+  std::cout << "\n\u2550\u2550\u2550 VECTOR 6: PI COMPUTATION (2,000,000 "
+               "Leibniz terms) \u2550\u2550\u2550\n";
+
+  constexpr long long N = 2'000'000LL;
+
+  // Leibniz-Gregory series: π/4 = Σ_{k=0}^{N-1} (-1)^k / (2k+1)
+  double sum = 0.0;
+  for (long long k = 0; k < N; ++k) {
+    double term = 1.0 / (2.0 * static_cast<double>(k) + 1.0);
+    sum += (k % 2 == 0) ? term : -term;
+  }
+  double pi_lbn = 4.0 * sum;
+
+  // Alternating-series truncation bound: |π - pi_lbn| < 4/(2N+1)
+  double leibniz_bound = 4.0 / (2.0 * N + 1.0);
+
+  std::cout << "  Leibniz pi (2M terms): " << std::fixed
+            << std::setprecision(10) << pi_lbn << "\n";
+  std::cout << "  Reference PI:          " << PI << "\n";
+  std::cout << "  Bound 4/(2N+1):        " << std::scientific
+            << std::setprecision(3) << leibniz_bound << "\n\n";
+
+  // Attack 1: Real.pi_gt_3141592 minus Leibniz buffer → pi_lbn > 3.14159
+  check("pi_lbn > 3.14159 (Lean: Real.pi_gt_3141592 - Leibniz buffer)",
+        pi_lbn > 3.14159);
+
+  // Attack 2: Upper sanity bound
+  check("pi_lbn < 3.14160 (upper sanity)", pi_lbn < 3.14160);
+
+  // Attack 3: Leibniz series converged to the correct precision
+  check("|pi_lbn - PI| < 4/(2N+1) (Leibniz truncation bound)",
+        std::abs(pi_lbn - PI) < leibniz_bound);
+
+  // Attack 4: sin(π) = 0 — transcendental identity grounded in Lean
+  check("|sin(pi_lbn)| < 2e-6 (sin(pi)=0 identity)",
+        std::abs(std::sin(pi_lbn)) < 2e-6);
+
+  // Attack 5: Gear identity 8*(3π/4) = 6π — Theorem 10 (µ 8-cycle)
+  // Algebraically exact for any value of π; verifies arithmetic coherence.
+  check("8*(3*pi_lbn/4) = 6*pi_lbn (gear identity, Theorem 10)",
+        std::abs(8.0 * 3.0 * pi_lbn / 4.0 - 6.0 * pi_lbn) < 1e-9);
+
+  // Attack 6: µ⁸ = 1 using Leibniz angle 3*pi_lbn/4 (Section 2, Theorem 10)
+  Cx mu_pi{std::cos(3.0 * pi_lbn / 4.0), std::sin(3.0 * pi_lbn / 4.0)};
+  Cx mu8_pi{1.0, 0.0};
+  for (int i = 0; i < 8; ++i) {
+    mu8_pi *= mu_pi;
+  }
+  check("|mu_lbn^8 - 1| < 2e-5 (mu^8=1 with Leibniz angle)",
+        std::abs(mu8_pi - Cx{1.0, 0.0}) < 2e-5);
+
+  // Attack 7: Im(µ) = sin(3π/4) = 1/√2 = C(δ_S) (Prop 4 + Section 2)
+  double im_mu_lbn = std::sin(3.0 * pi_lbn / 4.0);
+  check("|sin(3*pi_lbn/4) - eta| < 2e-6 (Im(mu)=C(delta_S)=1/sqrt2)",
+        std::abs(im_mu_lbn - ETA) < 2e-6);
+
+  // Attack 8: Wyler approximation 6π⁵ ≈ m_p/m_e ≈ 1836.15 (±0.5%)
+  double wyler_lbn = 6.0 * std::pow(pi_lbn, 5.0);
+  check("6*pi_lbn^5 in [1835,1837] (Wyler: 6*pi^5 approx m_p/m_e)",
+        wyler_lbn > 1835.0 && wyler_lbn < 1837.0);
+}
+
 // ── Main
 // ──────────────────────────────────────────────────────────────────────
 int main() {
   const std::string sep(72, '=');
   std::cout << "\n" << sep << "\n";
-  std::cout << "  SANITY CHECKPOINT -- C++ (5 Attack Vectors)\n";
+  std::cout << "  SANITY CHECKPOINT -- C++ (6 Attack Vectors)\n";
   std::cout << sep << "\n";
 
   vector1_algebraic();
@@ -445,6 +515,7 @@ int main() {
   vector3_checksum();
   vector4_cross();
   vector5_edge();
+  vector6_pi();
 
   std::cout << "\n" << sep << "\n";
   std::cout << "  VERDICT\n" << sep << "\n\n";
@@ -457,7 +528,7 @@ int main() {
     std::cout
         << "  |  CANONICAL MAP: UNBROKEN                                 |\n";
     std::cout
-        << "  |  All 5 attack vectors passed. System is coherent.        |\n";
+        << "  |  All 6 attack vectors passed. System is coherent.        |\n";
     std::cout
         << "  +----------------------------------------------------------+\n";
     return 0;

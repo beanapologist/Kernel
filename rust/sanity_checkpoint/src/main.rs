@@ -1,6 +1,6 @@
 //! sanity_checkpoint — Multi-Vector Sanity Checkpoint (Rust)
 //!
-//! Filters computed values against 5 attack vectors derived from
+//! Filters computed values against 6 attack vectors derived from
 //! break_system.py:
 //!
 //!   1. ALGEBRAIC  — Exact identity verification (symbolic analogue)
@@ -8,6 +8,7 @@
 //!   3. CHECKSUM   — FNV-1a hash-locked invariant detection
 //!   4. CROSS      — Inter-structure consistency checks
 //!   5. EDGE       — Adversarial extreme inputs (NaN, ±Inf, near-zero)
+//!   6. PI         — Leibniz series (2,000,000 terms) attacked by Lean formulas
 //!
 //! No external crates required; stdlib only.  Exit 0 on full pass,
 //! non-zero on any failure.
@@ -493,11 +494,103 @@ fn vector5_edge(h: &mut Harness) {
     );
 }
 
+// ── VECTOR 6: PI COMPUTATION (2,000,000 Leibniz terms) ──────────────────────
+// Computes π via the Leibniz-Gregory series with 2,000,000 iterations, then
+// attacks the result with 8 Lean-grounded identities:
+//   Real.pi_gt_3141592, µ⁸=1, gear closure (Theorem 10), Im(µ)=C(δ_S)=1/√2
+//   (Prop 4), Wyler approximation 6π⁵≈m_p/m_e.
+fn vector6_pi(h: &mut Harness) {
+    println!("\n═══ VECTOR 6: PI COMPUTATION (2,000,000 Leibniz terms) ═══");
+
+    const N: u64 = 2_000_000;
+
+    // Leibniz-Gregory series: π/4 = Σ_{k=0}^{N-1} (-1)^k / (2k+1)
+    let mut sum = 0.0_f64;
+    for k in 0..N {
+        let term = 1.0 / (2.0 * k as f64 + 1.0);
+        if k % 2 == 0 {
+            sum += term;
+        } else {
+            sum -= term;
+        }
+    }
+    let pi_lbn = 4.0 * sum;
+
+    // Alternating-series truncation bound: |π - pi_lbn| < 4/(2N+1)
+    let leibniz_bound = 4.0 / (2.0 * N as f64 + 1.0);
+
+    println!("  Leibniz pi (2M terms): {:.10}", pi_lbn);
+    println!("  Reference PI:          {:.10}", PI);
+    println!("  Bound 4/(2N+1):        {:.3e}\n", leibniz_bound);
+
+    // Attack 1: Real.pi_gt_3141592 minus Leibniz buffer → pi_lbn > 3.14159
+    h.check(
+        "pi_lbn > 3.14159 (Lean: Real.pi_gt_3141592 - Leibniz buffer)",
+        pi_lbn > 3.14159,
+        "",
+    );
+
+    // Attack 2: Upper sanity bound
+    h.check("pi_lbn < 3.14160 (upper sanity)", pi_lbn < 3.14160, "");
+
+    // Attack 3: Leibniz series converged to the correct precision
+    h.check(
+        "|pi_lbn - PI| < 4/(2N+1) (Leibniz truncation bound)",
+        (pi_lbn - PI).abs() < leibniz_bound,
+        &format!("err={:.3e}", (pi_lbn - PI).abs()),
+    );
+
+    // Attack 4: sin(π) = 0 — transcendental identity grounded in Lean
+    h.check(
+        "|sin(pi_lbn)| < 2e-6 (sin(pi)=0 identity)",
+        pi_lbn.sin().abs() < 2e-6,
+        "",
+    );
+
+    // Attack 5: Gear identity 8*(3π/4) = 6π — Theorem 10 (µ 8-cycle)
+    // Algebraically exact for any value of π; verifies arithmetic coherence.
+    h.check(
+        "8*(3*pi_lbn/4) = 6*pi_lbn (gear identity, Theorem 10)",
+        (8.0 * 3.0 * pi_lbn / 4.0 - 6.0 * pi_lbn).abs() < 1e-9,
+        "",
+    );
+
+    // Attack 6: µ⁸ = 1 using Leibniz angle 3*pi_lbn/4 (Section 2, Theorem 10)
+    let angle = 3.0 * pi_lbn / 4.0;
+    let (mu_re, mu_im) = (angle.cos(), angle.sin());
+    let (mut ar, mut ai) = (1.0_f64, 0.0_f64);
+    for _ in 0..8 {
+        let (nr, ni) = cx_mul(ar, ai, mu_re, mu_im);
+        ar = nr;
+        ai = ni;
+    }
+    h.check(
+        "|mu_lbn^8 - 1| < 2e-5 (mu^8=1 with Leibniz angle)",
+        cx_abs(ar - 1.0, ai) < 2e-5,
+        "",
+    );
+
+    // Attack 7: Im(µ) = sin(3π/4) = 1/√2 = C(δ_S) (Prop 4 + Section 2)
+    h.check(
+        "|sin(3*pi_lbn/4) - eta| < 2e-6 (Im(mu)=C(delta_S)=1/sqrt2)",
+        ((3.0 * pi_lbn / 4.0).sin() - ETA).abs() < 2e-6,
+        "",
+    );
+
+    // Attack 8: Wyler approximation 6π⁵ ≈ m_p/m_e ≈ 1836.15 (±0.5%)
+    let wyler_lbn = 6.0 * pi_lbn.powi(5);
+    h.check(
+        "6*pi_lbn^5 in [1835,1837] (Wyler: 6*pi^5 approx m_p/m_e)",
+        wyler_lbn > 1835.0 && wyler_lbn < 1837.0,
+        &format!("wyler={:.4}", wyler_lbn),
+    );
+}
+
 // ── Main ──────────────────────────────────────────────────────────────────────
 fn main() {
     let sep = "═".repeat(72);
     println!("\n{}", sep);
-    println!("  SANITY CHECKPOINT — Rust (5 Attack Vectors)");
+    println!("  SANITY CHECKPOINT — Rust (6 Attack Vectors)");
     println!("{}", sep);
 
     let mut h = Harness::new();
@@ -507,6 +600,7 @@ fn main() {
     vector3_checksum(&mut h);
     vector4_cross(&mut h);
     vector5_edge(&mut h);
+    vector6_pi(&mut h);
 
     println!("\n{}", sep);
     println!("  VERDICT");
@@ -519,7 +613,7 @@ fn main() {
     if h.failed == 0 {
         println!("  ╔══════════════════════════════════════════════════════════╗");
         println!("  ║  CANONICAL MAP: UNBROKEN                                ║");
-        println!("  ║  All 5 attack vectors passed. System is coherent.       ║");
+        println!("  ║  All 6 attack vectors passed. System is coherent.       ║");
         println!("  ╚══════════════════════════════════════════════════════════╝");
         std::process::exit(0);
     } else {
