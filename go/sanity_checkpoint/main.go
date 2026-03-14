@@ -409,8 +409,8 @@ func vector6Pi(h *harness) {
 	// Alternating-series truncation bound: |π - piLbn| < 4/(2N+1)
 	leibnizBound := 4.0 / (2.0*n + 1.0)
 
-	fmt.Printf("  Leibniz pi (2M terms): %.10f\n", piLbn)
-	fmt.Printf("  Reference PI:          %.10f\n", piVal)
+	fmt.Printf("  Leibniz pi (2M terms): %.16f\n", piLbn)
+	fmt.Printf("  Reference PI:          %.16f\n", piVal)
 	fmt.Printf("  Bound 4/(2N+1):        %.3e\n\n", leibnizBound)
 
 	// Attack 1: Real.pi_gt_3141592 minus Leibniz buffer → piLbn > 3.14159

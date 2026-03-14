@@ -457,7 +457,7 @@ void vector6_pi() {
   double leibniz_bound = 4.0 / (2.0 * N + 1.0);
 
   std::cout << "  Leibniz pi (2M terms): " << std::fixed
-            << std::setprecision(10) << pi_lbn << "\n";
+            << std::setprecision(16) << pi_lbn << "\n";
   std::cout << "  Reference PI:          " << PI << "\n";
   std::cout << "  Bound 4/(2N+1):        " << std::scientific
             << std::setprecision(3) << leibniz_bound << "\n\n";

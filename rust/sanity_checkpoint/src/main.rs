@@ -519,8 +519,8 @@ fn vector6_pi(h: &mut Harness) {
     // Alternating-series truncation bound: |π - pi_lbn| < 4/(2N+1)
     let leibniz_bound = 4.0 / (2.0 * N as f64 + 1.0);
 
-    println!("  Leibniz pi (2M terms): {:.10}", pi_lbn);
-    println!("  Reference PI:          {:.10}", PI);
+    println!("  Leibniz pi (2M terms): {:.16}", pi_lbn);
+    println!("  Reference PI:          {:.16}", PI);
     println!("  Bound 4/(2N+1):        {:.3e}\n", leibniz_bound);
 
     // Attack 1: Real.pi_gt_3141592 minus Leibniz buffer → pi_lbn > 3.14159
