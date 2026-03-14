@@ -1,4 +1,4 @@
-# """
+"""
 break_system.py — The Math is the Weapon
 
 The Lean proofs are done. The math is verified. It's not under test.
@@ -12,8 +12,16 @@ The SYSTEMS are under test. The math breaks them.
     5. EDGE    — Adversarial extreme inputs
 """
 
-import sympy as sp
-import numpy as np
+try:
+    import sympy as sp
+except ImportError as e:
+    raise ImportError("sympy is required: pip install sympy") from e
+
+try:
+    import numpy as np
+except ImportError as e:
+    raise ImportError("numpy is required: pip install numpy") from e
+
 import hashlib
 import json
 import sys
@@ -118,17 +126,29 @@ print("  10M+ point sweeps, precision attacks")
 print("═" * 72, "\n")
 
 def C_np(r):
+    """Coherence function C(r) = 2r/(1+r²), clamped to [0,1] for r≤0 and r=±∞."""
     r = np.asarray(r, dtype=np.float64)
-    with np.errstate(divide='ignore', invalid='ignore'):
+    # 'over' suppresses RuntimeWarning when r**2 overflows to inf for very large r
+    with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
         out = (2*r)/(1+r**2)
-        out = np.where(r <= 0, 0, out)
+        # r≤0 is outside the physical domain; return 0
+        out = np.where(r <= 0, 0.0, out)
+        # lim_{r→±∞} 2r/(1+r²) = 0; replace nan/inf from overflow with 0
+        out = np.where(~np.isfinite(out), 0.0, out)
     return out
 
 def F_np(l):
+    """Frustration function F(λ) = 1 - sech(λ), approaching 1 for |λ|→∞.
+
+    Returns 0 for nan inputs (undefined domain).
+    """
     l = np.asarray(l, dtype=np.float64)
-    with np.errstate(over='ignore'):
+    with np.errstate(over='ignore', invalid='ignore'):
         out = 1 - 1/np.cosh(l)
+        # lim_{|λ|→∞} F(λ) = 1; replace overflow-induced inf/nan with 1
         out = np.where(np.isinf(np.cosh(l)), 1.0, out)
+        # nan input (undefined) → 0 as a safe fallback
+        out = np.where(np.isnan(l), 0.0, out)
     return out
 
 GF = 1/np.sqrt(2)
@@ -332,11 +352,14 @@ for name, val, exp in edges:
 
 print("\n─── NaN/Inf resistance ──────────────────────────────────────")
 for x in [np.nan, np.inf, -np.inf, -0.0]:
-    c = C_np(x)
-    f = F_np(x)
-    c_ok = np.isfinite(c) or c == 0
+    c = float(C_np(x))
+    f = float(F_np(x))
+    # C(nan) → 0 (undefined input clamped), C(±inf) → 0 (limit), C(-0) → 0 (domain)
+    # F(nan) → 0 (undefined input clamped), F(±inf) → 1 (limit), F(-0) → 0
+    c_ok = np.isfinite(c)
     f_ok = np.isfinite(f)
-    print(f"  C({str(x):>5s})={str(float(c)):>10s} {'✓' if c_ok else '✗'}  F({str(x):>5s})={str(float(f)):>10s} {'✓' if f_ok else '✗'}")
+    check(f"C({str(x):>5s}) = {c:>10.4f}  (finite)", c_ok, f"got {c}")
+    check(f"F({str(x):>5s}) = {f:>10.4f}  (finite)", f_ok, f"got {f}")
 
 # Massive random attack
 print("\n─── Random ratio attack (1M random floats) ──────────────────")
