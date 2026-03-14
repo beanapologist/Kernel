@@ -500,6 +500,19 @@ void vector6_pi() {
   double wyler_lbn = 6.0 * std::pow(pi_lbn, 5.0);
   check("6*pi_lbn^5 in [1835,1837] (Wyler: 6*pi^5 approx m_p/m_e)",
         wyler_lbn > 1835.0 && wyler_lbn < 1837.0);
+
+  // ── Note on 2,000,000 decimal digits ────────────────────────────────────
+  // C++ stdlib uses IEEE 754 double (64-bit), which provides at most 16-17
+  // significant decimal digits.  The full 2,000,000-decimal-digit computation
+  // (Brent-Salamin AGM via arbitrary-precision arithmetic) is performed in the
+  // companion Go implementation (go/sanity_checkpoint/main.go), which uses
+  // Go's stdlib math/big.Float with no external dependencies.
+  std::cout << "\n  [C++ max precision — double, ~15.9 significant decimal "
+               "digits]\n";
+  std::cout << "  PI (double, 16 dp): " << std::fixed << std::setprecision(16)
+            << PI << "\n";
+  std::cout
+      << "  For all 2,000,000 decimal digits see: go/sanity_checkpoint/\n";
 }
 
 // ── Main

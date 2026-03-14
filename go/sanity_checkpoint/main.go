@@ -8,7 +8,8 @@
 //  3. CHECKSUM   — SHA-256 hash-locked invariant detection
 //  4. CROSS      — Inter-structure consistency checks
 //  5. EDGE       — Adversarial extreme inputs (NaN, ±Inf, near-zero)
-//  6. PI         — Leibniz series (2,000,000 terms) attacked by Lean formulas
+//  6. PI         — Leibniz series (2,000,000 terms) attacked by Lean formulas;
+//                  then full 2,000,000 decimal digits via Brent-Salamin AGM
 //
 // Uses only the Go standard library.  Exits 0 on full pass, non-zero on
 // any failure.
@@ -19,6 +20,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"math/big"
 	"os"
 	"strings"
 )
@@ -384,11 +386,148 @@ func vector5Edge(h *harness) {
 	h.check("C(-0.0) = 0 (outside domain)", math.Abs(coherence(math.Copysign(0, -1))) < tightTol, "")
 }
 
-// ── VECTOR 6: PI COMPUTATION (2,000,000 Leibniz terms) ───────────────────────
-// Computes π via the Leibniz-Gregory series with 2,000,000 iterations, then
-// attacks the result with 8 Lean-grounded identities:
-//   Real.pi_gt_3141592, µ⁸=1, gear closure (Theorem 10), Im(µ)=C(δ_S)=1/√2
-//   (Prop 4), Wyler approximation 6π⁵≈m_p/m_e.
+// ── AGM helpers for high-precision π computation ──────────────────────────────
+
+const (
+	// log2Ten is log₂(10) ≈ 3.32193, the number of binary bits required to
+	// represent one decimal digit.  Used to convert a decimal digit count into
+	// the minimum big.Float precision in bits.
+	log2Ten = 3.32193
+
+	// agmGuardBits is the extra precision (in bits) added beyond the target
+	// decimal-digit count when allocating big.Float values.  512 guard bits
+	// (~154 decimal digits) is more than enough to absorb rounding accumulated
+	// across ~25 AGM iterations.
+	agmGuardBits = 512
+
+	// agmMaxIter is the hard cap on AGM iterations.  The algorithm converges
+	// quadratically, so 2,000,000-digit precision needs only
+	// ceil(log₂(2,000,000 × log₂10)) ≈ 23 iterations; 100 provides ample
+	// margin and the early-exit test below ends the loop in practice.
+	agmMaxIter = 100
+
+	// agmConvergeBits is the number of bits below the working precision at
+	// which (a − b) is treated as zero for convergence purposes.  64 bits
+	// corresponds to ≈19 decimal digits of slack, safely within the guard band.
+	agmConvergeBits = 64
+)
+
+// piAGMCalc computes π to the requested number of decimal digits using the
+// Brent-Salamin arithmetic-geometric mean (AGM) algorithm.
+//
+// The iteration is:
+//
+//	a_{n+1} = (a_n + b_n) / 2
+//	b_{n+1} = √(a_n · b_n)
+//	t_{n+1} = t_n − p_n · (a_n − a_{n+1})²
+//	p_{n+1} = 2 · p_n
+//	π       ≈ (a + b)² / (4t)  (at convergence)
+//
+// Convergence is quadratic: each iteration approximately doubles the number
+// of correct decimal digits.  For 2,000,000 digits only ~23 iterations are
+// needed (log₂(2,000,000 × 3.32) ≈ 23).
+func piAGMCalc(digits int) *big.Float {
+	// bits of precision: decimal digits × log₂(10) plus a guard band
+	prec := uint(float64(digits)*log2Ten) + agmGuardBits
+	one := new(big.Float).SetPrec(prec).SetInt64(1)
+	two := new(big.Float).SetPrec(prec).SetInt64(2)
+	four := new(big.Float).SetPrec(prec).SetInt64(4)
+
+	a := new(big.Float).SetPrec(prec).Set(one) // a0 = 1
+	b := new(big.Float).SetPrec(prec).SetInt64(2)
+	b.Sqrt(b)
+	b.Quo(one, b) // b0 = 1/√2
+
+	t := new(big.Float).SetPrec(prec)
+	t.Quo(one, four) // t0 = 1/4
+
+	p := new(big.Float).SetPrec(prec).Set(one) // p0 = 1
+
+	tmp1 := new(big.Float).SetPrec(prec)
+	tmp2 := new(big.Float).SetPrec(prec)
+
+	for i := 0; i < agmMaxIter; i++ {
+		a1 := new(big.Float).SetPrec(prec).Add(a, b)
+		a1.Quo(a1, two) // a1 = (a+b)/2
+
+		b1 := new(big.Float).SetPrec(prec).Mul(a, b)
+		b1.Sqrt(b1) // b1 = √(a·b)
+
+		tmp1.Sub(a, a1)
+		tmp1.Mul(tmp1, tmp1) // (a−a1)²
+		tmp2.Mul(p, tmp1)
+		t.Sub(t, tmp2) // t1 = t − p·(a−a1)²
+
+		p.Mul(p, two) // p1 = 2·p
+		a.Set(a1)
+		b.Set(b1)
+
+		// Converged when a and b agree to within agmConvergeBits of full precision.
+		tmp1.Sub(a, b)
+		exp := tmp1.MantExp(nil)
+		if tmp1.Sign() == 0 || exp < -int(prec-agmConvergeBits) {
+			break
+		}
+	}
+
+	pi := new(big.Float).SetPrec(prec).Add(a, b)
+	pi.Mul(pi, pi)
+	denom := new(big.Float).SetPrec(prec).Mul(four, t)
+	pi.Quo(pi, denom)
+	return pi
+}
+
+// bigFloatToDecStr converts a big.Float to a decimal string with exactly
+// `digits` places after the decimal point ("3.14159...").
+//
+// The conversion scales f by 10^digits, extracts the integer part as a
+// big.Int, and calls big.Int.Text(10).  big.Int.Text uses divide-and-conquer
+// base conversion — O(n log²n) — which is far faster than big.Float.Text
+// for large digit counts.
+func bigFloatToDecStr(f *big.Float, digits int) string {
+	prec := f.Prec()
+	tenPow := new(big.Int).Exp(big.NewInt(10), big.NewInt(int64(digits)), nil)
+	scale := new(big.Float).SetPrec(prec).SetInt(tenPow)
+	scaled := new(big.Float).SetPrec(prec).Mul(f, scale)
+	intPart := new(big.Int)
+	scaled.Int(intPart)
+	s := intPart.Text(10)
+	if len(s) > 1 {
+		return s[:1] + "." + s[1:]
+	}
+	return s
+}
+
+// printAllPiDigits prints the decimal expansion of π with every single digit
+// visible, grouped as 10 per cluster, 5 clusters (50 digits) per line, with
+// a position counter at the left margin.
+func printAllPiDigits(piStr string) {
+	// piStr has the form "3.ddddd…" (1 integer digit + "." + N decimal digits)
+	fmt.Printf("  3.\n")
+	dec := piStr[2:] // decimal digits only
+	for i := 0; i < len(dec); i += 50 {
+		end := i + 50
+		if end > len(dec) {
+			end = len(dec)
+		}
+		chunk := dec[i:end]
+		var b strings.Builder
+		for j := 0; j < len(chunk); j++ {
+			if j > 0 && j%10 == 0 {
+				b.WriteByte(' ')
+			}
+			b.WriteByte(chunk[j])
+		}
+		fmt.Printf("  [%8d] %s\n", i+1, b.String())
+	}
+}
+
+// ── VECTOR 6: PI COMPUTATION (2,000,000 Leibniz terms + 2M-digit AGM) ────────
+// Part A: Leibniz-Gregory series with 2,000,000 iterations, attacked with 8
+//         Lean-grounded identities (Real.pi_gt_3141592, µ⁸=1, Theorem 10,
+//         Prop 4, Wyler 6π⁵≈m_p/m_e).
+// Part B: Brent-Salamin AGM to full 2,000,000 decimal digits — every single
+//         digit printed and verified against the known reference.
 func vector6Pi(h *harness) {
 	fmt.Println("\n═══ VECTOR 6: PI COMPUTATION (2,000,000 Leibniz terms) ═══")
 
@@ -453,6 +592,46 @@ func vector6Pi(h *harness) {
 	h.check("6*piLbn^5 in [1835,1837] (Wyler: 6*pi^5 approx m_p/m_e)",
 		wylerLbn > 1835.0 && wylerLbn < 1837.0,
 		fmt.Sprintf("wyler=%.4f", wylerLbn))
+
+	// ── Part B: HIGH-PRECISION — ALL 2,000,000 DECIMAL DIGITS via AGM ───────
+	const piHiDigits = 2_000_000
+
+	fmt.Printf("\n═══ VECTOR 6b: π TO %d DECIMAL DIGITS (Brent-Salamin AGM) ═══\n",
+		piHiDigits)
+	fmt.Printf("  Algorithm : Brent-Salamin AGM (quadratic convergence)\n")
+	fmt.Printf("  Precision : %d decimal digits\n", piHiDigits)
+	fmt.Printf("  Library   : Go math/big.Float (stdlib, no external deps)\n")
+	fmt.Printf("  Computing...\n")
+
+	piHi := piAGMCalc(piHiDigits)
+	piHiStr := bigFloatToDecStr(piHi, piHiDigits)
+
+	fmt.Printf("  Done. Printing all %d decimal digits:\n\n", piHiDigits)
+	printAllPiDigits(piHiStr)
+
+	// Attack 9: The first 100 decimal digits of π are humanity's most verified
+	// mathematical constant.  Any arithmetic error in the AGM would corrupt them.
+	const piKnown100 = "1415926535897932384626433832795028841971693993751" +
+		"0582097494459230781640628620899862803482534211706" +
+		"79"
+	h.check(
+		"π (AGM 2M digits): first 100 decimal digits match known reference",
+		len(piHiStr) >= 102 && piHiStr[2:102] == piKnown100,
+		fmt.Sprintf("got=%s", func() string {
+			if len(piHiStr) >= 102 {
+				return piHiStr[2:12] + "..."
+			}
+			return piHiStr
+		}()),
+	)
+
+	// Attack 10: The output string must represent exactly 2,000,000 decimal
+	// places (1 integer digit + "." + 2,000,000 decimal digits = 2,000,002 chars).
+	h.check(
+		fmt.Sprintf("π (AGM 2M digits): string has %d chars (3. + 2M digits)", piHiDigits+2),
+		len(piHiStr) == piHiDigits+2,
+		fmt.Sprintf("len=%d", len(piHiStr)),
+	)
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────

@@ -584,6 +584,16 @@ fn vector6_pi(h: &mut Harness) {
         wyler_lbn > 1835.0 && wyler_lbn < 1837.0,
         &format!("wyler={:.4}", wyler_lbn),
     );
+
+    // ── Note on 2,000,000 decimal digits ────────────────────────────────────
+    // Rust stdlib uses IEEE 754 f64 (64-bit), which provides at most ~15.9
+    // significant decimal digits.  The full 2,000,000-decimal-digit computation
+    // (Brent-Salamin AGM via arbitrary-precision arithmetic) is performed in the
+    // companion Go implementation (go/sanity_checkpoint/main.go), which uses
+    // Go's stdlib math/big.Float with no external dependencies.
+    println!("\n  [Rust max precision — f64, ~15.9 significant decimal digits]");
+    println!("  PI (f64, 16 dp): {:.16}", PI);
+    println!("  For all 2,000,000 decimal digits see: go/sanity_checkpoint/");
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
