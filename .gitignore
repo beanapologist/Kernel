@@ -101,3 +101,13 @@ empirical-validation/reports/*.md
 __pycache__/
 .pytest_cache/
 *.pyc
+
+# Rust build artifacts
+rust/sanity_checkpoint/target/
+
+# Go build artifacts
+go/sanity_checkpoint/sanity_checkpoint
+
+# C++ sanity checkpoint binary
+sanity_checkpoint_cpp
+

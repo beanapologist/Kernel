@@ -1,0 +1,9 @@
+[package]
+name = "sanity_checkpoint"
+version = "0.1.0"
+edition = "2021"
+description = "Multi-vector sanity checkpoint for the Quantum Kernel"
+
+[[bin]]
+name = "sanity_checkpoint"
+path = "src/main.rs"

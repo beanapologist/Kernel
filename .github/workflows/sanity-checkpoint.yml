@@ -1,0 +1,74 @@
+name: Sanity Checkpoint — C++, Rust, Go
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sanity_checkpoint.cpp'
+      - 'rust/sanity_checkpoint/**'
+      - 'go/sanity_checkpoint/**'
+      - '.github/workflows/sanity-checkpoint.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'sanity_checkpoint.cpp'
+      - 'rust/sanity_checkpoint/**'
+      - 'go/sanity_checkpoint/**'
+      - '.github/workflows/sanity-checkpoint.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  # ── C++ ───────────────────────────────────────────────────────────────────
+  cpp:
+    name: C++ sanity checkpoint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build
+        run: g++ -std=c++17 -Wall -Wextra -O2 -o sanity_checkpoint_cpp sanity_checkpoint.cpp -lm
+
+      - name: Run
+        run: ./sanity_checkpoint_cpp
+
+  # ── Rust ──────────────────────────────────────────────────────────────────
+  rust:
+    name: Rust sanity checkpoint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Build
+        working-directory: rust/sanity_checkpoint
+        run: cargo build --release
+
+      - name: Run
+        working-directory: rust/sanity_checkpoint
+        run: cargo run --release
+
+  # ── Go ────────────────────────────────────────────────────────────────────
+  go:
+    name: Go sanity checkpoint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Build
+        working-directory: go/sanity_checkpoint
+        run: go build ./...
+
+      - name: Run
+        working-directory: go/sanity_checkpoint
+        run: go run .
