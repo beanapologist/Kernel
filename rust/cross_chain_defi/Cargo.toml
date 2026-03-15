@@ -1,0 +1,9 @@
+[package]
+name = "cross_chain_defi"
+version = "0.1.0"
+edition = "2021"
+description = "Polkadot-native implementation of cross-chain DeFi aggregation formulas, derived from the Lean 4 machine-checked proofs in CrossChainDeFiAggregator.lean"
+
+[lib]
+name = "cross_chain_defi"
+path = "src/lib.rs"
