@@ -128,7 +128,7 @@ theorem tokens_received_pos (S T Δ : ℝ) (hS : 0 < S) (hT : 0 < T) (hΔ : 0 < 
     the price the next buyer faces is always strictly higher. -/
 theorem buy_increases_price (S T Δ : ℝ) (hS : 0 < S) (hT : 0 < T) (hΔ : 0 < Δ) :
     S / T < (S + Δ) ^ 2 / (S * T) := by
-  rw [div_lt_div_iff hT (mul_pos hS hT)]
+  rw [div_lt_div_iff₀ hT (mul_pos hS hT)]
   nlinarith [sq_nonneg Δ, mul_pos hS hΔ]
 
 /-- The effective per-token price paid, Δ / (T·Δ/(S+Δ)) = (S+Δ)/T,
@@ -142,7 +142,7 @@ theorem effective_price_exceeds_spot (S T Δ : ℝ) (hS : 0 < S) (hT : 0 < T) (h
   have heff : Δ / (T * Δ / (S + Δ)) = (S + Δ) / T := by
     field_simp [hT.ne', hΔ.ne', hS'.ne']
     ring
-  rw [heff, div_lt_div_right hT]
+  rw [heff, div_lt_div_iff_of_pos_right hT]
   linarith
 
 /-- The tokens-per-SOL rate T/(S+Δ) is strictly decreasing in Δ:
@@ -153,7 +153,7 @@ theorem effective_price_exceeds_spot (S T Δ : ℝ) (hS : 0 < S) (hT : 0 < T) (h
 theorem tokens_per_sol_decreasing (S T Δ₁ Δ₂ : ℝ) (hS : 0 < S) (hT : 0 < T)
     (h1 : 0 < Δ₁) (h12 : Δ₁ < Δ₂) :
     T / (S + Δ₂) < T / (S + Δ₁) := by
-  rw [div_lt_div_iff (by linarith : 0 < S + Δ₂) (by linarith : 0 < S + Δ₁)]
+  rw [div_lt_div_iff₀ (by linarith : 0 < S + Δ₂) (by linarith : 0 < S + Δ₁)]
   nlinarith
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -185,10 +185,10 @@ theorem profitable_iff (cost tokens exit_price : ℝ) (htokens : 0 < tokens) :
     cost < tokens * exit_price ↔ cost / tokens < exit_price := by
   constructor
   · intro h
-    rw [div_lt_iff htokens]
+    rw [div_lt_iff₀ htokens]
     rwa [mul_comm tokens exit_price] at h
   · intro h
-    rw [div_lt_iff htokens] at h
+    rw [div_lt_iff₀ htokens] at h
     rwa [mul_comm exit_price tokens] at h
 
 /-- Exit proceeds are strictly positive when token count and price are positive. -/
@@ -203,7 +203,7 @@ theorem exit_value_pos (tokens exit_price : ℝ)
     This is the core soundness property of the bot: it opens positions only when
     it forecasts p_exit > p_entry, and a correct forecast guarantees profit. -/
 theorem net_profit_positive (tokens p_entry p_exit : ℝ)
-    (htokens : 0 < tokens) (hentry : 0 < p_entry) (hprice : p_entry < p_exit) :
+    (htokens : 0 < tokens) (_hentry : 0 < p_entry) (hprice : p_entry < p_exit) :
     0 < tokens * p_exit - tokens * p_entry := by
   have h := mul_lt_mul_of_pos_left hprice htokens
   linarith
@@ -230,13 +230,13 @@ theorem kelly_pos_iff (p b : ℝ) (hb : 0 < b) :
   have h1b : (0 : ℝ) < 1 + b := by linarith
   constructor
   · intro h
-    rw [div_lt_iff h1b]
+    rw [div_lt_iff₀ h1b]
     have hmul := mul_pos h hb
     have hcan : (b * p - (1 - p)) / b * b = b * p - (1 - p) := by
       field_simp [hb.ne']
     linarith [hcan ▸ hmul]
   · intro h
-    rw [div_lt_iff h1b] at h
+    rw [div_lt_iff₀ h1b] at h
     exact div_pos (by linarith) hb
 
 /-- The Kelly fraction is at most 1: the optimal strategy never risks the
@@ -254,7 +254,6 @@ theorem kelly_threshold_zero (b : ℝ) (hb : 0 < b) :
   unfold kelly_fraction
   have h1b : (1 : ℝ) + b ≠ 0 := ne_of_gt (by linarith)
   field_simp [h1b, hb.ne']
-  ring
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 5 — Strategy Soundness
