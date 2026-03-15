@@ -133,15 +133,14 @@ theorem amm_price_increases_after_buy (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (
     amm_price x y < amm_price (x + dx) (y - amm_out x y dx) := by
   have hxdx : 0 < x + dx := by linarith
   have hxdxne : (x + dx) ≠ 0 := hxdx.ne'
-  have hxne : x ≠ 0 := hx.ne'
-  have hyne : y ≠ 0 := hy.ne'
-  -- Simplify the new price to (x + dx)² / (x · y)
-  have new_price : amm_price (x + dx) (y - amm_out x y dx) = (x + dx) ^ 2 / (x * y) := by
-    simp only [amm_price, amm_out]
-    field_simp [hxne, hyne, hxdxne]
-    ring
-  rw [new_price, amm_price, div_lt_div_iff₀ hy (mul_pos hx hy)]
-  nlinarith [mul_pos hx hdx, sq_nonneg dx]
+  -- The y-reserve after a swap equals x*y/(x+dx)
+  have hreserve : y - amm_out x y dx = x * y / (x + dx) := by
+    simp only [amm_out]; field_simp [hxdxne]; ring
+  simp only [amm_price, hreserve]
+  rw [div_lt_div_iff₀ hy (div_pos (mul_pos hx hy) hxdx)]
+  have key : x * (x * y / (x + dx)) = x ^ 2 * y / (x + dx) := by ring
+  rw [key, div_lt_iff₀ hxdx]
+  nlinarith [mul_pos hx hdx, mul_pos hy hdx, mul_pos hx hy, sq_nonneg dx]
 
 /-- **Effective price exceeds spot**: the execution price dx / dy is always
     strictly greater than the pre-trade spot price x / y.
