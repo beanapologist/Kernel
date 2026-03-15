@@ -22,6 +22,7 @@ import SilverCoherence
 import KernelAxle
 import ForwardClassicalTime
 import SpeedOfLight
+import CrossChainDeFiAggregator
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -774,6 +775,58 @@ def printSpeedOfLight : IO Unit := do
   IO.println "See SpeedOfLight.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
+def printCrossChainDeFi : IO Unit := do
+  IO.println "═══════════════════════════════════════════════════════════════════════"
+  IO.println " Cross-Chain DeFi Aggregator — Polkadot parachain / EVM multi-chain"
+  IO.println "═══════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "§1    AMM constant-product invariant and output formula"
+  IO.println ""
+  IO.println "  [1]  amm_invariant_pos        : x > 0 → y > 0 → x·y > 0"
+  IO.println "  [2]  amm_out_pos              : positive reserves + positive Δ → output > 0"
+  IO.println "  [3]  amm_out_zero_input       : amm_out x y 0 = 0  (no input → no output)"
+  IO.println ""
+  IO.println "§2    Cross-chain swap price and invariant preservation"
+  IO.println ""
+  IO.println "  [4]  amm_price_pos            : spot price > 0 for positive reserves"
+  IO.println "  [5]  amm_invariant_preserved  : (x+Δ)·(y−out) = x·y  (constant-product)"
+  IO.println "  [6]  amm_out_bounded          : out < y  (pool cannot be fully drained)"
+  IO.println ""
+  IO.println "§3    Slippage and price-impact bounds"
+  IO.println ""
+  IO.println "  [7]  amm_slippage_positive    : out < y·Δ/x  (slippage always positive)"
+  IO.println "  [8]  amm_price_impact_lt_one  : out/y < 1  (price impact < 100%)"
+  IO.println "  [9]  amm_out_monotone         : Δ₁ < Δ₂ → out(Δ₁) < out(Δ₂)"
+  IO.println ""
+  IO.println "§4    Lending / borrowing simple-interest model"
+  IO.println ""
+  IO.println "  [10] lending_interest_nonneg  : P,r,t ≥ 0 → I ≥ 0"
+  IO.println "  [11] lending_interest_pos     : P,r,t > 0 → I > 0  (positive yield)"
+  IO.println "  [12] lending_amount_exceeds_principal : P < P + I  (lender is repaid)"
+  IO.println "  [13] lending_rate_monotone    : r₁ < r₂ → I(r₁) < I(r₂)  (rate order)"
+  IO.println ""
+  IO.println "§5    Cross-chain rate aggregation (best-rate selection)"
+  IO.println ""
+  IO.println "  [14] best_rate_ge_left        : r₁ ≤ best_rate r₁ r₂  (dominates chain 1)"
+  IO.println "  [15] best_rate_ge_right       : r₂ ≤ best_rate r₁ r₂  (dominates chain 2)"
+  IO.println "  [16] best_rate_symm           : best_rate r₁ r₂ = best_rate r₂ r₁"
+  IO.println "  [17] best_rate_optimal        : r₁,r₂ ≤ r → best_rate r₁ r₂ ≤ r"
+  IO.println "  [18] best_rate_idempotent     : best_rate r r = r  (idempotence)"
+  IO.println ""
+  IO.println "§6    LP value and monotone-output properties"
+  IO.println ""
+  IO.println "  [19] lp_value_pos             : x,y > 0 → √(x·y) > 0  (pool has depth)"
+  IO.println "  [20] lp_value_monotone        : x<x', y<y' → lp_value x y < lp_value x' y'"
+  IO.println ""
+  IO.println "20 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key result: the constant-product AMM invariant (x+Δ)·(y−out) = x·y is"
+  IO.println "  machine-verified, and the best-rate aggregator is proven optimal across chains."
+  IO.println ""
+  IO.println "See CrossChainDeFiAggregator.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -786,3 +839,4 @@ def main : IO Unit := do
   printKernelAxle
   printForwardClassicalTime
   printSpeedOfLight
+  printCrossChainDeFi
