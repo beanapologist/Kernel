@@ -67,7 +67,7 @@ def amm_out (x y dx : ℝ) : ℝ := y * dx / (x + dx)
 
 /-- **Invariant preservation**: a swap with input dx and output dy = amm_out x y dx
     preserves k exactly — the constant product is maintained after every trade. -/
-theorem amm_invariant_preserved (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (hdx : 0 < dx) :
+theorem amm_invariant_preserved (x y dx : ℝ) (hx : 0 < x) (_hy : 0 < y) (hdx : 0 < dx) :
     amm_k (x + dx) (y - amm_out x y dx) = amm_k x y := by
   simp only [amm_k, amm_out]
   have hxdx : (x + dx) ≠ 0 := by positivity
@@ -89,7 +89,7 @@ theorem amm_out_pos (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (hdx : 0 < dx) :
 theorem amm_out_lt_reserve (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (hdx : 0 < dx) :
     amm_out x y dx < y := by
   simp only [amm_out]
-  rw [div_lt_iff (by linarith : 0 < x + dx)]
+  rw [div_lt_iff₀ (by linarith : 0 < x + dx)]
   nlinarith
 
 /-- **Reserve safety**: the y-reserve remains strictly positive after every swap.
@@ -100,7 +100,7 @@ theorem amm_reserve_y_pos (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (hdx : 0 < dx
 
 /-- **No free lunch**: zero input produces zero output — the AMM never gives
     tokens away for free. -/
-theorem amm_no_free_lunch (x y : ℝ) (hx : 0 < x) (hy : 0 < y) :
+theorem amm_no_free_lunch (x y : ℝ) (_hx : 0 < x) (_hy : 0 < y) :
     amm_out x y 0 = 0 := by
   simp [amm_out]
 
@@ -113,7 +113,6 @@ theorem amm_fee_free_round_trip (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (hdx : 
   have hxdx : (x + dx) ≠ 0 := by positivity
   have hyne : y ≠ 0 := hy.ne'
   field_simp
-  ring
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- §3  Spot price, effective price, and price impact
@@ -139,9 +138,9 @@ theorem amm_price_increases_after_buy (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (
   -- Simplify the new price to (x + dx)² / (x · y)
   have new_price : amm_price (x + dx) (y - amm_out x y dx) = (x + dx) ^ 2 / (x * y) := by
     simp only [amm_price, amm_out]
-    field_simp
+    field_simp [hxne, hyne, hxdxne]
     ring
-  rw [new_price, amm_price, div_lt_div_iff hy (mul_pos hx hy)]
+  rw [new_price, amm_price, div_lt_div_iff₀ hy (mul_pos hx hy)]
   nlinarith [mul_pos hx hdx, sq_nonneg dx]
 
 /-- **Effective price exceeds spot**: the execution price dx / dy is always
@@ -156,7 +155,7 @@ theorem amm_effective_price_gt_spot (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (hd
     field_simp
     ring
   rw [h]
-  exact (div_lt_div_right hy).mpr (by linarith)
+  exact (div_lt_div_iff_of_pos_right hy).mpr (by linarith)
 
 /-- **Relative price impact formula**: the relative price impact of a trade of
     size dx in a pool with x-reserve x equals dx / x.
@@ -171,14 +170,13 @@ theorem amm_price_impact_formula (x y dx : ℝ) (hx : 0 < x) (hy : 0 < y) (hdx :
   have h : dx / (y * dx / (x + dx)) = (x + dx) / y := by field_simp; ring
   rw [h]
   field_simp
-  ring
 
 /-- **Depth reduces impact**: for the same trade size dx, a deeper pool
     (larger x-reserve) produces strictly smaller relative price impact dx/x. -/
 theorem amm_deeper_pool_less_impact (x₁ x₂ dx : ℝ)
     (hx₁ : 0 < x₁) (hx₂ : 0 < x₂) (h : x₁ < x₂) (hdx : 0 < dx) :
     dx / x₂ < dx / x₁ := by
-  rw [div_lt_div_iff hx₂ hx₁]
+  rw [div_lt_div_iff₀ hx₂ hx₁]
   exact mul_lt_mul_of_pos_left h hdx
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -191,7 +189,7 @@ def amm_lp_value_x (x y : ℝ) : ℝ := x + y * amm_price x y
 
 /-- **LP value formula**: the total x-denominated value of an LP position is
     2 · x — the position is worth exactly twice the x-reserve held in the pool. -/
-theorem amm_lp_value_formula (x y : ℝ) (hx : 0 < x) (hy : 0 < y) :
+theorem amm_lp_value_formula (x y : ℝ) (_hx : 0 < x) (hy : 0 < y) :
     amm_lp_value_x x y = 2 * x := by
   simp only [amm_lp_value_x, amm_price]
   field_simp
@@ -200,7 +198,7 @@ theorem amm_lp_value_formula (x y : ℝ) (hx : 0 < x) (hy : 0 < y) :
 /-- **Balanced addition preserves price**: adding liquidity in proportion
     Δx/x = Δy/y = r > 0 does not move the spot price — price is unchanged. -/
 theorem amm_balanced_add_preserves_price (x y r : ℝ)
-    (hx : 0 < x) (hy : 0 < y) (hr : 0 < r) :
+    (_hx : 0 < x) (hy : 0 < y) (hr : 0 < r) :
     amm_price (x * (1 + r)) (y * (1 + r)) = amm_price x y := by
   simp only [amm_price]
   have hr1 : (1 + r) ≠ 0 := by positivity
@@ -249,14 +247,14 @@ theorem kelly_fraction_le_one (p b : ℝ) (hb : 0 < b) (hp : p ≤ 1) :
 /-- **Capital safety**: with Kelly fraction f ≤ 1 and positive capital C,
     the remaining capital C − f · C after a loss is non-negative. -/
 theorem kelly_capital_non_negative (f C : ℝ)
-    (hf0 : 0 ≤ f) (hf1 : f ≤ 1) (hC : 0 < C) :
+    (_hf0 : 0 ≤ f) (hf1 : f ≤ 1) (hC : 0 < C) :
     0 ≤ C - f * C := by nlinarith
 
 /-- **Slippage bound**: any trade with dx ≤ s · x satisfies price impact dx/x ≤ s,
     giving the bot a formal guarantee on worst-case slippage. -/
 theorem slippage_bound (x dx s : ℝ)
-    (hx : 0 < x) (hdx : 0 < dx) (hs : 0 < s) (h : dx ≤ s * x) :
+    (hx : 0 < x) (_hdx : 0 < dx) (_hs : 0 < s) (h : dx ≤ s * x) :
     dx / x ≤ s := by
-  rwa [div_le_iff hx]
+  rwa [div_le_iff₀ hx]
 
 end
