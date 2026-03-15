@@ -22,6 +22,7 @@ import SilverCoherence
 import KernelAxle
 import ForwardClassicalTime
 import SpeedOfLight
+import EthereumTradingBot
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -774,6 +775,58 @@ def printSpeedOfLight : IO Unit := do
   IO.println "See SpeedOfLight.lean for full proof terms."
   IO.println ""
 
+def printEthereumTradingBot : IO Unit := do
+  IO.println "==================================================="
+  IO.println "§ETH  Ethereum AMM Trading Bot"
+  IO.println "==================================================="
+  IO.println ""
+  IO.println "  Formally verified invariants for a Uniswap v2 constant-product"
+  IO.println "  AMM trading bot on Ethereum (x · y = k core formula)."
+  IO.println ""
+  IO.println "§1    Constant-product AMM invariant"
+  IO.println ""
+  IO.println "  [1]  amm_k_pos               : x>0 ∧ y>0 → k = x·y > 0"
+  IO.println "  [2]  amm_k_symm              : k(x,y) = k(y,x)  (pool is token-symmetric)"
+  IO.println "  [3]  amm_invariant_preserved : (x+dx)·(y−dy) = x·y  for dy=y·dx/(x+dx)"
+  IO.println ""
+  IO.println "§2    Output safety and reserve bounds"
+  IO.println ""
+  IO.println "  [4]  amm_out_pos             : dx>0 → dy > 0"
+  IO.println "  [5]  amm_out_lt_reserve      : dy < y  (pool can never be drained)"
+  IO.println "  [6]  amm_reserve_y_pos       : y − dy > 0  (reserve stays positive)"
+  IO.println "  [7]  amm_no_free_lunch       : amm_out x y 0 = 0  (no free tokens)"
+  IO.println "  [8]  amm_fee_free_round_trip : sell(buy(dx)) = dx  (fee-free reversibility)"
+  IO.println ""
+  IO.println "§3    Spot price, effective price, and price impact"
+  IO.println ""
+  IO.println "  [9]  amm_price_pos                : price = x/y > 0"
+  IO.println "  [10] amm_price_increases_after_buy: price rises after every buy"
+  IO.println "  [11] amm_effective_price_gt_spot  : execution price dx/dy > spot x/y"
+  IO.println "  [12] amm_price_impact_formula     : relative impact = dx/x"
+  IO.println "  [13] amm_deeper_pool_less_impact  : larger x → smaller impact dx/x"
+  IO.println ""
+  IO.println "§4    Liquidity arithmetic"
+  IO.println ""
+  IO.println "  [14] amm_lp_value_formula           : LP value in x-tokens = 2·x"
+  IO.println "  [15] amm_balanced_add_preserves_price: balanced add keeps price unchanged"
+  IO.println "  [16] amm_k_increases_with_liquidity : balanced add grows k by (1+r)²"
+  IO.println ""
+  IO.println "§5    Trading strategy bounds"
+  IO.println ""
+  IO.println "  [17] kelly_fraction_pos_iff     : f*>0 ↔ expected value positive"
+  IO.println "  [18] kelly_fraction_le_one      : p≤1 → f* ≤ 1  (never over-bet)"
+  IO.println "  [19] kelly_capital_non_negative : C − f·C ≥ 0  (loss bounded by capital)"
+  IO.println "  [20] slippage_bound             : dx≤s·x → impact dx/x ≤ s"
+  IO.println ""
+  IO.println "20 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key result: the Uniswap v2 constant-product invariant x·y=k is"
+  IO.println "  algebraically preserved through every swap, reserves never go negative,"
+  IO.println "  and every trade incurs a provably positive price impact of dx/x."
+  IO.println ""
+  IO.println "See EthereumTradingBot.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -786,3 +839,4 @@ def main : IO Unit := do
   printKernelAxle
   printForwardClassicalTime
   printSpeedOfLight
+  printEthereumTradingBot
