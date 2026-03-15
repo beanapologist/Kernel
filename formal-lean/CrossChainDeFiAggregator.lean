@@ -96,7 +96,7 @@ theorem amm_out_pos (x y Δ : ℝ) (hx : 0 < x) (hy : 0 < y) (hΔ : 0 < Δ) :
   exact div_pos (mul_pos hy hΔ) (by linarith)
 
 /-- Zero input yields zero output: swapping nothing returns nothing. -/
-theorem amm_out_zero_input (x y : ℝ) (hx : 0 < x) :
+theorem amm_out_zero_input (x y : ℝ) (_hx : 0 < x) :
     amm_out x y 0 = 0 := by
   unfold amm_out
   simp
@@ -113,7 +113,7 @@ theorem amm_price_pos (x y : ℝ) (hx : 0 < x) (hy : 0 < y) :
 /-- The constant-product invariant is preserved after a swap: after token X
     increases from x to (x + Δ) while token Y decreases by amm_out, the
     product (x + Δ) · (y − amm_out x y Δ) equals the original x · y. -/
-theorem amm_invariant_preserved (x y Δ : ℝ) (hx : 0 < x) (hy : 0 < y)
+theorem amm_invariant_preserved (x y Δ : ℝ) (hx : 0 < x) (_hy : 0 < y)
     (hΔ : 0 < Δ) :
     (x + Δ) * (y - amm_out x y Δ) = x * y := by
   unfold amm_out
@@ -127,7 +127,7 @@ theorem amm_invariant_preserved (x y Δ : ℝ) (hx : 0 < x) (hy : 0 < y)
 theorem amm_out_bounded (x y Δ : ℝ) (hx : 0 < x) (hy : 0 < y) (hΔ : 0 < Δ) :
     amm_out x y Δ < y := by
   unfold amm_out
-  rw [div_lt_iff (by linarith : (0 : ℝ) < x + Δ)]
+  rw [div_lt_iff₀ (by linarith : (0 : ℝ) < x + Δ)]
   nlinarith
 
 -- ════════════════════════════════════════════════════════════════════════════
@@ -142,7 +142,7 @@ theorem amm_slippage_positive (x y Δ : ℝ) (hx : 0 < x) (hy : 0 < y)
     amm_out x y Δ < y * Δ / x := by
   unfold amm_out
   rw [div_lt_div_iff₀ (by linarith : (0 : ℝ) < x + Δ) hx]
-  nlinarith
+  nlinarith [mul_pos (mul_pos hy hΔ) hΔ]
 
 /-- Price impact is strictly less than 1: the pool always retains a positive
     fraction of its Y reserve after any finite trade. -/
@@ -162,7 +162,7 @@ theorem amm_out_monotone (x y Δ₁ Δ₂ : ℝ) (hx : 0 < x) (hy : 0 < y)
   have hd₁ : (0 : ℝ) < x + Δ₁ := by linarith
   have hd₂ : (0 : ℝ) < x + Δ₂ := by linarith
   rw [div_lt_div_iff₀ hd₁ hd₂]
-  nlinarith
+  nlinarith [mul_pos hy hx]
 
 -- ════════════════════════════════════════════════════════════════════════════
 -- Section 4 — Lending / Borrowing Simple-Interest Model
