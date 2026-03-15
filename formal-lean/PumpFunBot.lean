@@ -43,6 +43,9 @@
   • Reserve values are modelled as positive reals; on-chain they are 64-bit
     unsigned integers with fixed-point scaling.
 -/
+-- This import provides all required Mathlib transitive dependencies
+-- (Real analysis, field arithmetic, log/exp, positivity) via the existing
+-- import chain.  PumpFunBot uses no definitions from SpeedOfLight itself.
 import SpeedOfLight
 
 open Real
@@ -162,7 +165,10 @@ theorem tokens_per_sol_decreasing (S T Δ₁ Δ₂ : ℝ) (hS : 0 < S) (hT : 0 <
 /-- The pump.fun graduation SOL threshold (≈ 85 SOL on Solana mainnet).
 
     When the real SOL raised crosses this threshold the bonding curve is
-    closed, the token is seeded to Raydium, and the bot can exit. -/
+    closed, the token is seeded to Raydium, and the bot can exit.
+
+    Note: this is the current protocol constant.  For a parameterised
+    treatment, replace `85` with a variable `G` and add `(hG : 0 < G)`. -/
 noncomputable def graduation_threshold : ℝ := 85
 
 /-- The graduation threshold is strictly positive. -/
