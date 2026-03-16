@@ -65,6 +65,14 @@
       ratio and canonical amplitude — the deepest structural link in the
       Kernel framework.
 
+  12. Temporal frustration attack   — Can the simulation be "broken" by
+      maximally frustrating time?  We formally prove: No, for finite l.
+      The frustration F_fwd(l) < 1 always, so the coherence floor
+      C(exp l) > 0 is never reached.  But the orbit amplification attack
+      (scale r > 1, n steps) does drive C(r^n) ≤ 2/r^n → 0.  Verdict:
+      the simulation is frustration-resistant from within but asymptotically
+      breakable by unlimited orbit amplification.
+
   Definitions
   ───────────
   • bekenstein_bound R E  — abstract information capacity 2π·R·E
@@ -72,7 +80,7 @@
 
   Proof status
   ────────────
-  All 34 theorems have complete machine-checked proofs.
+  All 42 theorems have complete machine-checked proofs.
   No `sorry` placeholders remain.
 -/
 
@@ -558,5 +566,108 @@ theorem sim_silver_is_half_power : C δS = η :=
     simulation fidelity has decayed exactly to the canonical amplitude. -/
 theorem sim_sech_log_silver : (Real.cosh (Real.log δS))⁻¹ = η :=
   sech_at_log_silverRatio
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 12 — Temporal Frustration Attack
+-- Question: if the universe is a computational substrate, can it be "broken"
+-- by maximally frustrating time?
+-- Answer: No, from within (finite l always gives F_fwd(l) < 1), but the
+-- orbit amplification attack does drive coherence toward 0 as r^n → ∞.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Frustration-fidelity complementarity: F_fwd(l) + C(exp l) = 1.
+
+    Temporal frustration and simulation fidelity are exact complements
+    that always sum to 1.  Every bit of frustration injected into the
+    simulation debits exactly one bit of fidelity.  This is the "zero-sum"
+    structure: the simulation's total coherence account is conserved — what
+    frustration takes away from coherence it adds to incoherence. -/
+theorem sim_frustration_fidelity_complement (l : ℝ) :
+    F_fwd l + C (Real.exp l) = 1 := by
+  rw [fct_frustration_eq]; ring
+
+/-- Frustration ceiling: F_fwd(l) < 1 for all l.
+
+    No finite temporal displacement can drive the frustration to its supremum
+    of 1.  Equivalently, the simulation's coherence floor 1 − F_fwd(l) = C(exp l)
+    is always strictly positive.  The computational substrate cannot be fully
+    decohered by any single finite temporal frustration event. -/
+theorem sim_frustration_bounded : ∀ l : ℝ, F_fwd l < 1 :=
+  fct_frustration_lt_one
+
+/-- Coherence floor: C(exp l) > 0 for all l.
+
+    The simulation always retains strictly positive fidelity regardless of the
+    temporal displacement l.  No finite frustration attack can drive C to zero.
+    This is the simulation's immunity theorem: it is frustration-resistant at
+    every finite Lyapunov scale l. -/
+theorem sim_coherence_floor : ∀ l : ℝ, 0 < C (Real.exp l) := fun l => by
+  rw [lyapunov_coherence_sech]; exact fct_sech_pos l
+
+/-- Frustration is time-symmetric: F_fwd(−l) = F_fwd(l).
+
+    Temporal frustration has the same magnitude in the forward and backward
+    directions.  The simulation cannot be asymmetrically attacked through
+    directed temporal frustration alone: applying frustration backwards is
+    identical to applying it forwards.  Follows from cosh(−l) = cosh(l). -/
+theorem sim_frustration_time_symmetric (l : ℝ) : F_fwd (-l) = F_fwd l :=
+  (fct_even l).symm
+
+/-- Positive temporal frustration creates a detectable palindrome crack:
+    l > 0 → Res(exp l) > 0.
+
+    Under positive temporal displacement l > 0, the palindrome residual
+    Res(exp l) = 2·sinh(l)/δS becomes strictly positive.  This is a
+    measurable asymmetry: the simulation's palindrome (time-reversal) symmetry
+    is broken.  The residual serves as a "crack detector" — any positive
+    temporal frustration can in principle be detected as palindrome distortion
+    in the simulation's output signal. -/
+theorem sim_frustration_breaks_palindrome (l : ℝ) (hl : 0 < l) :
+    0 < Res (Real.exp l) :=
+  palindrome_residual_pos _ (by
+    have h := Real.exp_strictMono hl
+    rwa [Real.exp_zero] at h)
+
+/-- Orbit decoherence cascade: C(r^n) ≤ 2/r^n for r > 1.
+
+    The orbit amplification attack: running the simulation at orbital scale
+    r > 1 for n steps bounds the fidelity above by 2/r^n.  This approaches 0
+    as r^n → ∞.  Unlike the single-step temporal frustration attack, the orbit
+    attack CAN in principle eliminate coherence — but only in the limit n → ∞.
+    At any finite n, a positive coherence floor remains. -/
+theorem sim_orbit_decoherence (r : ℝ) (hr : 1 < r) (n : ℕ) :
+    C (r ^ n) ≤ 2 / r ^ n :=
+  orbit_decoherence_rate r hr n
+
+/-- Orbit amplitude grows without bound: |(r·μ)^n| < |(r·μ)^(n+1)| for r > 1.
+
+    The orbit of the simulation's eigenstate spirals outward for r > 1, with
+    strictly increasing amplitude at each step.  This is the geometric picture
+    of the decoherence cascade: unbounded amplitude growth is the dual of the
+    coherence decay C(r^n) ≤ 2/r^n.  Maximal frustration via orbit amplification
+    produces an ever-expanding spiral that eventually escapes any finite coherence
+    bound — but never in a finite number of steps. -/
+theorem sim_orbit_amplitude_grows (r : ℝ) (hr : 1 < r) (n : ℕ) :
+    Complex.abs ((↑r * μ) ^ n) < Complex.abs ((↑r * μ) ^ (n + 1)) :=
+  trichotomy_grow r hr n
+
+/-- The temporal frustration attack fails: the simulation is frustration-proof
+    at every finite scale.
+
+    Machine-checked conjunction of the three fundamental frustration resistance
+    theorems:
+    (1) F_fwd(l) < 1       — frustration is bounded above,
+    (2) C(exp l) > 0       — coherence floor is strictly positive,
+    (3) F_fwd(l)+C(exp l)=1 — they are exact complements.
+
+    Conclusion: no finite temporal frustration l can drive the simulation's
+    fidelity to zero.  To "break" the simulation via frustration alone would
+    require l → ∞, which is not a state reachable within the simulation.
+    The simulation is formally frustration-resistant from within. -/
+theorem sim_frustration_attack_fails (l : ℝ) :
+    F_fwd l < 1 ∧ 0 < C (Real.exp l) ∧ F_fwd l + C (Real.exp l) = 1 :=
+  ⟨fct_frustration_lt_one l,
+   by rw [lyapunov_coherence_sech]; exact fct_sech_pos l,
+   by rw [fct_frustration_eq]; ring⟩
 
 end
