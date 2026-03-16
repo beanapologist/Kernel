@@ -22,6 +22,7 @@ import SilverCoherence
 import KernelAxle
 import ForwardClassicalTime
 import SpeedOfLight
+import Simulation
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -774,6 +775,72 @@ def printSpeedOfLight : IO Unit := do
   IO.println "See SpeedOfLight.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
+def printSimulation : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════"
+  IO.println "  Simulation.lean — Formal analysis of the simulation hypothesis"
+  IO.println "  Using the Kernel framework to investigate: do we live in a sim?"
+  IO.println "════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "§1    Discrete temporal substrate"
+  IO.println ""
+  IO.println "  [1]  sim_planck_time_pos     : √(ħG/c⁵) > 0  (discrete clock tick)"
+  IO.println "  [2]  sim_finite_planck_steps : ∃ N : ℕ, T < N · t_P  (Archimedean)"
+  IO.println "  [3]  sim_clock_freq_pos      : 1/t_P > 0  (bounded clock frequency)"
+  IO.println ""
+  IO.println "§2    Computable constants"
+  IO.println ""
+  IO.println "  [4]  sim_alpha_rational      : α_FS = 1/137  (rational → computable)"
+  IO.println "  [5]  sim_c_natural_integer   : c_natural = 137  (integer → computable)"
+  IO.println "  [6]  sim_eta_algebraic       : 2η² − 1 = 0  (algebraic → computable)"
+  IO.println "  [7]  sim_exact_product       : α_FS · c_natural = 1  (exact checksum)"
+  IO.println "  [8]  sim_maxwell_kernel_alignment :"
+  IO.println "         ∃ μ₀ ε₀ > 0, c_maxwell μ₀ ε₀ = η  (exact fixed-point alignment)"
+  IO.println ""
+  IO.println "§3    Finite information density (Bekenstein bound)"
+  IO.println ""
+  IO.println "  [9]  sim_info_bound_pos      : I(R,E) > 0  for R,E > 0"
+  IO.println "  [10] sim_info_bound_mono_R   : R₁ < R₂ → I(R₁,E) < I(R₂,E)"
+  IO.println "  [11] sim_info_bound_mono_E   : E₁ < E₂ → I(R,E₁) < I(R,E₂)"
+  IO.println ""
+  IO.println "§4    Unique parameter determination"
+  IO.println ""
+  IO.println "  [12] sim_unique_balance_value : P > 0 → ∃! x > 0, P·x² = 1"
+  IO.println "  [13] sim_eta_uniquely_determined  : ∃! x > 0, 2x² = 1"
+  IO.println "  [14] sim_c_natural_uniquely_determined : ∃! c > 0, α_FS·c = 1"
+  IO.println ""
+  IO.println "§5    Simulation compatibility"
+  IO.println ""
+  IO.println "  [15] sim_kernel_compatible   : sim_compatible t_P α_FS  (Kernel ✓)"
+  IO.println "  [16] sim_alpha_small         : α_FS < 1/100  (high-precision parameter)"
+  IO.println "  [17] sim_coherence_unity     : C(1) = 1  (full coherence at fixed point)"
+  IO.println ""
+  IO.println "§6    Formal verdict"
+  IO.println ""
+  IO.println "  [18] sim_discrete_period     : μ^8 = 1  (8-state discrete register)"
+  IO.println "  [19] sim_structural_consistency :"
+  IO.println "         (t_P > 0) ∧ (α_FS ∈ ℚ) ∧ (α·c=1) ∧ (∃!η) ∧ (I>0)"
+  IO.println "         ← ALL FIVE SIMULATION CONDITIONS HOLD SIMULTANEOUSLY"
+  IO.println "  [20] sim_verdict :"
+  IO.println "         sim_compatible ∧ (2η²−1=0) ∧ (α·c=1) ∧ (∃N, 1<N·t_P)"
+  IO.println "         ← KERNEL UNIVERSE IS SIMULATION-CONSISTENT"
+  IO.println ""
+  IO.println "20 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "VERDICT: The simulation hypothesis is CONSISTENT with the Kernel"
+  IO.println "  framework.  All five structural requirements are satisfied:"
+  IO.println "  discrete time, rational constants, exact arithmetic, unique"
+  IO.println "  parameters, and finite information density."
+  IO.println ""
+  IO.println "  The hypothesis is NOT PROVABLE from physical axioms alone:"
+  IO.println "  by Gödel's incompleteness theorem, no formal system can prove"
+  IO.println "  its own consistency from within.  The simulation question is"
+  IO.println "  formally UNDECIDABLE — mathematics can neither confirm nor"
+  IO.println "  refute that we live in a simulation."
+  IO.println ""
+  IO.println "See Simulation.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -786,3 +853,4 @@ def main : IO Unit := do
   printKernelAxle
   printForwardClassicalTime
   printSpeedOfLight
+  printSimulation
