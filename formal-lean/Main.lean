@@ -22,6 +22,7 @@ import SilverCoherence
 import KernelAxle
 import ForwardClassicalTime
 import SpeedOfLight
+import PumpFunBot
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -774,6 +775,87 @@ def printSpeedOfLight : IO Unit := do
   IO.println "See SpeedOfLight.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
+def printPumpFunBot : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════"
+  IO.println "  PumpFunBot.lean — Automated trading strategy for the pump.fun"
+  IO.println "  constant-product bonding curve (Kelly-optimal position sizing)"
+  IO.println "════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "SETUP: pump.fun virtual reserves at launch"
+  IO.println "  S₀ = 30 SOL, T₀ = 1_073_000_000 tokens, k = S₀·T₀ ≈ 3.219×10¹⁰"
+  IO.println "  Graduation threshold G = 85 SOL (triggers Raydium DEX migration)"
+  IO.println ""
+  IO.println "§1    Bonding curve fundamentals: k = S·T invariant"
+  IO.println ""
+  IO.println "  [1]  bc_k_pos                 : S·T > 0  for S, T > 0"
+  IO.println "  [2]  bc_price_pos             : S/T > 0  (price always positive)"
+  IO.println "  [3]  bc_price_sq_formula      : S/T = S²/(S·T)  (quadratic price form)"
+  IO.println "  [4]  bc_invariant_preserved   : (S+Δ)·(S·T/(S+Δ)) = S·T  (k preserved)"
+  IO.println "  [5]  price_after_buy          : new price = (S+Δ)²/k  for buy Δ"
+  IO.println ""
+  IO.println "§2    Trade mechanics: tokens received = T·Δ/(S+Δ)"
+  IO.println ""
+  IO.println "  [6]  tokens_received_formula  : T − S·T/(S+Δ) = T·Δ/(S+Δ)"
+  IO.println "  [7]  tokens_received_pos      : T·Δ/(S+Δ) > 0  for Δ > 0"
+  IO.println "  [8]  buy_increases_price      : (S+Δ)²/k > S/T  (buys raise price)"
+  IO.println "  [9]  effective_price_exceeds_spot : Δ/(T·Δ/(S+Δ)) > S/T  (slippage)"
+  IO.println "  [10] tokens_per_sol_decreasing: T/(S+Δ₁) > T/(S+Δ₂) for Δ₁ < Δ₂"
+  IO.println ""
+  IO.println "§3    Graduation criterion: SOL raised ≥ G ≈ 85"
+  IO.println ""
+  IO.println "  [11] graduation_threshold_pos : G > 0"
+  IO.println "  [12] profitable_iff           : cost < tokens·P ↔ cost/tokens < P"
+  IO.println "  [13] exit_value_pos           : tokens·P > 0  for tokens, P > 0"
+  IO.println "  [14] net_profit_positive      : tokens·(P_exit − P_entry) > 0"
+  IO.println "         when P_entry < P_exit  ← BOT PROFIT CONDITION"
+  IO.println ""
+  IO.println "§4    Kelly criterion: f* = (b·p − (1−p)) / b"
+  IO.println ""
+  IO.println "  [15] kelly_pos_iff            : f* > 0 ↔ p > 1/(1+b)  (positive edge)"
+  IO.println "  [16] kelly_le_one             : f* ≤ 1  (never risk full bankroll)"
+  IO.println "  [17] kelly_threshold_zero     : f*(1/(1+b), b) = 0  (no-edge → no bet)"
+  IO.println "  [18] kelly_is_critical_point  : p·b·(1−f*) = (1−p)·(1+b·f*)  ← FOC"
+  IO.println ""
+  IO.println "§5    Strategy soundness: Kelly fraction maximises log-wealth"
+  IO.println ""
+  IO.println "  [19] log_growth_zero_bet      : G(0,p,b) = 0  (not betting preserves wealth)"
+  IO.println "  [20] kelly_fraction_unique    : f* is the unique solution to the FOC"
+  IO.println "         ← KELLY IS THE UNIQUE OPTIMAL POSITION SIZE"
+  IO.println ""
+  IO.println "§6    Derivation: token formula (step-by-step algebra)"
+  IO.println ""
+  IO.println "  [21] tokens_step_common_denominator :"
+  IO.println "         T − S·T/(S+Δ)  =  [T·(S+Δ) − S·T] / (S+Δ)  ← common denom"
+  IO.println "  [22] tokens_numerator_cancellation  :"
+  IO.println "         T·(S+Δ) − S·T  =  T·Δ                        ← S·T cancels"
+  IO.println ""
+  IO.println "§7    Derivation: Kelly fraction (step-by-step FOC)"
+  IO.println ""
+  IO.println "  [23] kelly_ev_factor          : p·b·f − (1−p)·f  =  f·(b·p − (1−p))"
+  IO.println "         Expected profit factored — sign determines whether to bet"
+  IO.println "  [24] kelly_breakeven_condition: b·p − (1−p) = 0  ↔  p = 1/(1+b)"
+  IO.println "  [25] kelly_foc_cleared        : p·b/(1+b·f) = (1−p)/(1−f)"
+  IO.println "                               ↔  p·b·(1−f)  = (1−p)·(1+b·f)  ← clear denom"
+  IO.println "  [26] kelly_foc_linear         : cleared FOC → b·f = b·p − (1−p)"
+  IO.println "         Nonlinear p·b·f cancels; solving gives f* = (b·p−(1−p))/b"
+  IO.println ""
+  IO.println "26 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key derivations:"
+  IO.println "  Token formula:  T − S·T/(S+Δ)"
+  IO.println "    = [T·(S+Δ) − S·T]/(S+Δ)   [common denominator]"
+  IO.println "    = T·Δ/(S+Δ)               [S·T terms cancel]"
+  IO.println ""
+  IO.println "  Kelly fraction from ∂G/∂f = 0:"
+  IO.println "    p·b/(1+b·f) = (1−p)/(1−f)"
+  IO.println "    ↔ p·b·(1−f) = (1−p)·(1+b·f)    [clear denominators]"
+  IO.println "    ↔ p·b = 1−p + b·f               [p·b·f cancels]"
+  IO.println "    ↔ f* = (b·p − (1−p)) / b        [solve for f]"
+  IO.println ""
+  IO.println "See PumpFunBot.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -786,3 +868,4 @@ def main : IO Unit := do
   printKernelAxle
   printForwardClassicalTime
   printSpeedOfLight
+  printPumpFunBot
