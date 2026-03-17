@@ -104,6 +104,7 @@ __pycache__/
 
 # Rust build artifacts
 rust/sanity_checkpoint/target/
+rust/cross_chain_defi/target/
 
 # Go build artifacts
 go/sanity_checkpoint/sanity_checkpoint
