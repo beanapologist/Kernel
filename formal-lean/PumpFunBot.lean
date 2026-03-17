@@ -415,7 +415,6 @@ theorem tokens_step_common_denominator (S T Δ : ℝ) (hS : 0 < S) (hΔ : 0 < Δ
     T - S * T / (S + Δ) = (T * (S + Δ) - S * T) / (S + Δ) := by
   have hS' : S + Δ ≠ 0 := by positivity
   field_simp [hS']
-  ring
 
 /-- Derivation step 2: the numerator T·(S+Δ) − S·T simplifies to T·Δ
     because the S·T terms cancel exactly.
