@@ -2,34 +2,145 @@
   PumpFunBot.lean — Lean 4 formalization of an automated trading strategy
   for the pump.fun constant-product bonding curve.
 
-  pump.fun is a Solana token-launch platform that uses a constant-product AMM
-  with virtual reserves to price tokens along a bonding curve before graduation
-  to a decentralised exchange (Raydium).
+  ══════════════════════════════════════════════════════════════════════
+  SETUP: pump.fun Protocol
+  ══════════════════════════════════════════════════════════════════════
 
-  The bonding curve invariant is:
+  pump.fun is a Solana token-launch platform that price-discovers new
+  tokens along a bonding curve before migrating them to the Raydium DEX.
 
-      k = S · T    (constant product of SOL reserve S and token reserve T)
+  Virtual initial reserves (fixed at token creation):
+    S₀ = 30 SOL              (virtual SOL reserve)
+    T₀ = 1_073_000_000       (virtual token reserve)
+    k  = S₀ · T₀ ≈ 3.219 × 10¹⁰   (constant product, invariant)
 
-  For a buy of Δ SOL, the AMM mechanics are:
+  Real graduation threshold (triggers DEX migration):
+    G  = 85 SOL raised in real (non-virtual) SOL
 
-      S' = S + Δ,   T' = k / S' = S·T/(S+Δ),   tokens received = T − T'
+  ══════════════════════════════════════════════════════════════════════
+  DERIVATION 1 — Bonding Curve Mechanics
+  ══════════════════════════════════════════════════════════════════════
 
-  The strategy — "betting pump.fun at its own game" — relies on:
-    • exact knowledge of the bonding curve mechanics (price discovery);
-    • an estimate p_grad of the token's graduation probability;
-    • Kelly-optimal position sizing to maximise long-run bankroll growth.
+  Invariant:  k = S · T   (constant product)
 
+  State before buy: (S, T)  with  S · T = k
+  Buyer deposits Δ SOL.
+
+  Step 1 — New SOL reserve:
+    S' = S + Δ
+
+  Step 2 — New token reserve (invariant preserved):
+    T' = k / S' = S · T / (S + Δ)
+
+  Step 3 — Tokens received (net change in token reserve):
+    Δ_T = T - T'
+        = T - S·T/(S+Δ)
+        = [T·(S+Δ) - S·T] / (S+Δ)    ← common denominator
+        = [T·S + T·Δ - S·T] / (S+Δ)  ← distribute T·(S+Δ)
+        = T·Δ / (S+Δ)                 ← S·T terms cancel   ✓  closed form
+
+  Step 4 — Effective entry price (SOL paid per token received):
+    p_entry = Δ / Δ_T
+            = Δ / (T·Δ/(S+Δ))
+            = (S+Δ) / T               ← simplify
+
+  Step 5 — Post-trade spot price:
+    p_spot' = S' / T'
+            = (S+Δ) / (S·T/(S+Δ))
+            = (S+Δ)² / (S·T)          ← simplify
+            = (S+Δ)² / k              ← since k = S·T
+
+  Key observations:
+  • p_entry = (S+Δ)/T  >  S/T = p_spot_before   (buyer always pays slippage)
+  • p_spot' = (S+Δ)²/k  >  S²/k                 (each buy strictly raises price)
+  • Larger Δ → fewer tokens per SOL              (diminishing returns in position size)
+
+  ══════════════════════════════════════════════════════════════════════
+  DERIVATION 2 — Kelly Criterion
+  ══════════════════════════════════════════════════════════════════════
+
+  Binary outcome per trade:
+    Win  (graduation, prob p):  bankroll multiplies by (1 + b·f)
+    Loss (token dies, prob 1-p): bankroll multiplies by (1 - f)
+
+  where:
+    f ∈ (0, 1] = fraction of bankroll risked per trade
+    b > 0      = net profit multiple at graduation
+
+  Expected log-wealth growth (Kelly objective):
+    G(f) = p · log(1 + b·f) + (1−p) · log(1−f)
+
+  First-order condition  ∂G/∂f = 0:
+
+    Step 1 — Differentiate:
+      ∂G/∂f = p·b / (1+b·f)  −  (1−p) / (1−f)  =  0
+
+    Step 2 — Multiply through by (1+b·f)·(1−f) > 0 (clear denominators):
+      p·b·(1−f)  =  (1−p)·(1+b·f)
+
+    Step 3 — Expand both sides:
+      p·b − p·b·f  =  1 − p + b·f − p·b·f
+
+    Step 4 — Cancel −p·b·f from both sides (nonlinear term vanishes):
+      p·b  =  1 − p + b·f
+
+    Step 5 — Solve for f:
+      b·f  =  p·b − (1−p)
+      f*   =  (b·p − (1−p)) / b         ← Kelly fraction  ✓
+
+  The second derivative ∂²G/∂f² < 0 (G is strictly concave in f),
+  so this unique critical point is the global maximum.
+
+  Break-even condition (f* = 0):
+    b·p − (1−p) = 0
+    p·(1+b) = 1
+    p = 1/(1+b)                          ← minimum edge to bet at all
+
+  ══════════════════════════════════════════════════════════════════════
+  STRATEGY — Decision Algorithm
+  ══════════════════════════════════════════════════════════════════════
+
+  Inputs per token scan:
+    S, T  — current virtual reserves from on-chain AMM state
+    p     — graduation probability estimate (agent prior, e.g. 0.3)
+    b     — expected profit multiple: (p_exit − p_entry) / p_entry
+    W     — current bankroll in SOL
+
+  Decision steps:
+    1. Read on-chain reserves S, T; compute spot = S / T.
+    2. Choose trial position size Δ (start with f* · W).
+    3. Compute entry price: p_entry = (S + Δ) / T.
+    4. Compute Kelly fraction: f* = kelly_fraction p b.
+    5. If f* ≤ 0: skip this token (no positive edge at current odds).
+    6. Set position size: Δ = min(f* · W, max_sol_per_trade).
+    7. Verify: p_entry < expected graduation price (cross-check b).
+    8. Submit buy transaction; record (Δ, tokens_received, p_entry).
+    9. Monitor: exit at graduation event or cut loss at stop threshold.
+
+  Proof coverage (this module):
+    ✓ Bonding curve k=S·T invariant preserved under every buy
+    ✓ Token formula closed form: Δ_T = T·Δ/(S+Δ)
+    ✓ Effective entry price always exceeds spot (slippage guaranteed)
+    ✓ f* > 0  iff  p > 1/(1+b)         (positive-edge gate)
+    ✓ f* ≤ 1                            (never risk full bankroll)
+    ✓ f* = 0 at the break-even threshold p = 1/(1+b)
+    ✓ f* is the unique solution to ∂G/∂f = 0
+    ✓ Correct price forecast guarantees strictly positive net profit
+
+  ══════════════════════════════════════════════════════════════════════
   Sections
   ────────
-  1.  Bonding curve fundamentals  (theorems  1– 5)
-  2.  Trade mechanics             (theorems  6–10)
-  3.  Graduation criterion        (theorems 11–14)
-  4.  Kelly criterion             (theorems 15–18)
-  5.  Strategy soundness          (theorems 19–20)
+  1.  Bonding curve fundamentals       (theorems  1– 5)
+  2.  Trade mechanics                  (theorems  6–10)
+  3.  Graduation criterion             (theorems 11–14)
+  4.  Kelly criterion                  (theorems 15–18)
+  5.  Strategy soundness               (theorems 19–20)
+  6.  Derivation: token formula        (theorems 21–22)
+  7.  Derivation: Kelly fraction       (theorems 23–26)
 
   Proof status
   ────────────
-  All 20 theorems have complete machine-checked proofs.
+  All 26 theorems have complete machine-checked proofs.
   No `sorry` placeholders remain.
 
   Limitations
@@ -288,5 +399,94 @@ theorem kelly_fraction_unique (p b f : ℝ) (hb : 0 < b)
   unfold kelly_fraction
   rw [eq_div_iff hb.ne']
   linear_combination -hcrit
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 6 — Derivation: Token Formula
+-- Explicit intermediate algebra steps that together establish the
+-- closed-form tokens-received formula T·Δ/(S+Δ) used throughout §2.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- Derivation step 1: bring the two terms to a common denominator.
+    T − S·T/(S+Δ)  =  [T·(S+Δ) − S·T] / (S+Δ).
+
+    This is the "common-denominator" rewrite that precedes all further
+    simplification of the tokens-received expression. -/
+theorem tokens_step_common_denominator (S T Δ : ℝ) (hS : 0 < S) (hΔ : 0 < Δ) :
+    T - S * T / (S + Δ) = (T * (S + Δ) - S * T) / (S + Δ) := by
+  have hS' : S + Δ ≠ 0 := by positivity
+  field_simp [hS']
+  ring
+
+/-- Derivation step 2: the numerator T·(S+Δ) − S·T simplifies to T·Δ
+    because the S·T terms cancel exactly.
+
+    Combined with step 1 this completes the algebraic derivation:
+      T − S·T/(S+Δ)  =  T·Δ/(S+Δ).                             □ -/
+theorem tokens_numerator_cancellation (S T Δ : ℝ) :
+    T * (S + Δ) - S * T = T * Δ := by ring
+
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 7 — Derivation: Kelly Fraction
+-- Explicit intermediate steps deriving f* = (b·p − (1−p))/b from the
+-- first-order condition ∂G/∂f = 0 of the log-wealth growth function.
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- The expected value of a single trade equals f · (b·p − (1−p)), factored form.
+
+    Derivation: E[gain] = p · (b·f) − (1−p) · f  (win payoff minus loss payoff)
+                        = f · (b·p − (1−p))        (factor out f)
+
+    The term (b·p − (1−p)) is the Kelly edge per unit bet:
+    • Positive  iff  b·p > 1−p  iff  p > 1/(1+b)  → bet is profitable.
+    • Zero       iff  p = 1/(1+b)                   → break-even, f* = 0.
+    • Negative  iff  p < 1/(1+b)                   → expected loss, do not bet. -/
+theorem kelly_ev_factor (f p b : ℝ) :
+    p * (b * f) - (1 - p) * f = f * (b * p - (1 - p)) := by ring
+
+/-- Break-even condition: the Kelly edge b·p − (1−p) is zero precisely when
+    the win probability equals the break-even threshold 1/(1+b).
+
+    This links the algebraic form of the Kelly fraction (its numerator = 0)
+    to the probabilistic condition p = 1/(1+b) characterised in
+    `kelly_pos_iff` and `kelly_threshold_zero`. -/
+theorem kelly_breakeven_condition (p b : ℝ) (hb : 0 < b) :
+    b * p - (1 - p) = 0 ↔ p = 1 / (1 + b) := by
+  have h1b : (1 : ℝ) + b ≠ 0 := ne_of_gt (by linarith)
+  constructor
+  · intro h
+    rw [eq_div_iff h1b]
+    linarith
+  · intro h
+    rw [h]
+    field_simp [h1b]
+
+/-- Clearing denominators in the first-order condition:
+    the FOC  p·b/(1+b·f) = (1−p)/(1−f)  is equivalent to
+    the denominator-free form  p·b·(1−f) = (1−p)·(1+b·f),
+    provided both denominators (1+b·f) > 0 and (1−f) > 0.
+
+    This is derivation step 2 in the Kelly fraction derivation:
+    multiply through by the positive quantity (1+b·f)·(1−f). -/
+theorem kelly_foc_cleared (f p b : ℝ) (hwin : 0 < 1 + b * f) (hloss : 0 < 1 - f) :
+    p * b / (1 + b * f) = (1 - p) / (1 - f) ↔
+    p * b * (1 - f) = (1 - p) * (1 + b * f) := by
+  constructor
+  · intro h
+    have heq := (div_eq_div_iff hwin.ne' hloss.ne').mp h
+    linarith [mul_comm (1 + b * f) (1 - p)]
+  · intro h
+    apply (div_eq_div_iff hwin.ne' hloss.ne').mpr
+    linarith [mul_comm (1 + b * f) (1 - p)]
+
+/-- Derivation steps 3–4: after expanding and cancelling the nonlinear
+    term −p·b·f from both sides of the cleared FOC, the equation becomes
+    linear:  b·f = b·p − (1−p).
+
+    The nonlinear term p·b·f appears with coefficient −1 on each side and
+    cancels exactly, leaving a linear equation in f that is then solved by
+    division in `kelly_fraction_unique`. -/
+theorem kelly_foc_linear (f p b : ℝ)
+    (hfoc : p * b * (1 - f) = (1 - p) * (1 + b * f)) :
+    b * f = b * p - (1 - p) := by linear_combination -hfoc
 
 end
