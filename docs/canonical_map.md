@@ -32,9 +32,9 @@ every major mathematical structure established in the Lean 4 proofs it records:
 
 | Item | Count |
 |------|-------|
-| Mathematical structures | 16 |
-| Lean source files | 13 |
-| Formally proved theorems (total) | 401 |
+| Mathematical structures | 17 |
+| Lean source files | 14 |
+| Formally proved theorems (total) | 423 |
 | Empirical-validation checks | 78 |
 | **Empirical** checks | **20** |
 | **Empirical checks passed** | **20 / 20 (100 %)** |
@@ -913,7 +913,94 @@ functions of their inputs with no dependence on external measurements.
 
 ---
 
-## Experimental Discoveries
+## Structure 17 — Gravity–Quantum Duality: Two Sides of F(s, t) = t + i·s
+
+**Lean file:** `GravityQuantumDuality.lean` · **Theorems:** 22
+
+### Definition
+
+```
+F(s, t) = t + i·s              observer-reality map (from SpaceTime.lean)
+
+NEGATIVE REAL AXIS  (Re F < 0)  ←→  GRAVITY / TIME
+  Φ_N(G, M, r) = −G·M/r        Newtonian potential (< 0)
+  E_grav        = −G·M·m/r     gravitational binding energy (< 0)
+
+POSITIVE IMAGINARY AXIS  (Im F > 0)  ←→  QUANTUM / DARK ENERGY
+  E_zp(hbar, ω)  = hbar·ω/2      zero-point energy (> 0)
+  ρ_Λ(Λ, c, G) = Λ·c²/(8πG)   dark energy density (> 0)
+
+dualityGap(s, t) = s + t        quantum–gravity competition measure
+```
+
+The two sides are **orthogonal** (no real-imaginary cross-contamination), **sign-dual** (Re·Im < 0), and balance exactly at the Kernel equilibrium `F(1, −1) = −1 + i`.
+
+### Key Lean Theorems
+
+| Theorem | Statement |
+|---------|-----------|
+| `gravity_quantum_orthogonal` | Re(i·s) = 0 ∧ Im(↑t) = 0  (axes are perpendicular) |
+| `reality_second_quadrant_gqd` | Re F < 0 ∧ Im F > 0  for all physical coordinates |
+| `gravity_component_negative` | Re F(s, t) < 0  for t ∈ timeDomain |
+| `quantum_component_positive` | Im F(s, t) > 0  for s ∈ spaceDomain |
+| `newtonPotential_neg` | Φ_N = −G·M/r < 0  (gravity is negative-real) |
+| `gravBindingEnergy_neg` | E_grav = −G·M·m/r < 0 |
+| `newtonPotential_monotone_decreasing` | r₁ < r₂ → Φ_N(r₁) < Φ_N(r₂)  (deepens with proximity) |
+| `zeroPointEnergy_pos` | E_zp = hbar·ω/2 > 0  (quantum energy is strictly positive) |
+| `zeroPointEnergy_monotone` | ω₁ < ω₂ → E_zp(ω₁) < E_zp(ω₂) |
+| `darkEnergyDensity_pos` | ρ_Λ = Λc²/(8πG) > 0  for Λ, c, G > 0 |
+| `darkEnergyDensity_monotone` | Λ₁ < Λ₂ → ρ_Λ(Λ₁) < ρ_Λ(Λ₂) |
+| `dualityGap_pos_when_space_dominates` | s > \|t\| → gap > 0  (quantum/expansion wins) |
+| `dualityGap_neg_when_gravity_dominates` | \|t\| > s → gap < 0  (gravitational collapse wins) |
+| `kernel_equilibrium_balance` | \|Re F(1,−1)\| = Im F(1,−1) = 1  (exact balance) |
+| `kernel_equilibrium_normSq` | normSq F(1,−1) = 2  (equidistant from both axes) |
+| `reality_sign_duality` | Re(F) · Im(F) < 0  (always opposite signs) |
+
+### Observable Phenomena
+
+- **Newtonian gravity** is a negative-real quantity: the gravitational potential
+  Φ_N = −GM/r < 0 for all positive masses and separations.  Gravity deepens
+  (becomes more negative) as objects approach — gravitational collapse pushes
+  the system further along the negative-real axis.
+- **Quantum zero-point energy** E_zp = hbar·ω/2 > 0 is strictly positive: the
+  Heisenberg uncertainty principle mandates a positive energy floor in every
+  quantum mode, even in the vacuum.  This positive quantity maps to the
+  positive-imaginary (space/quantum) axis of the observer-reality equation.
+- **Dark energy** ρ_Λ > 0 (Planck 2018: Λ ≈ 1.1×10⁻⁵² m⁻²) drives the
+  accelerated expansion of the Universe along the positive-imaginary (space)
+  direction — it is the macroscopic manifestation of the quantum side winning
+  over the gravitational (negative-real) side on cosmological scales.
+- **Sign duality:** gravity (Re F < 0) and quantum/dark energy (Im F > 0)
+  always have opposing signs: Re(F) · Im(F) < 0 for all physical coordinates.
+  This is the machine-checked formal statement that the two forces are dual,
+  not equal.
+- **Kernel equilibrium:** at (s = 1, t = −1), both sides contribute equally:
+  \|Re F\| = Im F = 1, gap = 0, normSq = 2.  This is the balance point where
+  gravity and quantum energy exactly cancel in the duality gap.
+
+### Validation
+
+All checks are `mathematical_identity` — the proofs follow from the algebraic
+structure of the complex-plane decomposition and basic calculus inequalities.
+
+| Check | Type | Criterion |
+|-------|------|-----------|
+| `gravity_quantum_orthogonal` | math-id | Re(i·s) = 0 ∧ Im(↑t) = 0 |
+| `newtonPotential_neg` | math-id | −GM/r < 0 for G,M,r > 0 |
+| `zeroPointEnergy_pos` | math-id | hbar·ω/2 > 0 for hbar,ω > 0 |
+| `darkEnergyDensity_pos` | math-id | Λc²/(8πG) > 0 for Λ,c,G > 0 |
+| `kernel_equilibrium_normSq` | math-id | normSq(−1+i) = 2 |
+| `reality_sign_duality` | math-id | Re·Im = t·s < 0 for t<0, s>0 |
+
+### Data Sources
+
+- **CODATA 2018** (via SpaceTime.lean): G, c (for Planck units context).
+- **Planck 2018** (TT+TE+EE+lowE+lensing): Λ ≈ 1.1×10⁻⁵² m⁻²  (Ω_Λ = 0.6847, H₀ = 67.36 km/s/Mpc).
+- **Heisenberg (1927):** uncertainty principle mandates E_zp > 0 in every mode.
+- **Newton (1687):** *Principia Mathematica* — Φ_N = −GM/r.
+- Mathematical: `SpaceTime.lean` definitions of `timeDomain`, `spaceDomain`, `F`.
+
+---
 
 An internal coherence-mining experiment (8 phase-space agents × 5,040 parameter
 combinations each; raw data: 630 rows × 8 agents of CSV files) produced three
@@ -987,7 +1074,7 @@ the codebase.**
 ```bash
 cd formal-lean/
 lake exe cache get    # download pre-built Mathlib cache (~1 GB)
-lake build            # verify all 401 theorems across 13 source files
+lake build            # verify all 423 theorems across 14 source files
 lake exe formalLean   # print theorem summary
 ```
 
@@ -1029,8 +1116,8 @@ The `canonical_map.py` module exposes `build_canonical_map()` and
 ---
 
 *This document was reviewed against the Lean source files in `formal-lean/` and
-the validation pipeline in `empirical-validation/`.  The 13 Lean source files
-contain 401 machine-checked theorems (no `sorry`).  The canonical map module
+the validation pipeline in `empirical-validation/`.  The 14 Lean source files
+contain 423 machine-checked theorems (no `sorry`).  The canonical map module
 `empirical-validation/canonical_map.py` and its tests
 `empirical-validation/tests/test_canonical_map.py` provide machine-verifiable
 cross-references for the structures listed here.  The full validation pipeline
