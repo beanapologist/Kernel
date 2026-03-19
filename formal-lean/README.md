@@ -10,12 +10,24 @@ mathematics is documented in [`../docs/master_derivations.pdf`](../docs/master_d
 
 ```
 formal-lean/
-├── lakefile.lean          # Lake project config; declares Mathlib dependency
-├── lean-toolchain         # Pins the exact Lean 4 version
-├── Main.lean              # Executable entry point (prints verified theorems)
-├── CriticalEigenvalue.lean # 71 theorems on eigenvalue/coherence structure
-├── TimeCrystal.lean        # 20 theorems on discrete time crystal theory
-└── README.md              # This file
+├── lakefile.lean              # Lake project config; declares Mathlib dependency
+├── lean-toolchain             # Pins the exact Lean 4 version
+├── Main.lean                  # Executable entry point (prints verified theorems)
+├── CriticalEigenvalue.lean    # 78 theorems on eigenvalue/coherence structure
+├── TimeCrystal.lean           # 33 theorems on discrete time crystal theory
+├── SpaceTime.lean             # 43 theorems on space-time unification
+├── Turbulence.lean            # 29 theorems on Navier-Stokes turbulence theory
+├── FineStructure.lean         # 30 theorems on the fine structure constant α_FS
+├── ParticleMass.lean          # 38 theorems on Koide formula, proton/electron mass ratio
+├── OhmTriality.lean           # 24 theorems on Ohm–Coherence duality at triality scales
+├── SilverCoherence.lean       # 29 theorems: C(δS)=√2/2; uniqueness; Im(μ)=C(δS); 45°-physics
+├── KernelAxle.lean            # 20 theorems: the axle μ — gear ratio 3:8, cross-section, engine loop
+├── ForwardClassicalTime.lean  # 21 theorems on frustration harvesting in classical forward time
+├── SpeedOfLight.lean          # 19 theorems: c=1/√(μ₀ε₀); structural iso with η; fine structure bridge
+├── CrossChainDeFiAggregator.lean # 20 theorems: AMM constant-product, cross-chain best-rate, Kelly
+├── PumpFunBot.lean            # 26 theorems: pump.fun bonding curve, Kelly-optimal position sizing
+├── BidirectionalTime.lean     # 44 theorems: bidirectional time via silver ratio δS = 1 + √2
+└── README.md                  # This file
 ```
 
 ---
@@ -78,7 +90,7 @@ See CriticalEigenvalue.lean for full proof terms.
 lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
-All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
+All 78 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
 
 ---
