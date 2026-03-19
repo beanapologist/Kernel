@@ -34,7 +34,7 @@ every major mathematical structure established in the Lean 4 proofs it records:
 |------|-------|
 | Mathematical structures | 17 |
 | Lean source files | 14 |
-| Formally proved theorems (total) | 423 |
+| Formally proved theorems (total) | 432 |
 | Empirical-validation checks | 78 |
 | **Empirical** checks | **20** |
 | **Empirical checks passed** | **20 / 20 (100 %)** |
@@ -43,7 +43,7 @@ every major mathematical structure established in the Lean 4 proofs it records:
 
 ## Structure 1 — Critical Eigenvalue  μ = exp(i·3π/4)
 
-**Lean file:** `CriticalEigenvalue.lean` · **Theorems:** 71
+**Lean file:** `CriticalEigenvalue.lean` · **Theorems:** 78
 
 ### Definition
 
@@ -98,7 +98,7 @@ They confirm internal self-consistency:
 
 ## Structure 2 — Coherence Function  C(r) = 2r/(1+r²)
 
-**Lean file:** `CriticalEigenvalue.lean` · **Theorems:** 71
+**Lean file:** `CriticalEigenvalue.lean` · **Theorems:** 78
 
 ### Definition
 
@@ -153,7 +153,7 @@ C(r) = C(1/r)            symmetric about r = 1
 
 ## Structure 3 — Silver Ratio & Silver Coherence  δ_S = 1+√2
 
-**Lean file:** `SilverCoherence.lean` · **Theorems:** 27
+**Lean file:** `SilverCoherence.lean` · **Theorems:** 29
 
 ### Definition
 
@@ -1074,7 +1074,7 @@ the codebase.**
 ```bash
 cd formal-lean/
 lake exe cache get    # download pre-built Mathlib cache (~1 GB)
-lake build            # verify all 423 theorems across 14 source files
+lake build            # verify all 432 theorems across 14 source files
 lake exe formalLean   # print theorem summary
 ```
 
@@ -1117,7 +1117,7 @@ The `canonical_map.py` module exposes `build_canonical_map()` and
 
 *This document was reviewed against the Lean source files in `formal-lean/` and
 the validation pipeline in `empirical-validation/`.  The 14 Lean source files
-contain 423 machine-checked theorems (no `sorry`).  The canonical map module
+contain 432 machine-checked theorems (no `sorry`).  The canonical map module
 `empirical-validation/canonical_map.py` and its tests
 `empirical-validation/tests/test_canonical_map.py` provide machine-verifiable
 cross-references for the structures listed here.  The full validation pipeline

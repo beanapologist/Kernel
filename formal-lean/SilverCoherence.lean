@@ -52,7 +52,7 @@
 
   Proof status
   ────────────
-  All 27 theorems have complete machine-checked proofs.
+  All 29 theorems have complete machine-checked proofs.
   No `sorry` placeholders remain.
 -/
 
