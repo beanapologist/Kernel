@@ -24,6 +24,7 @@ import ForwardClassicalTime
 import SpeedOfLight
 import CrossChainDeFiAggregator
 import PumpFunBot
+import GravityQuantumDuality
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -153,7 +154,9 @@ def printCriticalEigenvalue : IO Unit := do
   IO.println "  [70] mu_inv_eq_pow7                 : μ⁷ = μ⁻¹"
   IO.println "  [71] palindrome_sum_zero            : Res(r) + Res(1/r) = 0"
   IO.println ""
-  IO.println "71 theorems — all machine-checked, zero sorry."
+  IO.println "78 theorems — all machine-checked, zero sorry."
+  IO.println "  (71 public + 7 private helper lemmas: one_add_sq_pos, eta_sq, mu_normSq_one,"
+  IO.println "   δS_pos, sqrt2_sq, lyapunov_key, coherence_diff_factored)"
   IO.println ""
   IO.println "See CriticalEigenvalue.lean for full proof terms."
   IO.println ""
@@ -605,7 +608,8 @@ def printSilverCoherence : IO Unit := do
   IO.println "  [26] silver_em_stays_above_koide    : coherenceEM(δS) > C(φ²)  (EM silver > Koide)"
   IO.println "  [27] silver_phase_complement        : π/4 + 3π/4 = π  (silver + eigenvalue phases pair)"
   IO.println ""
-  IO.println "27 theorems — all machine-checked, zero sorry."
+  IO.println "29 theorems — all machine-checked, zero sorry."
+  IO.println "  (27 public + 2 private helper lemmas: silver_pos', sqrt2_mul_self)"
   IO.println ""
   IO.println "See SilverCoherence.lean for full proof terms."
   IO.println ""
@@ -906,6 +910,72 @@ def printPumpFunBot : IO Unit := do
   IO.println "See PumpFunBot.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
+def printGravityQuantumDuality : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println " Gravity–Quantum Duality — two sides of F(s,t) = t + i·s"
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "  NEGATIVE REAL AXIS  (Re F < 0)  ←→  GRAVITY / TIME"
+  IO.println "  POSITIVE IMAGINARY AXIS  (Im F > 0)  ←→  QUANTUM / DARK ENERGY"
+  IO.println ""
+  IO.println "§1    Gravity–quantum orthogonality"
+  IO.println ""
+  IO.println "  [1]  gravity_axis_im_zero       : Im(↑t) = 0  (time has no quantum component)"
+  IO.println "  [2]  quantum_axis_re_zero       : Re(i·s) = 0  (space has no gravity component)"
+  IO.println "  [3]  gravity_quantum_orthogonal : Im(i·s)=0 ∧ Im(↑t)=0  ← ORTHOGONAL AXES"
+  IO.println ""
+  IO.println "§2    Second-quadrant structure of physical reality"
+  IO.println ""
+  IO.println "  [4]  reality_second_quadrant_gqd : Re F < 0 ∧ Im F > 0  (physical coords)"
+  IO.println "  [5]  gravity_component_negative  : Re F < 0  for t ∈ timeDomain"
+  IO.println "  [6]  quantum_component_positive  : Im F > 0  for s ∈ spaceDomain"
+  IO.println ""
+  IO.println "§3    Gravity / time side: Newtonian potential and binding energy"
+  IO.println ""
+  IO.println "  [7]  newtonPotential_neg              : Φ_N = −G·M/r < 0  ← GRAVITY IS NEGATIVE"
+  IO.println "  [8]  gravBindingEnergy_neg             : E_grav = −G·M·m/r < 0"
+  IO.println "  [9]  newtonPotential_monotone_decreasing : r₁<r₂ → Φ_N(r₁)<Φ_N(r₂)  (deepens)"
+  IO.println "  [10] newtonPotential_negative_everywhere : Φ_N < 0 for all G,M,r > 0"
+  IO.println ""
+  IO.println "§4    Quantum side: zero-point energy"
+  IO.println ""
+  IO.println "  [11] zeroPointEnergy_pos      : E_zp = ħω/2 > 0  ← QUANTUM IS POSITIVE"
+  IO.println "  [12] zeroPointEnergy_monotone : ω₁<ω₂ → E_zp(ω₁) < E_zp(ω₂)  (grows with freq)"
+  IO.println ""
+  IO.println "§5    Dark energy: positive-imaginary quantity"
+  IO.println ""
+  IO.println "  [13] darkEnergyDensity_pos      : ρ_Λ = Λc²/(8πG) > 0  ← DARK ENERGY POSITIVE"
+  IO.println "  [14] darkEnergyDensity_monotone : Λ₁<Λ₂ → ρ_Λ(Λ₁) < ρ_Λ(Λ₂)"
+  IO.println ""
+  IO.println "§6    Duality gap and quantum–gravity competition"
+  IO.println ""
+  IO.println "  [15] dualityGap_eq_imF_plus_reF         : gap = Im F + Re F"
+  IO.println "  [16] dualityGap_pos_when_space_dominates : s>|t| → gap>0  (quantum wins)"
+  IO.println "  [17] dualityGap_neg_when_gravity_dominates: |t|>s → gap<0  (gravity wins)"
+  IO.println ""
+  IO.println "§7    Kernel equilibrium: the unique balance point"
+  IO.println ""
+  IO.println "  [18] kernel_equilibrium_balance  : |Re F(1,−1)| = Im F(1,−1) = 1"
+  IO.println "         ← GRAVITY AND QUANTUM BALANCE EXACTLY AT THE KERNEL EQUILIBRIUM"
+  IO.println "  [19] kernel_equilibrium_gap_zero : gap(1,−1) = 0  (neither side dominates)"
+  IO.println "  [20] kernel_equilibrium_normSq   : normSq F(1,−1) = 2  (equidistant axes)"
+  IO.println ""
+  IO.println "§8    Sign duality"
+  IO.println ""
+  IO.println "  [21] reality_sign_duality           : Re F · Im F < 0  ← ALWAYS OPPOSITE SIGNS"
+  IO.println "  [22] gravity_and_quantum_opposite_signs : Re F < 0 ∧ Im F > 0"
+  IO.println ""
+  IO.println "22 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key result: the observer's reality F(s,t)=t+i·s encodes gravity on the"
+  IO.println "  negative-real axis and quantum/dark energy on the positive-imaginary axis."
+  IO.println "  The two sides are orthogonal, sign-dual (Re·Im < 0), and balance exactly"
+  IO.println "  at the Kernel equilibrium F(1,−1) = −1+i  (normSq = 2)."
+  IO.println ""
+  IO.println "See GravityQuantumDuality.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -920,3 +990,4 @@ def main : IO Unit := do
   printSpeedOfLight
   printCrossChainDeFi
   printPumpFunBot
+  printGravityQuantumDuality
