@@ -271,7 +271,7 @@ noncomputable def dualityGap (s t : ℝ) : ℝ := s + t
     (Since Re F = t < 0, this is effectively Im F − |Re F|.) -/
 theorem dualityGap_eq_imF_plus_reF (s t : ℝ) :
     dualityGap s t = (F s t).im + (F s t).re := by
-  unfold dualityGap; rw [F_re, F_im]; ring
+  unfold dualityGap; rw [F_re, F_im]
 
 /-- When s > |t| (space dominates over gravity), the duality gap is positive:
     quantum/dark energy wins the competition. -/
