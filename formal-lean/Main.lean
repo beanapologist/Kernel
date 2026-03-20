@@ -25,6 +25,7 @@ import SpeedOfLight
 import CrossChainDeFiAggregator
 import PumpFunBot
 import GravityQuantumDuality
+import CryptoBridge
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -976,6 +977,63 @@ def printGravityQuantumDuality : IO Unit := do
   IO.println "See GravityQuantumDuality.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
+def printCryptoBridge : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println " Crypto Bridge — verified cross-chain lock/mint, HTLC, and Merkle proofs"
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "  Bridge model: lock `amount` on source chain, pay `fee`, mint"
+  IO.println "  `amount − fee` wrapped tokens on destination chain."
+  IO.println ""
+  IO.println "§1    Lock / mint conservation and fee deduction"
+  IO.println ""
+  IO.println "  [1]  bridge_conservation         : locked = minted  (value conserved)"
+  IO.println "  [2]  bridge_fee_reduces_output    : fee > 0 → minted < amount"
+  IO.println "  [3]  bridge_zero_fee              : fee = 0 → minted = amount"
+  IO.println ""
+  IO.println "§2    Fee-net positivity and monotonicity"
+  IO.println ""
+  IO.println "  [4]  bridge_locked_pos            : fee < amount → locked > 0"
+  IO.println "  [5]  bridge_locked_lt_amount      : fee > 0 → locked < amount"
+  IO.println "  [6]  bridge_locked_monotone       : a₁ < a₂ → locked(a₁) < locked(a₂)"
+  IO.println ""
+  IO.println "§3    Collateral solvency and over-collateralisation"
+  IO.println ""
+  IO.println "  [7]  collateral_ratio_pos         : c,l > 0 → c/l > 0"
+  IO.println "  [8]  collateral_solvency          : l ≤ c → c/l ≥ 1  (bridge solvent)"
+  IO.println "  [9]  collateral_overcollateralised: l < c → c/l > 1  (safety cushion)"
+  IO.println "  [10] collateral_surplus_pos       : c/l > 1 → l < c  (positive margin)"
+  IO.println ""
+  IO.println "§4    HTLC atomic-swap mechanics"
+  IO.println ""
+  IO.println "  [11] htlc_claim_pos               : fee < amount → claim > 0"
+  IO.println "  [12] htlc_refund_full             : refund = amount  (full recovery)"
+  IO.println "  [13] htlc_refund_exceeds_claim    : fee > 0 → claim < refund"
+  IO.println "  [14] htlc_value_conservation      : claim + fee = amount  (no leakage)"
+  IO.println ""
+  IO.println "§5    Merkle tree structure and proof bounds"
+  IO.println ""
+  IO.println "  [15] merkle_leaves_pos            : 0 < 2^d  (tree always non-empty)"
+  IO.println "  [16] merkle_leaves_double         : leaves(d+1) = 2·leaves(d)"
+  IO.println "  [17] merkle_leaves_monotone       : d₁ < d₂ → 2^d₁ < 2^d₂"
+  IO.println ""
+  IO.println "§6    Bridge liquidity and supply conservation"
+  IO.println ""
+  IO.println "  [18] bridge_liquidity_nonneg      : w ≤ liq → liq − w ≥ 0  (no deficit)"
+  IO.println "  [19] bridge_supply_conservation   : minted = locked → minted ≤ locked"
+  IO.println "  [20] bridge_liquidity_monotone    : l₁ < l₂ ∧ w ≤ l₁ → w ≤ l₂"
+  IO.println ""
+  IO.println "20 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key result: the lock/mint conservation law (locked = minted) and the"
+  IO.println "  HTLC value identity (claim + fee = amount) are machine-verified,"
+  IO.println "  and the collateral ratio ≥ 1 solvency invariant is proven in both"
+  IO.println "  directions.  The Merkle tree exponential growth is also verified."
+  IO.println ""
+  IO.println "See CryptoBridge.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -991,3 +1049,4 @@ def main : IO Unit := do
   printCrossChainDeFi
   printPumpFunBot
   printGravityQuantumDuality
+  printCryptoBridge
