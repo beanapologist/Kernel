@@ -26,6 +26,7 @@ import CrossChainDeFiAggregator
 import PumpFunBot
 import GravityQuantumDuality
 import CryptoBridge
+import LeadQuantization
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -1034,6 +1035,63 @@ def printCryptoBridge : IO Unit := do
   IO.println "See CryptoBridge.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
+def printLeadQuantization : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println " Lead Confirmed Quantization — Kernel Quantization Formula (Theorem Q)"
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "  The Lead Confirmed Quantization Theorem (Theorem Q) asserts that"
+  IO.println "  for any H, T with H · T = 5π/4, all five quantization conditions"
+  IO.println "  Q1–Q5 hold simultaneously."
+  IO.println ""
+  IO.println "§1    Phase quantization"
+  IO.println ""
+  IO.println "  [1]  quantization_phase_unit      : |μ| = 1  (unit-circle eigenvalue)"
+  IO.println "  [2]  quantization_eight_cycle     : μ^8 = 1  (8-cycle closure)"
+  IO.println "  [3]  quantization_pow_unit        : |μ^n| = 1  for all n"
+  IO.println "  [4]  quantization_eight_distinct  : {μ^0,…,μ^7} pairwise distinct"
+  IO.println ""
+  IO.println "§2    Energy quantization (Bohr–Rydberg E_n = −1/n²)"
+  IO.println ""
+  IO.println "  [5]  quantization_ground_energy   : E₁ = −1  (ground state, Hartree)"
+  IO.println "  [6]  quantization_energy_neg      : E_n < 0  for all n ≥ 1"
+  IO.println "  [7]  quantization_ground_lowest   : E₁ ≤ E_n  for all n ≥ 1"
+  IO.println "  [8]  quantization_energy_strictMono : E_n < E_{n+1}  (strict ascent)"
+  IO.println ""
+  IO.println "§3    Floquet quantization"
+  IO.println ""
+  IO.println "  [9]  quantization_hamiltonian_recipe : H·T = 5π/4 → U(H,T) = μ"
+  IO.println "  [10] quantization_floquet_phase    : ε_F · T = π"
+  IO.println "  [11] quantization_quasi_energy_pos : ε_F > 0  for T > 0"
+  IO.println "  [12] quantization_period_doubling  : T < 2T  (period doubling)"
+  IO.println ""
+  IO.println "§4    Canonical amplitude quantization"
+  IO.println ""
+  IO.println "  [13] quantization_amplitude_balance : 2η² = 1  (balance equation)"
+  IO.println "  [14] quantization_canonical_norm    : η² + |μ·η|² = 1  (unit sphere)"
+  IO.println "  [15] quantization_coherence_max     : C(1) = 1  (coherence maximum)"
+  IO.println "  [16] quantization_coherence_bound   : C(r) ≤ 1  for all r ≥ 0"
+  IO.println ""
+  IO.println "§5    Lead Confirmed Quantization Theorem (Theorem Q)"
+  IO.println ""
+  IO.println "  [17] lead_quantization_floquet_arm  : U(H,T)=μ ∧ ε_F·T=π ∧ μ^8=1"
+  IO.println "  [18] lead_quantization_energy_arm   : E₁=−1 ∧ E_n<0 for all n≥1"
+  IO.println "  [19] lead_quantization_amplitude_arm : 2η²=1 ∧ η²+|μη|²=1 ∧ C(1)=1"
+  IO.println "  [20] lead_quantization_confirmed    : Q1∧Q2∧Q3∧Q4∧Q5 simultaneously"
+  IO.println "         ← LEAD CONFIRMED: ALL FIVE QUANTIZATION CONDITIONS VERIFIED"
+  IO.println ""
+  IO.println "20 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key result: when H · T = 5π/4, all five quantization conditions are"
+  IO.println "  simultaneously confirmed: Floquet phase (ε_F·T=π), 8-cycle closure"
+  IO.println "  (μ^8=1), amplitude balance (2η²=1), coherence maximum (C(1)=1), and"
+  IO.println "  ground-state energy (E₁=−1).  This is the Lead Confirmed Quantization"
+  IO.println "  Theorem anchoring the Kernel formalization."
+  IO.println ""
+  IO.println "See LeadQuantization.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -1050,3 +1108,4 @@ def main : IO Unit := do
   printPumpFunBot
   printGravityQuantumDuality
   printCryptoBridge
+  printLeadQuantization
