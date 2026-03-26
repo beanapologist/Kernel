@@ -1,5 +1,5 @@
 /-
-  LeadQuantization.lean — Lean 4 confirmation of the Kernel Quantization Formula.
+  Quantization.lean — Lean 4 confirmation of the Kernel Quantization Formula.
 
   The Kernel Quantization Formula ties together three independent quantization
   mechanisms — Floquet phase, Bohr–Rydberg energy levels, and canonical amplitude

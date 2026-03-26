@@ -26,7 +26,7 @@ import CrossChainDeFiAggregator
 import PumpFunBot
 import GravityQuantumDuality
 import CryptoBridge
-import LeadQuantization
+import Quantization
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -1036,7 +1036,7 @@ def printCryptoBridge : IO Unit := do
   IO.println ""
 
 set_option maxRecDepth 2000 in
-def printLeadQuantization : IO Unit := do
+def printQuantization : IO Unit := do
   IO.println "════════════════════════════════════════════════════════════════════════"
   IO.println " Lead Confirmed Quantization — Kernel Quantization Formula (Theorem Q)"
   IO.println "════════════════════════════════════════════════════════════════════════"
@@ -1089,7 +1089,7 @@ def printLeadQuantization : IO Unit := do
   IO.println "  ground-state energy (E₁=−1).  This is the Lead Confirmed Quantization"
   IO.println "  Theorem anchoring the Kernel formalization."
   IO.println ""
-  IO.println "See LeadQuantization.lean for full proof terms."
+  IO.println "See Quantization.lean for full proof terms."
   IO.println ""
 
 def main : IO Unit := do
@@ -1108,4 +1108,4 @@ def main : IO Unit := do
   printPumpFunBot
   printGravityQuantumDuality
   printCryptoBridge
-  printLeadQuantization
+  printQuantization
