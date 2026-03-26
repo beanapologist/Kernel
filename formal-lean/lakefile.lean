@@ -26,7 +26,7 @@ lean_lib «FormalLean» where
   roots := #[`CriticalEigenvalue, `TimeCrystal, `SpaceTime, `Turbulence, `FineStructure,
              `ParticleMass, `OhmTriality, `SilverCoherence, `KernelAxle, `ForwardClassicalTime,
              `SpeedOfLight, `CrossChainDeFiAggregator, `PumpFunBot, `GravityQuantumDuality,
-             `CryptoBridge]
+             `CryptoBridge, `Quantization]
 
 /-- Executable entry point that prints a summary of verified theorems. -/
 @[default_target]
