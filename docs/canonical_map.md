@@ -32,9 +32,9 @@ every major mathematical structure established in the Lean 4 proofs it records:
 
 | Item | Count |
 |------|-------|
-| Mathematical structures | 17 |
-| Lean source files | 14 |
-| Formally proved theorems (total) | 432 |
+| Mathematical structures | 18 |
+| Lean source files | 15 |
+| Formally proved theorems (total) | 452 |
 | Empirical-validation checks | 78 |
 | **Empirical** checks | **20** |
 | **Empirical checks passed** | **20 / 20 (100 %)** |
@@ -1002,6 +1002,127 @@ structure of the complex-plane decomposition and basic calculus inequalities.
 
 ---
 
+## Structure 18 — NIST Atomic Weights & Isotopic Compositions
+
+**Lean file:** `Chemistry.lean` · **Theorems:** 20
+
+### Definition
+
+```
+aw_H  = 1008/1000  = 1.008  u     standard atomic weight, hydrogen  (NIST 2016)
+aw_He = 40026/10000 = 4.0026 u    standard atomic weight, helium    (NIST 2016)
+aw_C  = 12011/1000 = 12.011 u     standard atomic weight, carbon    (NIST 2016)
+aw_N  = 14007/1000 = 14.007 u     standard atomic weight, nitrogen  (NIST 2016)
+aw_O  = 15999/1000 = 15.999 u     standard atomic weight, oxygen    (NIST 2016)
+
+Isotopic abundances (NIST 2016 representative compositions):
+  ab_H1  = 999885/1000000 = 0.999885   x(H-1 protium)
+  ab_H2  = 115/1000000   = 0.000115   x(H-2 deuterium)
+  ab_C12 = 9893/10000    = 0.9893     x(C-12)
+  ab_C13 = 107/10000     = 0.0107     x(C-13)
+  ab_O16 = 99757/100000  = 0.99757    x(O-16)
+  ab_O17 = 38/100000     = 0.00038    x(O-17)
+  ab_O18 = 205/100000    = 0.00205    x(O-18)
+
+Abundance-weighted average (IUPAC 2016 definition):
+  aw_H_weighted(m₁, m₂) = ab_H1 · m₁ + ab_H2 · m₂
+
+Molecular (formula) masses:
+  mol_H2O = 2·aw_H + aw_O    = 18.015 u
+  mol_CO2 = aw_C + 2·aw_O   = 44.009 u
+  mol_CH4 = aw_C + 4·aw_H   = 16.043 u
+  mol_NH3 = aw_N + 3·aw_H   = 17.031 u
+```
+
+All numerical constants are stored as **exact rational fractions**; the
+underlying CODATA / IUPAC physical measurements serve as the scientific basis
+but are not themselves derivable from first principles in Lean.
+
+### Key Lean Theorems
+
+| Theorem | Statement |
+|---------|-----------|
+| `aw_periodic_order` | aw_H < aw_He < aw_C < aw_N < aw_O (NIST periodic ordering) |
+| `hydrogen_abundances_sum_one` | ab_H1 + ab_H2 = 1 (normalization constraint) |
+| `carbon_abundances_sum_one` | ab_C12 + ab_C13 = 1 |
+| `oxygen_abundances_sum_one` | ab_O16 + ab_O17 + ab_O18 = 1 |
+| `protium_dominant` | ab_H2 < ab_H1 (protium ≫ deuterium) |
+| `isotope_average_pos` | m₁, m₂ > 0 → aw_H_weighted(m₁, m₂) > 0 |
+| `isotope_average_lower_bound` | m₁ < m₂ → m₁ < aw_H_weighted(m₁, m₂) |
+| `isotope_average_upper_bound` | m₁ < m₂ → aw_H_weighted(m₁, m₂) < m₂ |
+| `water_synthesis_mass_conservation` | 2H₂ + O₂ → 2H₂O: mass balanced |
+| `methane_combustion_mass_conservation` | CH₄ + 2O₂ → CO₂ + 2H₂O: mass balanced |
+| `ammonia_synthesis_mass_conservation` | N₂ + 3H₂ → 2NH₃: mass balanced |
+| `carbon_monoxide_oxidation_conservation` | 2CO + O₂ → 2CO₂: mass balanced |
+| `mol_CO2_heavier_than_H2O` | mol_H2O < mol_CO2 (18.015 < 44.009 u) |
+| `mol_H2O_heavier_than_NH3` | mol_NH3 < mol_H2O (17.031 < 18.015 u) |
+| `mol_NH3_heavier_than_CH4` | mol_CH4 < mol_NH3 (16.043 < 17.031 u) |
+
+### Observable Phenomena
+
+- **Atomic weight ordering:** the NIST 2016 standard atomic weights of the first
+  ten elements follow strict ascending order by atomic number (with the well-known
+  Ar/K inversion absent in the H–O range).  The machine-checked inequality
+  Ar(H) < Ar(He) < Ar(C) < Ar(N) < Ar(O) is a numerical consequence of the
+  NIST 2016 rational values stored as exact fractions.
+- **Isotopic normalization:** for every element, the representative isotopic
+  abundances published by NIST form a probability distribution over the naturally
+  occurring stable isotopes, summing to exactly 1.  The proofs for H (2 isotopes),
+  C (2 isotopes), and O (3 isotopes) are verified by `norm_num` from the exact
+  rational NIST values.
+- **Weighted-average bounds:** the IUPAC definition Ar(E) = Σᵢ x(Eᵢ)·m(Eᵢ)
+  guarantees that the standard atomic weight lies strictly between the lightest
+  and heaviest isotope masses whenever more than one isotope is present — a direct
+  algebraic consequence of the normalization constraint Σᵢ x(Eᵢ) = 1 and
+  positivity of all abundances.  Machine-checked for hydrogen using NIST 2016
+  representative abundances.
+- **Conservation of mass:** in any balanced chemical equation, the total atomic
+  inventory of each element is equal on both sides.  Since mass is additive,
+  total reactant mass equals total product mass.  Four balanced reactions are
+  formally verified: water synthesis (2H₂ + O₂ → 2H₂O), methane combustion
+  (CH₄ + 2O₂ → CO₂ + 2H₂O), ammonia synthesis (N₂ + 3H₂ → 2NH₃), and
+  carbon monoxide oxidation (2CO + O₂ → 2CO₂).  Each proof is a trivial ring
+  equality once stoichiometry is correctly encoded.
+- **Molecular mass ordering:** the molecular formula masses of four common small
+  molecules satisfy M(CH₄) < M(NH₃) < M(H₂O) < M(CO₂) (16.043 < 17.031 <
+  18.015 < 44.009 u).  This ordering is numerically confirmed by `norm_num` from
+  the NIST 2016 atomic weights.
+
+### Validation
+
+All checks in `Chemistry.lean` are `mathematical_identity` or
+`numerical_precision` — they verify algebraic consistency of the NIST 2016
+rational constants, not independent empirical measurements.
+
+| Check | Type | Criterion |
+|-------|------|-----------|
+| `aw_periodic_order` (norm_num) | numerical-precision | 1.008 < 4.0026 < 12.011 < 14.007 < 15.999 |
+| `hydrogen_abundances_sum_one` (norm_num) | numerical-precision | 999885 + 115 = 1000000 |
+| `carbon_abundances_sum_one` (norm_num) | numerical-precision | 9893 + 107 = 10000 |
+| `oxygen_abundances_sum_one` (norm_num) | numerical-precision | 99757 + 38 + 205 = 100000 |
+| `isotope_average_lower_bound` (nlinarith) | math-id | Follows from Σx=1 and positivity |
+| `isotope_average_upper_bound` (nlinarith) | math-id | Follows from Σx=1 and positivity |
+| `water_synthesis_mass_conservation` (ring) | math-id | Algebraic stoichiometry identity |
+| `methane_combustion_mass_conservation` (ring) | math-id | Algebraic stoichiometry identity |
+| `ammonia_synthesis_mass_conservation` (ring) | math-id | Algebraic stoichiometry identity |
+| `carbon_monoxide_oxidation_conservation` (ring) | math-id | Algebraic stoichiometry identity |
+| `mol_CO2_heavier_than_H2O` (norm_num) | numerical-precision | 18.015 < 44.009 |
+| `mol_H2O_heavier_than_NH3` (norm_num) | numerical-precision | 17.031 < 18.015 |
+| `mol_NH3_heavier_than_CH4` (norm_num) | numerical-precision | 16.043 < 17.031 |
+
+### Data Sources
+
+- **NIST 2016 Atomic Weights and Isotopic Compositions with Relative Atomic Masses.**
+  https://www.nist.gov/pml/atomic-weights-and-isotopic-compositions-relative-atomic-masses
+  Standard atomic weights for H, He, C, N, O and representative isotopic
+  abundances for H-1/H-2, C-12/C-13, O-16/O-17/O-18.
+- **IUPAC 2016** — Definition of standard atomic weight as abundance-weighted
+  mean of stable isotope masses.
+- Mathematical (ring / norm_num): stoichiometric conservation identities and
+  numerical ordering proofs.
+
+---
+
 An internal coherence-mining experiment (8 phase-space agents × 5,040 parameter
 combinations each; raw data: 630 rows × 8 agents of CSV files) produced three
 empirically grounded discoveries:
@@ -1074,7 +1195,7 @@ the codebase.**
 ```bash
 cd formal-lean/
 lake exe cache get    # download pre-built Mathlib cache (~1 GB)
-lake build            # verify all 432 theorems across 14 source files
+lake build            # verify all 452 theorems across 15 source files
 lake exe formalLean   # print theorem summary
 ```
 
@@ -1116,8 +1237,8 @@ The `canonical_map.py` module exposes `build_canonical_map()` and
 ---
 
 *This document was reviewed against the Lean source files in `formal-lean/` and
-the validation pipeline in `empirical-validation/`.  The 14 Lean source files
-contain 432 machine-checked theorems (no `sorry`).  The canonical map module
+the validation pipeline in `empirical-validation/`.  The 15 Lean source files
+contain 452 machine-checked theorems (no `sorry`).  The canonical map module
 `empirical-validation/canonical_map.py` and its tests
 `empirical-validation/tests/test_canonical_map.py` provide machine-verifiable
 cross-references for the structures listed here.  The full validation pipeline
