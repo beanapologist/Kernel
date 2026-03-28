@@ -1,4 +1,53 @@
-# Kernel
+# Kernel — Lean-Verified Mathematical Universe
+
+> **"A complete, machine-checked mathematical universe — zero sorry,
+> zero gaps."**
+
+This repository contains a fully **Lean 4–verified mathematical universe**
+spanning algebra, physics, quantum mechanics, and chemistry, together with
+the C++ kernel implementation that applies these theorems in practice.
+
+---
+
+## 🌌 Mathematical Universe at a Glance
+
+| Domain | Theorems | Key Results |
+|--------|----------|-------------|
+| **Algebra** | 127 | μ⁸=1, Silver ratio δS=1+√2, coherence C(r)≤1, Z/8Z memory |
+| **Physics** | 159 | c=1/√(μ₀ε₀), α≈1/137, Koide formula, Lorentz geometry, NS bounds |
+| **Quantum** | 96 | Floquet time crystals, gravity-quantum duality, Theorem Q |
+| **Chemistry** | 44 | NIST atomic weights, G·R=1 Ohm-coherence duality |
+| **Total** | **426** | All verified by Lean 4, **0 sorry** |
+
+### Repository Structure
+
+```
+src/                        ← Lean modules organised by topic
+├── algebra/Eigenvalue.lean       μ, δS, C(r), Z/8Z memory
+├── physics/FundamentalConstants.lean  c, α, masses, spacetime
+├── quantum/QuantumUniverse.lean  Time crystals, duality, Theorem Q
+├── chemistry/AtomicUniverse.lean NIST atomic weights, Ohm-coherence
+└── MathUniverse.lean             Single-import entry point
+
+formal-lean/                ← Lean 4 proof files (the proof engine)
+docs/                       ← Documentation (overview, architecture)
+examples/                   ← Worked Lean demonstrations
+tests/                      ← Cross-module consistency checks
+```
+
+### Quick Start (Lean)
+
+```bash
+cd formal-lean/
+lake exe cache get   # download Mathlib cache (~5 min, avoids 1 h build)
+lake build           # verify all 426 theorems
+lake exe formalLean  # print theorem summary
+```
+
+See [docs/overview.md](docs/overview.md) for full documentation and
+[CONTRIBUTING.md](CONTRIBUTING.md) to add new theorems.
+
+---
 
 ## Quantum Kernel — Pipeline of Coherence v2.0
 
