@@ -2,6 +2,8 @@
 
 ## What is Eigenverse?
 
+**Canonical repository: [github.com/beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse)**
+
 **Eigenverse** is a fully formal, machine-checked library of theorems built
 around a single central object: the critical eigenvalue
 **μ = exp(i·3π/4)** — a point on the complex unit circle whose 8-cycle orbit,
@@ -86,6 +88,7 @@ lake exe formalLean  # print summary of verified theorems
 
 ## References
 
+- **Eigenverse**: <https://github.com/beanapologist/Eigenverse>
 - Lean 4: <https://leanprover.github.io/>
 - Mathlib4: <https://leanprover-community.github.io/mathlib4_docs/>
 - NIST Atomic Weights 2016: <https://www.nist.gov/pml/atomic-weights-and-isotopic-compositions-relative-atomic-masses>

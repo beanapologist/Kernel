@@ -1,5 +1,7 @@
 # Architecture
 
+**Canonical repository: [github.com/beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse)**
+
 This document explains how Eigenverse is structured internally and how the
 different layers relate to each other.
 
@@ -148,5 +150,5 @@ weighted-average mass theorem; 20 theorems, 0 sorry.
 3. Create `src/<domain>/MyTopic.lean` that imports `FormalLean.MyTopic`.
 4. Update `src/Eigenverse.lean` to include the new import.
 5. Add an entry to the table in `docs/overview.md`.
-6. Submit a PR — the CI workflow will build and verify all proofs.
+6. Submit a PR to [beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse) — the CI workflow will build and verify all proofs.
 

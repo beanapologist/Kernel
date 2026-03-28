@@ -93,7 +93,7 @@ lake build
 
 ## Submitting a Pull Request
 
-1. Fork the repository and create a feature branch:
+1. Fork [beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse) and create a feature branch:
    ```bash
    git checkout -b feat/my-topic
    ```
@@ -103,7 +103,7 @@ lake build
    lake build
    lake exe formalLean
    ```
-3. Push your branch and open a PR against `main`.
+3. Push your branch and open a PR against `main` on [beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse).
 4. The CI workflow will automatically build and verify all proofs.
 5. Address any reviewer feedback.
 

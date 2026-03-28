@@ -4,12 +4,20 @@
   This project formalizes core theorems from the Kernel research repository.
   Mathematical background: ../docs/master_derivations.pdf
 
+  Canonical home: https://github.com/beanapologist/Eigenverse
+
   Dependency: Mathlib4 (https://github.com/leanprover-community/mathlib4)
 
   Quick start:
     lake exe cache get   -- download pre-built Mathlib cache (recommended)
     lake build           -- build all modules
     lake test            -- run tests (if configured)
+
+  Future: once beanapologist/Eigenverse is populated, replace the FormalLean
+  library with a direct dependency:
+
+    require eigenverse from git
+      "https://github.com/beanapologist/Eigenverse" @ "main"
 -/
 import Lake
 open Lake DSL

@@ -3,6 +3,8 @@
 > **"A complete, machine-checked map from pure mathematics to observable
 > reality — zero sorry, zero gaps."**
 
+**Canonical repository: [github.com/beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse)**
+
 **Eigenverse** is a fully **Lean 4–verified mathematical universe** built
 around a single central object: the critical eigenvalue **μ = exp(i·3π/4)**.
 Its 8-cycle orbit, coherence function C(r) = 2r/(1+r²), and Silver ratio
@@ -49,7 +51,8 @@ lake build           # verify all 450 theorems
 lake exe formalLean  # print theorem summary
 ```
 
-See [docs/overview.md](docs/overview.md) for full documentation and
+See [github.com/beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse) for the canonical Eigenverse repository,
+[docs/overview.md](docs/overview.md) for full documentation, and
 [CONTRIBUTING.md](CONTRIBUTING.md) to add new theorems.
 
 ---
