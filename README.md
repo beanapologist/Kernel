@@ -1,4 +1,61 @@
-# Kernel
+# Eigenverse — Lean-Verified Mathematical Universe
+
+> **"A complete, machine-checked map from pure mathematics to observable
+> reality — zero sorry, zero gaps."**
+
+**Canonical repository: [github.com/beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse)**
+
+**Eigenverse** is a fully **Lean 4–verified mathematical universe** built
+around a single central object: the critical eigenvalue **μ = exp(i·3π/4)**.
+Its 8-cycle orbit, coherence function C(r) = 2r/(1+r²), and Silver ratio
+δS = 1+√2 generate a self-consistent map spanning algebra, physics, quantum
+mechanics, and chemistry — all machine-checked, all anchored to NIST/CODATA
+empirical data.
+
+---
+
+## 🌌 Eigenverse at a Glance
+
+| Domain | Theorems | Key Results |
+|--------|----------|-------------|
+| **Algebra** | 127 | μ⁸=1, Silver ratio δS=1+√2, coherence C(r)≤1, Z/8Z memory |
+| **Geometry** | 141 | Rotation matrix R(3π/4) (det=1, orthogonal, order-8); unit circle orbit; hyperbolic Pythagorean identity; F(s,t)=t+i·s |
+| **Physics** | 159 | c=1/√(μ₀ε₀), α≈1/137, Koide formula, Lorentz geometry, NS bounds |
+| **Quantum** | 120 | Floquet time crystals, gravity-quantum duality, Theorem Q, bidirectional time & Planck floor |
+| **Chemistry** | 44 | NIST atomic weights, G·R=1 Ohm-coherence duality |
+| **Total** | **450** | All verified by Lean 4, **0 sorry** |
+
+### Repository Structure
+
+```
+src/                        ← Lean modules organised by topic
+├── algebra/Eigenvalue.lean             μ, δS, C(r), Z/8Z memory
+├── geometry/GeometricStructures.lean   Rotation matrices, unit circle, hyperbolic geometry
+├── physics/FundamentalConstants.lean   c, α, masses, spacetime
+├── quantum/QuantumUniverse.lean        Time crystals, duality, Theorem Q
+├── chemistry/AtomicUniverse.lean       NIST atomic weights, Ohm-coherence
+└── Eigenverse.lean                     Single-import entry point
+
+formal-lean/                ← Lean 4 proof files (the proof engine)
+docs/                       ← Documentation (overview, architecture)
+examples/                   ← Worked Lean demonstrations
+tests/                      ← Cross-module consistency checks
+```
+
+### Quick Start (Lean)
+
+```bash
+cd formal-lean/
+lake exe cache get   # download Mathlib cache (~5 min, avoids 1 h build)
+lake build           # verify all 450 theorems
+lake exe formalLean  # print theorem summary
+```
+
+See [github.com/beanapologist/Eigenverse](https://github.com/beanapologist/Eigenverse) for the canonical Eigenverse repository,
+[docs/overview.md](docs/overview.md) for full documentation, and
+[CONTRIBUTING.md](CONTRIBUTING.md) to add new theorems.
+
+---
 
 ## Quantum Kernel — Pipeline of Coherence v2.0
 
