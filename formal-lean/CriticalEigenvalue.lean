@@ -1024,4 +1024,45 @@ theorem palindrome_sum_zero (r : ℝ) (hr : 0 < r) :
     Res r + Res (1 / r) = 0 := by
   linarith [palindrome_residual_antisymm r hr]
 
+-- ════════════════════════════════════════════════════════════════════════════
+-- Section 23 — Sign of Re(μ) and Im(μ)
+-- Interpretation: Re(μ) < 0  ↔  time / gravity (negative real axis)
+--                Im(μ) > 0  ↔  space / quantum / dark energy (positive imaginary axis)
+-- ════════════════════════════════════════════════════════════════════════════
+
+/-- The real part of μ equals −1/√2.
+    Derived from mu_eq_cart: μ = (−1 + I)/√2, so Re(μ) = −1/√2. -/
+theorem mu_re_eq : μ.re = -(1 / Real.sqrt 2) := by
+  have h2ne : Real.sqrt 2 ≠ 0 := Real.sqrt_ne_zero'.mpr (by norm_num)
+  rw [mu_eq_cart]
+  simp [Complex.div_re, Complex.normSq_ofReal, Complex.add_re,
+        Complex.neg_re, Complex.one_re, Complex.I_re]
+  field_simp [h2ne]
+
+/-- The imaginary part of μ equals 1/√2.
+    Derived from mu_eq_cart: μ = (−1 + I)/√2, so Im(μ) = 1/√2. -/
+theorem mu_im_eq : μ.im = 1 / Real.sqrt 2 := by
+  have h2ne : Real.sqrt 2 ≠ 0 := Real.sqrt_ne_zero'.mpr (by norm_num)
+  rw [mu_eq_cart]
+  simp [Complex.div_im, Complex.normSq_ofReal, Complex.add_im,
+        Complex.neg_im, Complex.one_im, Complex.I_im]
+  field_simp [h2ne]
+
+/-- The real part of μ is strictly negative.
+    Re(μ) = −1/√2 < 0.
+    Project interpretation: the negative real component encodes the time / gravity direction,
+    representing the dissipative, attractive nature of the gravitational interaction. -/
+theorem mu_re_neg : μ.re < 0 := by
+  rw [mu_re_eq]
+  have : 0 < Real.sqrt 2 := Real.sqrt_pos.mpr (by norm_num)
+  linarith [div_pos one_pos this]
+
+/-- The imaginary part of μ is strictly positive.
+    Im(μ) = 1/√2 > 0.
+    Project interpretation: the positive imaginary component encodes the space / quantum /
+    dark-energy direction, representing the expansive, coherence-preserving dynamics. -/
+theorem mu_im_pos : 0 < μ.im := by
+  rw [mu_im_eq]
+  exact div_pos one_pos (Real.sqrt_pos.mpr (by norm_num))
+
 end -- noncomputable section
