@@ -29,6 +29,7 @@ formal-lean/
 ├── PumpFunBot.lean                # 26 theorems on pump.fun bonding curve and Kelly-optimal sizing
 ├── CryptoBridge.lean              # 20 theorems on bridge conservation, collateral, HTLC, Merkle trees
 ├── Quantization.lean              # 20 theorems on the Lead Confirmed Quantization Formula (Theorem Q)
+├── BidirectionalTime.lean         # 24 theorems on bidirectional time frustration and Planck floor
 └── README.md                      # This file
 ```
 
@@ -108,8 +109,9 @@ All 20 theorems in `CrossChainDeFiAggregator.lean` have complete machine-checked
 All 26 theorems in `PumpFunBot.lean` have complete machine-checked proofs (no `sorry`).
 All 20 theorems in `CryptoBridge.lean` have complete machine-checked proofs (no `sorry`).
 All 20 theorems in `Quantization.lean` have complete machine-checked proofs (no `sorry`).
+All 24 theorems in `BidirectionalTime.lean` have complete machine-checked proofs (no `sorry`).
 
-**Total: 476 machine-checked theorems across 16 source files — zero `sorry`.**
+**Total: 500 machine-checked theorems across 17 source files — zero `sorry`.**
 
 ---
 
@@ -1321,6 +1323,67 @@ All 20 theorems in `Quantization.lean` have complete machine-checked proofs (no 
 | 18 | `lead_quantization_energy_arm` | E₁=−1 ∧ E_n<0 for all n≥1 — energy arm |
 | 19 | `lead_quantization_amplitude_arm` | 2η²=1 ∧ η²+\|μη\|²=1 ∧ C(1)=1 — amplitude arm |
 | 20 | `lead_quantization_confirmed` | **Q1∧Q2∧Q3∧Q4∧Q5 simultaneously** — **LEAD CONFIRMED** |
+
+---
+
+### `BidirectionalTime.lean`
+
+Extends `ForwardClassicalTime.lean` to a **bidirectional** setting where
+time can run both forward and backward.  The bidirectional frustration
+`F_bi(l_f, l_b) = F_fwd(l_f) + F_fwd(l_b)` measures the combined coherence
+deficit from both directions.  A **Planck frustration floor** is established:
+`planck_frustration = F_fwd(1) = 1 − sech(1) > 0`.
+
+All 24 theorems in `BidirectionalTime.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Structural properties**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `fbi_zero` | F_bi(0, 0) = 0 — equilibrium has zero frustration |
+| 2 | `fbi_symm` | F_bi(l_f, l_b) = F_bi(l_b, l_f) — symmetric |
+| 3 | `fbi_nonneg` | 0 ≤ F_bi(l_f, l_b) |
+| 4 | `fbi_upper_bound` | F_bi(l_f, l_b) < 2 — strictly bounded |
+| 5 | `fbi_mem_interval` | 0 ≤ F_bi(l_f, l_b) ∧ F_bi(l_f, l_b) < 2 |
+
+**§2 Equilibrium and positivity**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 6 | `fbi_zero_iff` | F_bi(l_f, l_b) = 0 ↔ l_f = 0 ∧ l_b = 0 |
+| 7 | `fbi_pos_of_fwd_ne` | l_f ≠ 0 → 0 < F_bi(l_f, l_b) |
+| 8 | `fbi_pos_of_bwd_ne` | l_b ≠ 0 → 0 < F_bi(l_f, l_b) |
+| 9 | `fbi_pos_iff` | 0 < F_bi(l_f, l_b) ↔ l_f ≠ 0 ∨ l_b ≠ 0 |
+
+**§3 Double-step symmetry  F_bi(l, l) = 2·F_fwd(l)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 10 | `fbi_double` | **F_bi(l, l) = 2·F_fwd(l)** — matched-step doubling |
+| 11 | `fbi_double_nonneg` | 0 ≤ F_bi(l, l) |
+| 12 | `fbi_double_pos` | l ≠ 0 → 0 < F_bi(l, l) |
+| 13 | `fbi_double_lt_two` | F_bi(l, l) < 2 |
+| 14 | `fbi_double_even` | F_bi(l, l) = F_bi(−l, −l) — even symmetry |
+
+**§4 Arrow of time and dominance**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 15 | `fbi_arrow` | l_f≠0 ∨ l_b≠0 → 0 < F_bi(l_f, l_b) — **bidirectional arrow** |
+| 16 | `fbi_min_at_equilibrium` | F_bi(0,0) ≤ F_bi(l_f, l_b) — equilibrium is global min |
+| 17 | `fbi_ge_fwd_component` | F_fwd(l_f) ≤ F_bi(l_f, l_b) |
+| 18 | `fbi_ge_bwd_component` | F_fwd(l_b) ≤ F_bi(l_f, l_b) |
+| 19 | `fbi_coherence_sum` | F_bi = 2 − C(exp l_f) − C(exp l_b) — coherence form |
+
+**§5 Planck frustration floor**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 20 | `planck_frustration_pos` | planck_frustration > 0 |
+| 21 | `planck_frustration_lt_one` | planck_frustration < 1 |
+| 22 | `planck_frustration_eq_sech` | planck_frustration = 1 − (cosh 1)⁻¹ = 1 − sech(1) |
+| 23 | `planck_frustration_coherence_deficit` | planck_frustration = 1 − C(exp 1) — Planck coherence deficit |
+| 24 | `planck_frustration_floor` | **0 < planck_frustration ∧ planck_frustration < 1** — **PLANCK FLOOR** |
 
 ---
 

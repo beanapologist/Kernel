@@ -27,6 +27,7 @@ import PumpFunBot
 import GravityQuantumDuality
 import CryptoBridge
 import Quantization
+import BidirectionalTime
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -1092,6 +1093,67 @@ def printQuantization : IO Unit := do
   IO.println "See Quantization.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
+def printBidirectionalTime : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println " BidirectionalTime.lean — Bidirectional time frustration and the"
+  IO.println " Planck frustration floor"
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "  F_bi(l_f, l_b) = F_fwd(l_f) + F_fwd(l_b)"
+  IO.println "  planck_frustration = F_fwd(1) = 1 − sech(1)"
+  IO.println ""
+  IO.println "§1    Structural properties"
+  IO.println ""
+  IO.println "  [1]  fbi_zero              : F_bi(0, 0) = 0"
+  IO.println "  [2]  fbi_symm              : F_bi l_f l_b = F_bi l_b l_f"
+  IO.println "  [3]  fbi_nonneg            : 0 ≤ F_bi l_f l_b"
+  IO.println "  [4]  fbi_upper_bound       : F_bi l_f l_b < 2"
+  IO.println "  [5]  fbi_mem_interval      : 0 ≤ F_bi l_f l_b ∧ F_bi l_f l_b < 2"
+  IO.println ""
+  IO.println "§2    Equilibrium and positivity"
+  IO.println ""
+  IO.println "  [6]  fbi_zero_iff          : F_bi l_f l_b = 0 ↔ l_f = 0 ∧ l_b = 0"
+  IO.println "  [7]  fbi_pos_of_fwd_ne     : l_f ≠ 0 → 0 < F_bi l_f l_b"
+  IO.println "  [8]  fbi_pos_of_bwd_ne     : l_b ≠ 0 → 0 < F_bi l_f l_b"
+  IO.println "  [9]  fbi_pos_iff           : 0 < F_bi l_f l_b ↔ l_f ≠ 0 ∨ l_b ≠ 0"
+  IO.println ""
+  IO.println "§3    Double-step symmetry"
+  IO.println ""
+  IO.println "  [10] fbi_double            : F_bi l l = 2·F_fwd(l)  ← DOUBLING"
+  IO.println "  [11] fbi_double_nonneg     : 0 ≤ F_bi l l"
+  IO.println "  [12] fbi_double_pos        : l ≠ 0 → 0 < F_bi l l"
+  IO.println "  [13] fbi_double_lt_two     : F_bi l l < 2"
+  IO.println "  [14] fbi_double_even       : F_bi l l = F_bi(−l)(−l)  (even symmetry)"
+  IO.println ""
+  IO.println "§4    Arrow of time and dominance"
+  IO.println ""
+  IO.println "  [15] fbi_arrow             : l_f≠0 ∨ l_b≠0 → 0 < F_bi l_f l_b  ← ARROW"
+  IO.println "  [16] fbi_min_at_equilibrium: F_bi(0,0) ≤ F_bi(l_f,l_b)  (global min)"
+  IO.println "  [17] fbi_ge_fwd_component  : F_fwd(l_f) ≤ F_bi(l_f,l_b)"
+  IO.println "  [18] fbi_ge_bwd_component  : F_fwd(l_b) ≤ F_bi(l_f,l_b)"
+  IO.println "  [19] fbi_coherence_sum     : F_bi = 2 − C(exp l_f) − C(exp l_b)"
+  IO.println ""
+  IO.println "§5    Planck frustration floor"
+  IO.println ""
+  IO.println "  [20] planck_frustration_pos               : planck_frustration > 0"
+  IO.println "  [21] planck_frustration_lt_one            : planck_frustration < 1"
+  IO.println "  [22] planck_frustration_eq_sech           : planck_frustration = 1 − sech(1)"
+  IO.println "  [23] planck_frustration_coherence_deficit : planck_frustration = 1 − C(exp 1)"
+  IO.println "  [24] planck_frustration_floor             :"
+  IO.println "         0 < planck_frustration ∧ planck_frustration < 1  ← PLANCK FLOOR"
+  IO.println ""
+  IO.println "24 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key result: any nonzero Lyapunov displacement (forward or backward) produces"
+  IO.println "  strictly positive bidirectional frustration F_bi > 0.  The symmetric"
+  IO.println "  double-step satisfies F_bi(l,l) = 2·F_fwd(l) < 2.  The Planck frustration"
+  IO.println "  floor planck_frustration = 1−sech(1) provides the minimum quantum of"
+  IO.println "  frustration at the natural-unit scale."
+  IO.println ""
+  IO.println "See BidirectionalTime.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -1109,3 +1171,4 @@ def main : IO Unit := do
   printGravityQuantumDuality
   printCryptoBridge
   printQuantization
+  printBidirectionalTime

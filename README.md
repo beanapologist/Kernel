@@ -5,7 +5,7 @@
 A C++ kernel implementation based on validated mathematical theorems from the Pipeline of Coherence derivations. The kernel manages quantum processes with 8-cycle scheduling and includes a rotational memory addressing system.
 
 All core theorems are **machine-verified** in Lean 4 with zero `sorry` placeholders.
-See [`formal-lean/`](formal-lean/) for the full proof library (476 theorems across 16 files).
+See [`formal-lean/`](formal-lean/) for the full proof library (500 theorems across 17 files).
 
 ### Features
 
@@ -419,7 +419,8 @@ mathematical core, verified by the Lean 4 type checker with **zero `sorry` place
 | `PumpFunBot.lean` | 26 | pump.fun bonding curve + Kelly-optimal sizing |
 | `CryptoBridge.lean` | 20 | Bridge conservation, collateral, HTLC, Merkle trees |
 | `Quantization.lean` | 20 | Lead Confirmed Quantization Formula (Theorem Q) |
-| **Total** | **476** | **All machine-checked, zero sorry** |
+| `BidirectionalTime.lean` | 24 | Bidirectional frustration F_bi + Planck frustration floor |
+| **Total** | **500** | **All machine-checked, zero sorry** |
 
 **Quick start:**
 ```bash
