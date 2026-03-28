@@ -27,6 +27,7 @@ import PumpFunBot
 import GravityQuantumDuality
 import CryptoBridge
 import Quantization
+import Chemistry
 
 set_option maxRecDepth 2000 in
 def printCriticalEigenvalue : IO Unit := do
@@ -1092,6 +1093,67 @@ def printQuantization : IO Unit := do
   IO.println "See Quantization.lean for full proof terms."
   IO.println ""
 
+set_option maxRecDepth 2000 in
+def printChemistry : IO Unit := do
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println " Chemistry — NIST atomic weights and isotopic compositions validation"
+  IO.println "════════════════════════════════════════════════════════════════════════"
+  IO.println ""
+  IO.println "  Data source: NIST Atomic Weights and Isotopic Compositions (2016)"
+  IO.println "  https://www.nist.gov/pml/atomic-weights-and-isotopic-compositions-relative-atomic-masses"
+  IO.println ""
+  IO.println "§1    Standard atomic weights (NIST 2016)"
+  IO.println ""
+  IO.println "  [1]  aw_H_pos          : aw_H > 0  (hydrogen,  1.008 u)"
+  IO.println "  [2]  aw_C_pos          : aw_C > 0  (carbon,   12.011 u)"
+  IO.println "  [3]  aw_O_pos          : aw_O > 0  (oxygen,   15.999 u)"
+  IO.println "  [4]  aw_periodic_order : aw_H < aw_He < aw_C < aw_N < aw_O"
+  IO.println ""
+  IO.println "§2    Isotopic abundances and normalization"
+  IO.println ""
+  IO.println "  [5]  hydrogen_abundances_pos     : ab_H1 > 0 ∧ ab_H2 > 0"
+  IO.println "  [6]  hydrogen_abundances_sum_one : ab_H1 + ab_H2 = 1"
+  IO.println "         x(H-1)=0.999885, x(H-2)=0.000115  (NIST 2016)"
+  IO.println "  [7]  carbon_abundances_sum_one   : ab_C12 + ab_C13 = 1"
+  IO.println "         x(C-12)=0.9893, x(C-13)=0.0107  (NIST 2016)"
+  IO.println "  [8]  oxygen_abundances_sum_one   : ab_O16 + ab_O17 + ab_O18 = 1"
+  IO.println "         x(O-16)=0.99757, x(O-17)=0.00038, x(O-18)=0.00205  (NIST 2016)"
+  IO.println "  [9]  protium_dominant            : ab_H2 < ab_H1  (H-1 ≫ H-2)"
+  IO.println ""
+  IO.println "§3    Atomic weight as abundance-weighted average"
+  IO.println ""
+  IO.println "  [10] isotope_average_pos         : m₁,m₂ > 0 → aw_H_weighted(m₁,m₂) > 0"
+  IO.println "  [11] isotope_average_lower_bound : m₁ < m₂ → m₁ < aw_H_weighted(m₁,m₂)"
+  IO.println "  [12] isotope_average_upper_bound : m₁ < m₂ → aw_H_weighted(m₁,m₂) < m₂"
+  IO.println "         ← WEIGHTED AVERAGE LIES STRICTLY BETWEEN ISOTOPE MASSES"
+  IO.println ""
+  IO.println "§4    Law of conservation of mass"
+  IO.println ""
+  IO.println "  [13] water_synthesis_mass_conservation      : 2H₂+O₂ → 2H₂O"
+  IO.println "  [14] methane_combustion_mass_conservation   : CH₄+2O₂ → CO₂+2H₂O"
+  IO.println "  [15] ammonia_synthesis_mass_conservation    : N₂+3H₂ → 2NH₃"
+  IO.println "  [16] carbon_monoxide_oxidation_conservation : 2CO+O₂ → 2CO₂"
+  IO.println "         ← MASS CONSERVED IN ALL FOUR BALANCED REACTIONS"
+  IO.println ""
+  IO.println "§5    Molecular masses and ordering"
+  IO.println ""
+  IO.println "  [17] mol_H2O_pos              : M(H₂O) > 0  (18.015 u)"
+  IO.println "  [18] mol_CO2_heavier_than_H2O : M(H₂O) < M(CO₂)  (18.015 < 44.009 u)"
+  IO.println "  [19] mol_H2O_heavier_than_NH3 : M(NH₃) < M(H₂O)  (17.031 < 18.015 u)"
+  IO.println "  [20] mol_NH3_heavier_than_CH4 : M(CH₄) < M(NH₃)  (16.043 < 17.031 u)"
+  IO.println "         ← ORDERING: M(CH₄) < M(NH₃) < M(H₂O) < M(CO₂)"
+  IO.println ""
+  IO.println "20 theorems — all machine-checked, zero sorry."
+  IO.println ""
+  IO.println "Key result: NIST 2016 isotopic abundances are formally verified to sum"
+  IO.println "  to 1 for H, C, and O; the abundance-weighted average lies strictly"
+  IO.println "  between the lightest and heaviest isotope masses; and mass is conserved"
+  IO.println "  across four balanced chemical reactions (water synthesis, methane"
+  IO.println "  combustion, ammonia synthesis, CO oxidation)."
+  IO.println ""
+  IO.println "See Chemistry.lean for full proof terms."
+  IO.println ""
+
 def main : IO Unit := do
   printCriticalEigenvalue
   printTimeCrystal
@@ -1109,3 +1171,4 @@ def main : IO Unit := do
   printGravityQuantumDuality
   printCryptoBridge
   printQuantization
+  printChemistry
