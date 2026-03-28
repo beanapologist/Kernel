@@ -13,18 +13,23 @@ formal-lean/
 ├── lakefile.lean          # Lake project config; declares Mathlib dependency
 ├── lean-toolchain         # Pins the exact Lean 4 version
 ├── Main.lean              # Executable entry point (prints verified theorems)
-├── CriticalEigenvalue.lean # 71 theorems on eigenvalue/coherence structure
-├── TimeCrystal.lean        # 33 theorems on discrete time crystal theory
-├── SpaceTime.lean          # 43 theorems on space-time unification
-├── Turbulence.lean         # 29 theorems on Navier-Stokes turbulence theory
-├── FineStructure.lean      # 30 theorems on the fine structure constant α_FS
-├── ParticleMass.lean       # 38 theorems on Koide formula, proton/electron mass ratio, coherence triality
-├── OhmTriality.lean        # 24 theorems on Ohm–Coherence duality at triality scales
-├── SilverCoherence.lean    # 27 theorems: C(δS)=√2/2; uniqueness; Im(μ)=C(δS); 45°-physics
-├── KernelAxle.lean         # 20 theorems: the axle μ — gear ratio 3:8, cross-section, engine loop
-├── ForwardClassicalTime.lean # 21 theorems on frustration harvesting in classical forward time
-├── SpeedOfLight.lean       # 19 theorems: c=1/√(μ₀ε₀); structural iso with η; fine structure bridge
-└── README.md              # This file
+├── CriticalEigenvalue.lean        # 82 theorems on eigenvalue/coherence structure
+├── TimeCrystal.lean               # 33 theorems on discrete time crystal theory
+├── SpaceTime.lean                 # 43 theorems on space-time unification
+├── GravityQuantumDuality.lean     # 22 theorems on gravity–quantum duality via F(s,t)=t+i·s
+├── Turbulence.lean                # 29 theorems on Navier-Stokes turbulence theory
+├── FineStructure.lean             # 30 theorems on the fine structure constant α_FS
+├── ParticleMass.lean              # 38 theorems on Koide formula, proton/electron mass ratio, coherence triality
+├── OhmTriality.lean               # 24 theorems on Ohm–Coherence duality at triality scales
+├── SilverCoherence.lean           # 29 theorems: C(δS)=√2/2; uniqueness; Im(μ)=C(δS); 45°-physics
+├── KernelAxle.lean                # 20 theorems: the axle μ — gear ratio 3:8, cross-section, engine loop
+├── ForwardClassicalTime.lean      # 21 theorems on frustration harvesting in classical forward time
+├── SpeedOfLight.lean              # 19 theorems: c=1/√(μ₀ε₀); structural iso with η; fine structure bridge
+├── CrossChainDeFiAggregator.lean  # 20 theorems on cross-chain AMM / lending / rate aggregation
+├── PumpFunBot.lean                # 26 theorems on pump.fun bonding curve and Kelly-optimal sizing
+├── CryptoBridge.lean              # 20 theorems on bridge conservation, collateral, HTLC, Merkle trees
+├── Quantization.lean              # 20 theorems on the Lead Confirmed Quantization Formula (Theorem Q)
+└── README.md                      # This file
 ```
 
 ---
@@ -87,15 +92,24 @@ See CriticalEigenvalue.lean for full proof terms.
 lake build 2>&1 | grep -E "error|warning|sorry"
 ```
 
-All 71 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
+All 82 theorems in `CriticalEigenvalue.lean` have complete machine-checked proofs (no `sorry`).
 All 33 theorems in `TimeCrystal.lean` have complete machine-checked proofs (no `sorry`).
 All 43 theorems in `SpaceTime.lean` have complete machine-checked proofs (no `sorry`).
+All 22 theorems in `GravityQuantumDuality.lean` have complete machine-checked proofs (no `sorry`).
 All 29 theorems in `Turbulence.lean` have complete machine-checked proofs (no `sorry`).
 All 30 theorems in `FineStructure.lean` have complete machine-checked proofs (no `sorry`).
 All 38 theorems in `ParticleMass.lean` have complete machine-checked proofs (no `sorry`).
 All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `sorry`).
-All 27 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
+All 29 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
 All 20 theorems in `KernelAxle.lean` have complete machine-checked proofs (no `sorry`).
+All 21 theorems in `ForwardClassicalTime.lean` have complete machine-checked proofs (no `sorry`).
+All 19 theorems in `SpeedOfLight.lean` have complete machine-checked proofs (no `sorry`).
+All 20 theorems in `CrossChainDeFiAggregator.lean` have complete machine-checked proofs (no `sorry`).
+All 26 theorems in `PumpFunBot.lean` have complete machine-checked proofs (no `sorry`).
+All 20 theorems in `CryptoBridge.lean` have complete machine-checked proofs (no `sorry`).
+All 20 theorems in `Quantization.lean` have complete machine-checked proofs (no `sorry`).
+
+**Total: 476 machine-checked theorems across 16 source files — zero `sorry`.**
 
 ---
 
@@ -335,6 +349,166 @@ give a six-step recipe for constructing the Kernel discrete time crystal.
 | 31 | `mu_crystal_coherence_stability` | C(\|ψ(t+nT)\|/\|ψ(t)\|) = 1 — coherence maintained |
 | 32 | `mu_crystal_canonical_init` | η²+normSq(μ·η)=1 — canonical normalization |
 | 33 | `mu_crystal_silver_coherence` | C(δS) = η — silver ratio equals canonical amplitude |
+
+---
+
+### `SpaceTime.lean`
+
+Unifies time and space into a single complex-valued **reality** function
+`F(s, t) = t + i·s`, where time `t < 0` lives on the negative real axis
+(causal/retarded direction) and space `s > 0` lives on the positive
+imaginary axis.  Consistency with the Floquet framework from `TimeCrystal.lean`
+is machine-checked: any reality-grounded state inherits period doubling,
+norm invariance, and the quasi-energy identity.
+
+All 43 theorems in `SpaceTime.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Time and space domains**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `timeDomain_nonempty` | −1 ∈ timeDomain — time domain is non-empty |
+| 2 | `spaceDomain_nonempty` | 1 ∈ spaceDomain — space domain is non-empty |
+
+**§2 The reality function  reality(s, t) = t + i·s**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 3 | `reality_re` | Re(reality s t) = t |
+| 4 | `reality_im` | Im(reality s t) = s |
+| 5 | `reality_time_negative` | t ∈ timeDomain → Re(reality s t) < 0 |
+| 6 | `reality_space_positive` | s ∈ spaceDomain → 0 < Im(reality s t) |
+| 7 | `reality_timeEvolution_unitary` | \|U(H, Re(reality s t))\| = 1 — unitary time evolution |
+| 8 | `reality_floquetPhase_unit` | \|e^{−is}\| = 1 — unit Floquet phase |
+
+**§3 Reality-grounded time crystal states**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `realityTC_is_floquet` | isRealityTC → isFloquetState ψ T π |
+| 10 | `realityTC_period_double` | ψ(t+2T) = ψ(t) — 2T-periodicity |
+| 11 | `realityTC_breaks_symmetry` | non-trivial → DTTS broken |
+| 12 | `realityTC_iterated` | ψ(t+nT) = (−1)ⁿ·ψ(t) — iterated evolution |
+| 13 | `realityTC_norm_invariant` | \|ψ(t+T)\| = \|ψ(t)\| — norm conserved per period |
+| 14 | `realityTC_norm_n_invariant` | \|ψ(t+nT)\| = \|ψ(t)\| for all n |
+
+**§4 Quasi-energy and Floquet structure**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 15 | `realityTC_quasi_energy` | ε_F·T = π — quasi-energy reconstruction |
+| 16 | `realityTC_floquet_at_quasi_energy` | e^{−i·ε_F·T} = e^{−iπ} |
+| 17 | `realityTC_period_doubling_strict` | T > 0 → T < 2T — strict period doubling |
+| 18 | `realityTC_period_ratio` | 2T/T = 2 — period-doubling ratio |
+| 19 | `realityTC_phase_not_sync` | e^{−iπ} ≠ e^{−i·0} — crystal phase ≠ drive phase |
+
+**§5 The observer's reality as canonical map  F(s, t) = t + i·s**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 20 | `F_eq_reality` | F(s,t) = reality s t |
+| 21 | `F_re` | Re(F(s,t)) = t |
+| 22 | `F_im` | Im(F(s,t)) = s |
+| 23 | `F_injective` | F(s₁,t₁) = F(s₂,t₂) → s₁=s₂ ∧ t₁=t₂ — injectivity |
+| 24 | `F_second_quadrant` | s>0, t<0 → Re(F)<0 ∧ Im(F)>0 — second quadrant |
+| 25 | `F_abs_eq_zero_iff` | \|F(s,t)\| = 0 ↔ s=0 ∧ t=0 |
+| 26 | `F_timeEvolution_unitary` | \|U(H, Re(F(s,t)))\| = 1 |
+| 27 | `F_floquetPhase_unit` | \|e^{−i·Im(F(s,t))}\| = 1 |
+
+**§6 The positive imaginary axis as space  iSpace s = i·s**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 28 | `iSpace_re` | Re(i·s) = 0 |
+| 29 | `iSpace_im` | Im(i·s) = s |
+| 30 | `iSpace_abs` | \|i·s\| = ‖s‖ |
+| 31 | `iSpace_abs_pos` | s > 0 → \|i·s\| = s |
+| 32 | `iSpace_pos_im` | s > 0 → 0 < Im(i·s) |
+| 33 | `iSpace_mem_posImagAxis` | s > 0 → i·s ∈ posImagAxis |
+| 34 | `iSpace_injective` | i·s₁ = i·s₂ → s₁ = s₂ |
+| 35 | `iSpace_add` | i·(s₁+s₂) = i·s₁ + i·s₂ |
+| 36 | `iSpace_smul` | i·(r·s) = r·(i·s) |
+| 37 | `spaceDomain_add` | s₁,s₂ > 0 → s₁+s₂ > 0 |
+| 38 | `spaceDomain_smul` | r,s > 0 → r·s > 0 |
+| 39 | `spaceDomain_ne_zero` | s > 0 → s ≠ 0 |
+| 40 | `iSpace_ne_zero` | s > 0 → i·s ≠ 0 |
+| 41 | `F_decomp` | F(s,t) = ↑t + iSpace s — canonical decomposition |
+| 42 | `space_time_orthogonal` | Re(i·s) = 0 ∧ Im(↑t) = 0 — orthogonal axes |
+| 43 | `iSpace_floquetPhase_unit` | \|e^{−i·Im(i·s)}\| = 1 |
+
+---
+
+### `GravityQuantumDuality.lean`
+
+Formalizes the two sides of the observer-reality equation `F(s, t) = t + i·s`:
+the **negative real axis** encodes gravity/time (Newtonian potential, causal past),
+and the **positive imaginary axis** encodes quantum/dark energy (zero-point energy,
+cosmological constant).  The Kernel equilibrium `F(1, −1) = −1+i` is the unique
+balance point where both sides have equal magnitude and `normSq = 2`.
+
+All 22 theorems in `GravityQuantumDuality.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Gravity–quantum orthogonality**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `gravity_axis_im_zero` | Im(↑t) = 0 — time has no quantum component |
+| 2 | `quantum_axis_re_zero` | Re(i·s) = 0 — space has no gravity component |
+| 3 | `gravity_quantum_orthogonal` | Re(i·s)=0 ∧ Im(↑t)=0 — **orthogonal axes** |
+
+**§2 Second-quadrant structure of physical reality**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 4 | `reality_second_quadrant_gqd` | Re F < 0 ∧ Im F > 0 — physical coordinates |
+| 5 | `gravity_component_negative` | Re F < 0 for t ∈ timeDomain |
+| 6 | `quantum_component_positive` | Im F > 0 for s ∈ spaceDomain |
+
+**§3 Gravity/time side: Newtonian potential and binding energy**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `newtonPotential_neg` | Φ_N = −G·M/r < 0 — **gravity is negative** |
+| 8 | `gravBindingEnergy_neg` | E_grav = −G·M·m/r < 0 — binding energy negative |
+| 9 | `newtonPotential_monotone_decreasing` | r₁ < r₂ → Φ_N(r₁) < Φ_N(r₂) — deepens as masses approach |
+| 10 | `newtonPotential_negative_everywhere` | Φ_N < 0 for all G, M, r > 0 |
+
+**§4 Quantum side: zero-point energy**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 11 | `zeroPointEnergy_pos` | E_zp = ħω/2 > 0 — **quantum is positive** |
+| 12 | `zeroPointEnergy_monotone` | ω₁ < ω₂ → E_zp(ω₁) < E_zp(ω₂) — grows with frequency |
+
+**§5 Dark energy: positive-imaginary quantity**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 13 | `darkEnergyDensity_pos` | ρ_Λ = Λc²/(8πG) > 0 — **dark energy positive** |
+| 14 | `darkEnergyDensity_monotone` | Λ₁ < Λ₂ → ρ_Λ(Λ₁) < ρ_Λ(Λ₂) |
+
+**§6 Duality gap and quantum–gravity competition**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 15 | `dualityGap_eq_imF_plus_reF` | gap = Im F + Re F |
+| 16 | `dualityGap_pos_when_space_dominates` | s > \|t\| → gap > 0 — quantum wins |
+| 17 | `dualityGap_neg_when_gravity_dominates` | \|t\| > s → gap < 0 — gravity wins |
+
+**§7 Kernel equilibrium: the unique balance point**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 18 | `kernel_equilibrium_balance` | \|Re F(1,−1)\| = Im F(1,−1) = 1 — **exact balance** |
+| 19 | `kernel_equilibrium_gap_zero` | gap(1,−1) = 0 — neither side dominates |
+| 20 | `kernel_equilibrium_normSq` | normSq F(1,−1) = 2 — equidistant axes |
+
+**§8 Sign duality**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `reality_sign_duality` | Re F · Im F < 0 — **always opposite signs** |
+| 22 | `gravity_and_quantum_opposite_signs` | Re F < 0 ∧ Im F > 0 |
 
 ---
 
@@ -631,7 +805,7 @@ All 24 theorems in `OhmTriality.lean` have complete machine-checked proofs (no `
 
 A machine-checked answer to the question: **"Is there a scale `r` already present in the Kernel framework at which C(r) = 1/√2 = |Im(μ)|?"** Answer: yes — uniquely at r = δS = 1+√2, the silver ratio from the palindrome residual (§9 of `CriticalEigenvalue.lean`).
 
-All 27 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
+All 29 theorems in `SilverCoherence.lean` have complete machine-checked proofs (no `sorry`).
 
 **§1 Silver-ratio coherence**
 
@@ -757,6 +931,81 @@ The central calculation: **8 × (3π/4) = 3 × (2π)** — the axle makes exactl
 
 ---
 
+### `ForwardClassicalTime.lean`
+
+Answers the question: **"Can frustration be harvested effectively from classical,
+forward-directed time?"**  The forward-time frustration function
+`F_fwd(l) = 1 − sech(l)` is proven to be strictly positive for any nonzero
+Lyapunov displacement `l`, bounded above by 1, and even in `l`.
+
+**Hypothesis result: CONFIRMED** — every forward time step away from the kernel
+equilibrium releases strictly positive, bounded frustration.
+
+All 21 theorems in `ForwardClassicalTime.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Forward-time frustration definition**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `fct_frustration_eq` | F_fwd(l) = 1 − C(exp l) — frustration is the coherence deficit |
+
+**§2 Zero baseline at the kernel equilibrium**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 2 | `fct_frustration_at_zero` | F_fwd(0) = 0 — no frustration at equilibrium |
+| 3 | `fct_coherence_at_zero` | C(exp 0) = 1 — maximum coherence at origin |
+
+**§3 sech bounds**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 4 | `fct_sech_pos` | sech(l) > 0 — coherence always positive |
+| 5 | `fct_one_le_cosh` | 1 ≤ cosh(l) — AM–GM lower bound |
+| 6 | `fct_sech_le_one` | sech(l) ≤ 1 — coherence bounded above |
+
+**§4 Frustration bounds**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `fct_frustration_nonneg` | F_fwd(l) ≥ 0 — non-negative frustration |
+| 8 | `fct_frustration_lt_one` | F_fwd(l) < 1 — never fully frustrated |
+
+**§5 Strict positivity away from equilibrium**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `fct_one_lt_cosh` | 1 < cosh(l) for l ≠ 0 |
+| 10 | `fct_frustration_pos` | F_fwd(l) > 0 for l ≠ 0 — **harvest theorem** |
+| 11 | `fct_frustration_zero_iff` | F_fwd(l) = 0 ↔ l = 0 — equilibrium characterisation |
+
+**§6 Even symmetry**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 12 | `fct_even` | F_fwd(l) = F_fwd(−l) — symmetric harvest |
+
+**§7 Palindrome vacuum residual comparison**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 13 | `fct_vacuum_residual` | 9/123456789 = 1/13717421 — exact arithmetic |
+| 14 | `fct_vacuum_residual_pos` | 0 < 1/13717421 |
+| 15 | `fct_vacuum_residual_lt_one` | 1/13717421 < 1 |
+
+**§8 Harvesting summary and arrow of time**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 16 | `fct_arrow_of_time` | F_fwd(0) < F_fwd(l) for l ≠ 0 — **arrow of time** |
+| 17 | `fct_harvest_formula` | F_fwd(l) − F_fwd(0) = F_fwd(l) |
+| 18 | `fct_harvest_bounded` | 0 ≤ F_fwd(l) ∧ F_fwd(l) < 1 |
+| 19 | `fct_harvest_pos` | ΔF(l) > 0 for l ≠ 0 — positive harvest |
+| 20 | `fct_forward_harvesting_works` | F_fwd(0)=0 ∧ F_fwd(l)>0 ∧ F_fwd(l)<1 ∧ F_fwd(0)<F_fwd(l) — **hypothesis confirmed** |
+| 21 | `fct_classical_irreversibility` | F_fwd(l) ≠ 0 ↔ l ≠ 0 — classical irreversibility |
+
+---
+
 ### `SpeedOfLight.lean`
 
 **Central result**: both `c = 1/√(μ₀ε₀)` (Maxwell) and `η = 1/√2` (Kernel) arise
@@ -815,6 +1064,263 @@ All 19 theorems in `SpeedOfLight.lean` have complete machine-checked proofs (no 
 - The fine structure connection uses the Sommerfeld approximation α_FS = 1/137
   (inherited from `FineStructure.lean`).
 - The structural isomorphism is algebraic, not physical.
+
+---
+
+### `CrossChainDeFiAggregator.lean`
+
+Formalizes the mathematical foundations of a cross-chain DeFi aggregator on
+a Polkadot-based multi-parachain platform.  The **constant-product AMM** invariant
+`x·y = k` is machine-verified for swaps, the **simple-interest lending model**
+is proven correct, and the **best-rate aggregator** is proven optimal (least
+upper bound) and idempotent.
+
+All 20 theorems in `CrossChainDeFiAggregator.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 AMM constant-product invariant and output formula**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `amm_invariant_pos` | x·y > 0 for positive reserves |
+| 2 | `amm_out_pos` | output > 0 for positive reserves and input Δ > 0 |
+| 3 | `amm_out_zero_input` | amm_out x y 0 = 0 — no input → no output |
+
+**§2 Cross-chain swap price and invariant preservation**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 4 | `amm_price_pos` | spot price > 0 for positive reserves |
+| 5 | `amm_invariant_preserved` | (x+Δ)·(y−out) = x·y — constant-product preserved |
+| 6 | `amm_out_bounded` | out < y — pool cannot be fully drained |
+
+**§3 Slippage and price-impact bounds**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `amm_slippage_positive` | out < y·Δ/x — slippage always present |
+| 8 | `amm_price_impact_lt_one` | out/y < 1 — price impact < 100% |
+| 9 | `amm_out_monotone` | Δ₁ < Δ₂ → out(Δ₁) < out(Δ₂) — monotone output |
+
+**§4 Lending / borrowing simple-interest model**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 10 | `lending_interest_nonneg` | P,r,t ≥ 0 → I ≥ 0 |
+| 11 | `lending_interest_pos` | P,r,t > 0 → I > 0 — positive yield |
+| 12 | `lending_amount_exceeds_principal` | P < P + I — lender is always repaid |
+| 13 | `lending_rate_monotone` | r₁ < r₂ → I(r₁) < I(r₂) — rate ordering |
+
+**§5 Cross-chain rate aggregation (best-rate selection)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 14 | `best_rate_ge_left` | r₁ ≤ best_rate r₁ r₂ — dominates chain 1 |
+| 15 | `best_rate_ge_right` | r₂ ≤ best_rate r₁ r₂ — dominates chain 2 |
+| 16 | `best_rate_symm` | best_rate r₁ r₂ = best_rate r₂ r₁ — symmetric |
+| 17 | `best_rate_optimal` | r₁,r₂ ≤ r → best_rate r₁ r₂ ≤ r — least upper bound |
+| 18 | `best_rate_idempotent` | best_rate r r = r |
+
+**§6 LP value and monotone-output properties**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 19 | `lp_value_pos` | x,y > 0 → √(x·y) > 0 — pool has depth |
+| 20 | `lp_value_monotone` | x<x', y<y' → lp_value x y < lp_value x' y' |
+
+---
+
+### `PumpFunBot.lean`
+
+Formalizes an automated trading strategy for the **pump.fun constant-product
+bonding curve** on Solana, together with a machine-checked derivation of the
+**Kelly criterion** for optimal position sizing.  The token-receive formula
+`T·Δ/(S+Δ)` and Kelly fraction `f* = (b·p−(1−p))/b` are proved step-by-step
+from first principles.
+
+All 26 theorems in `PumpFunBot.lean` have complete machine-checked proofs (no `sorry`).
+
+*Setup:* virtual reserves S₀ = 30 SOL, T₀ = 1 073 000 000 tokens, k = S₀·T₀;
+graduation threshold G = 85 SOL triggers Raydium DEX migration.
+
+**§1 Bonding curve fundamentals: k = S·T invariant**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `bc_k_pos` | S·T > 0 for S, T > 0 |
+| 2 | `bc_price_pos` | S/T > 0 — price always positive |
+| 3 | `bc_price_sq_formula` | S/T = S²/(S·T) — quadratic price form |
+| 4 | `bc_invariant_preserved` | (S+Δ)·(S·T/(S+Δ)) = S·T — k preserved |
+| 5 | `price_after_buy` | new price = (S+Δ)²/k for a buy of Δ |
+
+**§2 Trade mechanics: tokens received = T·Δ/(S+Δ)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 6 | `tokens_received_formula` | T − S·T/(S+Δ) = T·Δ/(S+Δ) |
+| 7 | `tokens_received_pos` | T·Δ/(S+Δ) > 0 for Δ > 0 |
+| 8 | `buy_increases_price` | (S+Δ)²/k > S/T — buys raise price |
+| 9 | `effective_price_exceeds_spot` | Δ/(T·Δ/(S+Δ)) > S/T — entry price includes slippage |
+| 10 | `tokens_per_sol_decreasing` | T/(S+Δ₁) > T/(S+Δ₂) for Δ₁ < Δ₂ — diminishing returns |
+
+**§3 Graduation criterion: SOL raised ≥ G ≈ 85**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 11 | `graduation_threshold_pos` | G > 0 |
+| 12 | `profitable_iff` | cost < tokens·P ↔ cost/tokens < P |
+| 13 | `exit_value_pos` | tokens·P > 0 for tokens, P > 0 |
+| 14 | `net_profit_positive` | tokens·(P_exit − P_entry) > 0 when P_entry < P_exit — **bot profit condition** |
+
+**§4 Kelly criterion: f* = (b·p − (1−p)) / b**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 15 | `kelly_pos_iff` | f* > 0 ↔ p > 1/(1+b) — positive edge required |
+| 16 | `kelly_le_one` | f* ≤ 1 — never risk full bankroll |
+| 17 | `kelly_threshold_zero` | f*(1/(1+b), b) = 0 — no edge → no bet |
+| 18 | `kelly_is_critical_point` | p·b·(1−f*) = (1−p)·(1+b·f*) — **first-order condition** |
+
+**§5 Strategy soundness: Kelly fraction maximises log-wealth**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 19 | `log_growth_zero_bet` | G(0,p,b) = 0 — not betting preserves wealth |
+| 20 | `kelly_fraction_unique` | f* is the **unique** solution to the FOC |
+
+**§6 Step-by-step derivation: token formula**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 21 | `tokens_step_common_denominator` | T − S·T/(S+Δ) = [T·(S+Δ) − S·T]/(S+Δ) — common denominator |
+| 22 | `tokens_numerator_cancellation` | T·(S+Δ) − S·T = T·Δ — S·T terms cancel |
+
+**§7 Step-by-step derivation: Kelly fraction from ∂G/∂f = 0**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 23 | `kelly_ev_factor` | p·b·f − (1−p)·f = f·(b·p−(1−p)) — expected profit factored |
+| 24 | `kelly_breakeven_condition` | b·p − (1−p) = 0 ↔ p = 1/(1+b) — break-even edge |
+| 25 | `kelly_foc_cleared` | p·b·(1−f) = (1−p)·(1+b·f) — **denominators cleared** |
+| 26 | `kelly_foc_linear` | cleared FOC → b·f = b·p − (1−p) — **nonlinear term cancels** |
+
+---
+
+### `CryptoBridge.lean`
+
+Formalizes security properties of a cross-chain bridge protocol using a
+lock-and-mint/burn-and-unlock mechanism secured by over-collateralised
+relayers and Hash Time-Lock Contracts (HTLCs).  The conservation law
+`locked = minted`, the HTLC identity `claim + fee = amount`, the solvency
+invariant `collateral ≥ locked`, and Merkle tree size formulas are all
+machine-checked.
+
+All 20 theorems in `CryptoBridge.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Lock / mint conservation and fee deduction**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `bridge_conservation` | locked = minted — **no value created or destroyed** |
+| 2 | `bridge_fee_reduces_output` | fee > 0 → minted < amount — fee deducted |
+| 3 | `bridge_zero_fee` | fee = 0 → minted = amount — full pass-through |
+| 4 | `bridge_locked_pos` | fee < amount → locked > 0 |
+| 5 | `bridge_locked_lt_amount` | fee > 0 → locked < amount |
+
+**§2 Fee-net positivity and monotonicity**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 6 | `bridge_locked_monotone` | a₁ < a₂ → locked(a₁) < locked(a₂) — monotone in amount |
+
+**§3 Collateral solvency and over-collateralisation**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 7 | `collateral_ratio_pos` | c/l > 0 for c, l > 0 |
+| 8 | `collateral_solvency` | l ≤ c → c/l ≥ 1 — **solvency invariant** |
+| 9 | `collateral_overcollateralised` | l < c → c/l > 1 — safety cushion |
+| 10 | `collateral_surplus_pos` | l < c → c − l > 0 — positive surplus |
+
+**§4 HTLC atomic-swap mechanics**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 11 | `htlc_claim_pos` | fee < amount → claim > 0 |
+| 12 | `htlc_refund_full` | refund = amount — full recovery on timeout |
+| 13 | `htlc_refund_exceeds_claim` | fee > 0 → claim < refund |
+| 14 | `htlc_value_conservation` | claim + fee = amount — **no leakage** |
+
+**§5 Merkle tree structure and proof bounds**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 15 | `merkle_leaves_pos` | 0 < 2^d — tree always non-empty |
+| 16 | `merkle_leaves_double` | leaves(d+1) = 2·leaves(d) |
+| 17 | `merkle_leaves_monotone` | d₁ < d₂ → 2^d₁ < 2^d₂ |
+
+**§6 Bridge liquidity and supply conservation**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 18 | `bridge_liquidity_nonneg` | w ≤ liq → liq − w ≥ 0 — no deficit |
+| 19 | `bridge_supply_conservation` | minted = locked → minted ≤ locked |
+| 20 | `bridge_liquidity_monotone` | l₁ < l₂ ∧ w ≤ l₁ → w ≤ l₂ |
+
+---
+
+### `Quantization.lean`
+
+The **Lead Confirmed Quantization Theorem (Theorem Q)** asserts that when
+`H · T = 5π/4`, all five quantization conditions Q1–Q5 hold simultaneously:
+Floquet phase (`ε_F·T = π`), 8-cycle closure (`μ^8 = 1`), canonical balance
+(`2η² = 1`), maximum coherence (`C(1) = 1`), and ground-state energy (`E₁ = −1`).
+
+All 20 theorems in `Quantization.lean` have complete machine-checked proofs (no `sorry`).
+
+**§1 Phase quantization**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 1 | `quantization_phase_unit` | \|μ\| = 1 — unit-circle eigenvalue |
+| 2 | `quantization_eight_cycle` | μ^8 = 1 — 8-cycle closure |
+| 3 | `quantization_pow_unit` | \|μ^n\| = 1 for all n |
+| 4 | `quantization_eight_distinct` | {μ^0,…,μ^7} pairwise distinct |
+
+**§2 Energy quantization (Bohr–Rydberg E_n = −1/n²)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 5 | `quantization_ground_energy` | E₁ = −1 — ground state (Hartree units) |
+| 6 | `quantization_energy_neg` | E_n < 0 for all n ≥ 1 — bound states |
+| 7 | `quantization_ground_lowest` | E₁ ≤ E_n for all n ≥ 1 |
+| 8 | `quantization_energy_strictMono` | E_n < E_{n+1} — levels ascend toward zero |
+
+**§3 Floquet quantization**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 9 | `quantization_hamiltonian_recipe` | H·T = 5π/4 → U(H,T) = μ — drive prescription |
+| 10 | `quantization_floquet_phase` | ε_F · T = π |
+| 11 | `quantization_quasi_energy_pos` | ε_F > 0 for T > 0 |
+| 12 | `quantization_period_doubling` | T < 2T for T > 0 — period doubling |
+
+**§4 Canonical amplitude quantization**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 13 | `quantization_amplitude_balance` | 2η² = 1 — **balance equation** |
+| 14 | `quantization_canonical_norm` | η² + \|μ·η\|² = 1 — unit sphere |
+| 15 | `quantization_coherence_max` | C(1) = 1 — coherence maximum |
+| 16 | `quantization_coherence_bound` | C(r) ≤ 1 for all r ≥ 0 |
+
+**§5 Lead Confirmed Quantization Theorem (Theorem Q)**
+
+| # | Theorem | Description |
+|---|---------|-------------|
+| 17 | `lead_quantization_floquet_arm` | U(H,T)=μ ∧ ε_F·T=π ∧ μ^8=1 — Floquet arm |
+| 18 | `lead_quantization_energy_arm` | E₁=−1 ∧ E_n<0 for all n≥1 — energy arm |
+| 19 | `lead_quantization_amplitude_arm` | 2η²=1 ∧ η²+\|μη\|²=1 ∧ C(1)=1 — amplitude arm |
+| 20 | `lead_quantization_confirmed` | **Q1∧Q2∧Q3∧Q4∧Q5 simultaneously** — **LEAD CONFIRMED** |
 
 ---
 
