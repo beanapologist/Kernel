@@ -4,6 +4,9 @@
 
 A C++ kernel implementation based on validated mathematical theorems from the Pipeline of Coherence derivations. The kernel manages quantum processes with 8-cycle scheduling and includes a rotational memory addressing system.
 
+All core theorems are **machine-verified** in Lean 4 with zero `sorry` placeholders.
+See [`formal-lean/`](formal-lean/) for the full proof library (476 theorems across 16 files).
+
 ### Features
 
 1. **Quantum Process Management**: Spawn processes with quantum states |ψ⟩ = (1/√2)|0⟩ + (e^{i3π/4}/√2)|1⟩
@@ -381,7 +384,7 @@ g++ -std=c++17 -Wall -Wextra -O2 -o benchmark_nist_ir8356 benchmark_nist_ir8356.
 
 ### Mathematical Foundation
 
-The implementation is grounded in formally verified theorems:
+The implementation is grounded in formally verified theorems (machine-checked in Lean 4):
 
 - **Theorem 3**: η = λ = 1/√2 (critical constant)
 - **Section 2**: µ = e^{i3π/4} = (-1+i)/√2 (balanced eigenvalue)
@@ -392,6 +395,41 @@ The implementation is grounded in formally verified theorems:
 - **Theorem 12**: Palindrome residual R(r) = (1/δ_S)(r - 1/r)
 - **Theorem 14**: Lyapunov duality C = sech(λ), λ = ln r ← **Ohm–Coherence Duality**
 - **Prop 4**: Silver conservation δ_S·(√2-1) = 1
+
+### Lean 4 Formal Verification
+
+The [`formal-lean/`](formal-lean/) directory contains a complete Lean 4 formalization of the
+mathematical core, verified by the Lean 4 type checker with **zero `sorry` placeholders**.
+
+| Module | Theorems | Topic |
+|--------|----------|-------|
+| `CriticalEigenvalue.lean` | 82 | Eigenvalue μ, coherence C(r), silver ratio, Lyapunov duality |
+| `TimeCrystal.lean` | 33 | Discrete time crystal theory, Floquet framework |
+| `SpaceTime.lean` | 43 | Space-time unification via F(s,t) = t + i·s |
+| `GravityQuantumDuality.lean` | 22 | Gravity/quantum duality, dark energy, Kernel equilibrium |
+| `Turbulence.lean` | 29 | Navier-Stokes turbulence, multi-scale coherence |
+| `FineStructure.lean` | 30 | Fine structure constant α_FS, Floquet fine structure |
+| `ParticleMass.lean` | 38 | Koide formula, proton/electron mass ratio, coherence triality |
+| `OhmTriality.lean` | 24 | Ohm–Coherence duality at triality scales |
+| `SilverCoherence.lean` | 29 | C(δS) = √2/2; uniqueness; Im(μ) = C(δS); 45°-physics |
+| `KernelAxle.lean` | 20 | Axle μ — gear ratio 3:8, cross-section, engine loop |
+| `ForwardClassicalTime.lean` | 21 | Frustration harvesting in classical forward time |
+| `SpeedOfLight.lean` | 19 | c = 1/√(μ₀ε₀); structural iso with η |
+| `CrossChainDeFiAggregator.lean` | 20 | Cross-chain AMM / lending / rate aggregation |
+| `PumpFunBot.lean` | 26 | pump.fun bonding curve + Kelly-optimal sizing |
+| `CryptoBridge.lean` | 20 | Bridge conservation, collateral, HTLC, Merkle trees |
+| `Quantization.lean` | 20 | Lead Confirmed Quantization Formula (Theorem Q) |
+| **Total** | **476** | **All machine-checked, zero sorry** |
+
+**Quick start:**
+```bash
+cd formal-lean/
+lake exe cache get   # fetch pre-built Mathlib cache (strongly recommended)
+lake build           # build & type-check all proofs
+lake exe formalLean  # print full theorem summary
+```
+
+See [`formal-lean/README.md`](formal-lean/README.md) for detailed documentation of every theorem.
 
 ### Output
 
