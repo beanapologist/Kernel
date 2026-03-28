@@ -1,15 +1,18 @@
-# Kernel — Lean-Verified Mathematical Universe
+# Eigenverse — Lean-Verified Mathematical Universe
 
-> **"A complete, machine-checked mathematical universe — zero sorry,
-> zero gaps."**
+> **"A complete, machine-checked map from pure mathematics to observable
+> reality — zero sorry, zero gaps."**
 
-This repository contains a fully **Lean 4–verified mathematical universe**
-spanning algebra, physics, quantum mechanics, and chemistry, together with
-the C++ kernel implementation that applies these theorems in practice.
+**Eigenverse** is a fully **Lean 4–verified mathematical universe** built
+around a single central object: the critical eigenvalue **μ = exp(i·3π/4)**.
+Its 8-cycle orbit, coherence function C(r) = 2r/(1+r²), and Silver ratio
+δS = 1+√2 generate a self-consistent map spanning algebra, physics, quantum
+mechanics, and chemistry — all machine-checked, all anchored to NIST/CODATA
+empirical data.
 
 ---
 
-## 🌌 Mathematical Universe at a Glance
+## 🌌 Eigenverse at a Glance
 
 | Domain | Theorems | Key Results |
 |--------|----------|-------------|
@@ -27,7 +30,7 @@ src/                        ← Lean modules organised by topic
 ├── physics/FundamentalConstants.lean  c, α, masses, spacetime
 ├── quantum/QuantumUniverse.lean  Time crystals, duality, Theorem Q
 ├── chemistry/AtomicUniverse.lean NIST atomic weights, Ohm-coherence
-└── MathUniverse.lean             Single-import entry point
+└── Eigenverse.lean               Single-import entry point
 
 formal-lean/                ← Lean 4 proof files (the proof engine)
 docs/                       ← Documentation (overview, architecture)

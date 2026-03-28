@@ -1,8 +1,8 @@
 /-
-  examples/PhysicsExamples.lean — Physics demonstrations from the mathematical universe.
+  examples/PhysicsExamples.lean — Physics demonstrations from Eigenverse.
 
-  This file illustrates how the verified physical constants and laws can be
-  composed to derive new results.
+  This file illustrates how the verified physical constants and laws in
+  Eigenverse can be composed to derive new results.
 
   ── Example 1: Fine structure constant ──────────────────────────────────────
   The fine structure constant α = e²/(4πε₀ħc) ≈ 1/137.036 is dimensionless.
@@ -13,7 +13,7 @@
   Source: ParticleMass.lean — 38 theorems.
 
   ── Example 3: Gravity-quantum duality ──────────────────────────────────────
-  The dark energy density ρ_Λ is bounded by the Kernel coherence invariants.
+  The dark energy density ρ_Λ is bounded by the Eigenverse coherence invariants.
   Source: GravityQuantumDuality.lean — 22 theorems.
 
   ── Example 4: Lorentz time dilation ────────────────────────────────────────

@@ -1,10 +1,15 @@
 /-
-  src/MathUniverse.lean — Top-level entry point for the mathematical universe.
+  src/Eigenverse.lean — Top-level entry point for Eigenverse.
 
-  Import this single file to bring the entire Lean-verified mathematical
-  universe into scope.  The universe currently contains **335+ theorems**
-  across five domains, all verified by the Lean 4 type-checker with
-  zero `sorry` placeholders.
+  Import this single file to bring the entire Lean-verified Eigenverse into
+  scope.  Eigenverse currently contains **426 theorems** across five domains,
+  all verified by the Lean 4 type-checker with zero `sorry` placeholders.
+
+  The name "Eigenverse" reflects the central object that drives every structure
+  in the project: the critical eigenvalue μ = exp(i·3π/4) — a single complex
+  number whose 8-cycle orbit, coherence function C(r) = 2r/(1+r²), and Silver
+  ratio δS = 1+√2 give rise to a complete, machine-checked map from pure
+  mathematics to observable physical reality.
 
   ┌──────────────────────────────────────────────────────────────────┐
   │  Domain         Modules                         Theorems         │

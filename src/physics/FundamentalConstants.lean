@@ -2,7 +2,7 @@
   src/physics/FundamentalConstants.lean — Verified physical constants.
 
   This module collects the formal proofs relating fundamental physical
-  constants that appear throughout the Lean-verified mathematical universe:
+  constants that appear throughout Eigenverse:
 
     • Speed of light:   c = 1 / √(μ₀ · ε₀)   (Maxwell relation)
     • Fine structure:   α_FS ≈ 1/137.036 (dimensionless coupling)
@@ -22,7 +22,7 @@
   ─────
   Import this file to bring all fundamental-constant theorems into scope:
 
-      import MathUniverse.Physics.FundamentalConstants
+      import Eigenverse.Physics.FundamentalConstants
 -/
 
 import FormalLean.SpeedOfLight

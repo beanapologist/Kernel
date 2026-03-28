@@ -5,6 +5,9 @@
   eigenvalue  μ = exp(I · 3π/4), the Silver ratio δS = 1 + √2, and the
   coherence function  C(r) = 2r/(1 + r²).
 
+  These are the foundational structures of Eigenverse — every other domain
+  (physics, quantum, chemistry) is ultimately anchored to this algebraic core.
+
   Source: formal-lean/CriticalEigenvalue.lean (78 theorems, 0 sorry)
           formal-lean/SilverCoherence.lean    (29 theorems, 0 sorry)
 

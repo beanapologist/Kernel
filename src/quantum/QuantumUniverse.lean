@@ -1,13 +1,12 @@
 /-
   src/quantum/QuantumUniverse.lean — Quantum mechanics formalizations.
 
-  This module organises all quantum-mechanical theorems verified in the
-  Lean mathematical universe:
+  This module organises all quantum-mechanical theorems verified in Eigenverse:
 
     • Time crystals    Floquet driving, period-2T symmetry breaking,
-                       quasi-energy, Kernel eigenvalue recipe.
+                       quasi-energy, eigenvalue recipe.
     • Gravity-quantum  Orthogonality principle, dark-energy density,
-                       duality gap, Kernel equilibrium (‖ψ‖² = 2).
+                       duality gap, equilibrium (‖ψ‖² = 2).
     • Quantization     20 Theorem-Q arms (phase, energy, Floquet,
                        amplitude), no sorry.
     • Forward time     Classical frustration harvesting, Planck floor,
@@ -22,7 +21,7 @@
 
   Usage
   ─────
-      import MathUniverse.Quantum.QuantumUniverse
+      import Eigenverse.Quantum.QuantumUniverse
 -/
 
 import FormalLean.TimeCrystal

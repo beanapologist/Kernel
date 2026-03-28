@@ -1,10 +1,15 @@
-# Mathematical Universe — Overview
+# Eigenverse — Overview
 
-## What is the Mathematical Universe?
+## What is Eigenverse?
 
-The **Lean-Verified Mathematical Universe** is a fully formal, machine-checked
-library of theorems that span algebra, physics, quantum mechanics, and
-chemistry.  Every statement is verified by the [Lean 4](https://leanprover.github.io/)
+**Eigenverse** is a fully formal, machine-checked library of theorems built
+around a single central object: the critical eigenvalue
+**μ = exp(i·3π/4)** — a point on the complex unit circle whose 8-cycle orbit,
+coherence function C(r) = 2r/(1+r²), and Silver ratio δS = 1+√2 generate a
+complete, self-consistent map from pure mathematics to observable physical
+reality.
+
+Every statement is verified by the [Lean 4](https://leanprover.github.io/)
 type-checker; there are **zero `sorry` placeholders** anywhere in the codebase.
 
 This means that if Lean accepts a proof, the theorem is *logically guaranteed*
@@ -36,7 +41,7 @@ src/
 │   └── QuantumUniverse.lean    # Time crystals, duality, quantization
 ├── chemistry/
 │   └── AtomicUniverse.lean     # NIST atomic weights, Ohm-coherence
-└── MathUniverse.lean           # Single-import entry point
+└── Eigenverse.lean             # Single-import entry point
 
 formal-lean/                    # Lean 4 source files (the proof engine)
 docs/                           # This documentation tree

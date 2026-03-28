@@ -1,9 +1,8 @@
 /-
-  examples/BasicProofs.lean — Introductory examples from the mathematical universe.
+  examples/BasicProofs.lean — Introductory examples from Eigenverse.
 
-  This file demonstrates how to use the verified theorems from the Lean
-  mathematical universe in downstream proofs.  The examples are designed
-  to be run with:
+  This file demonstrates how to use the verified theorems from Eigenverse
+  in downstream proofs.  The examples are designed to be run with:
 
       cd formal-lean/
       lake build

@@ -1,9 +1,9 @@
 /-
-  tests/ConsistencyChecks.lean — Cross-module consistency tests.
+  tests/ConsistencyChecks.lean — Cross-module consistency tests for Eigenverse.
 
-  These tests verify that the constants and definitions used across modules
-  are mutually consistent.  They complement the per-module proof obligations
-  by checking cross-cutting invariants.
+  These tests verify that the constants and definitions used across Eigenverse
+  modules are mutually consistent.  They complement the per-module proof
+  obligations by checking cross-cutting invariants.
 
   Run with:
       cd formal-lean/

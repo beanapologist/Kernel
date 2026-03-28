@@ -1,7 +1,7 @@
 # Architecture
 
-This document explains how the Lean-Verified Mathematical Universe is
-structured internally and how the different layers relate to each other.
+This document explains how Eigenverse is structured internally and how the
+different layers relate to each other.
 
 ---
 
@@ -11,7 +11,7 @@ structured internally and how the different layers relate to each other.
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Consumer layer  (src/)                                             │
 │  Topic-organised entry points: algebra/, physics/, quantum/,        │
-│  chemistry/, MathUniverse.lean                                      │
+│  chemistry/, Eigenverse.lean                                        │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Proof layer  (formal-lean/)                                        │
 │  Individual *.lean files, one per domain.  These are the files      │
@@ -62,11 +62,11 @@ The algebraic core of the universe.  Defines and proves properties of:
 
 ### `FineStructure.lean`
 Proves that the fine structure constant α ≈ 1/137.036 is dimensionless
-and derives it from first principles using the Kernel coherence structure.
+and derives it from first principles using the Eigenverse coherence structure.
 
 ### `TimeCrystal.lean`
 Formalises Floquet theory: time-evolution operator, Floquet states,
-period-doubling criterion (φ=π), and the Kernel eigenvalue recipe for
+period-doubling criterion (φ=π), and the eigenvalue recipe for
 constructing time crystals from μ, C(r), η, δS.
 
 ### `SpeedOfLight.lean`
@@ -75,7 +75,7 @@ and establishes Planck time as the absolute smallest temporal unit.
 
 ### `SpaceTime.lean`
 Lorentz geometry, Minkowski metric, time-dilation, and length-contraction
-from first principles, all linked to the Kernel coherence invariants.
+from first principles, all linked to the Eigenverse coherence invariants.
 
 ### `Turbulence.lean`
 Navier-Stokes energy dissipation bounds, Reynolds-number thresholds,
@@ -99,7 +99,7 @@ engine-loop closure.
 
 ### `GravityQuantumDuality.lean`
 Orthogonality of Re and Im components; Newtonian potential and binding
-energy; zero-point energy; dark-energy density; duality gap; Kernel
+energy; zero-point energy; dark-energy density; duality gap; Eigenverse
 equilibrium ‖ψ‖²=2.
 
 ### `Quantization.lean`
@@ -121,6 +121,6 @@ weighted-average mass theorem; 20 theorems, 0 sorry.
 1. Create `formal-lean/MyTopic.lean` following the header convention.
 2. Add `` `MyTopic `` to the `roots` list in `formal-lean/lakefile.lean`.
 3. Create `src/<domain>/MyTopic.lean` that imports `FormalLean.MyTopic`.
-4. Update `src/MathUniverse.lean` to include the new import.
+4. Update `src/Eigenverse.lean` to include the new import.
 5. Add an entry to the table in `docs/overview.md`.
 6. Submit a PR — the CI workflow will build and verify all proofs.

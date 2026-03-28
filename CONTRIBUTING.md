@@ -1,9 +1,9 @@
-# Contributing to the Lean-Verified Mathematical Universe
+# Contributing to Eigenverse
 
-Thank you for your interest in contributing!  This project aims to build
-a complete, machine-verified mathematical universe using Lean 4 and
-Mathlib.  Every theorem must be accepted by the Lean type-checker with
-**zero `sorry` placeholders**.
+Thank you for your interest in contributing!  Eigenverse aims to build
+a complete, machine-verified map from pure mathematics to observable reality,
+using Lean 4 and Mathlib.  Every theorem must be accepted by the Lean
+type-checker with **zero `sorry` placeholders**.
 
 ---
 
@@ -72,7 +72,7 @@ lake build
    import FormalLean.MyTopic
    ```
 
-6. **Update `src/MathUniverse.lean`** to include the new import.
+6. **Update `src/Eigenverse.lean`** to include the new import.
 
 7. **Update `docs/overview.md`** — add the module to the domain table.
 

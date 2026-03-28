@@ -2,7 +2,7 @@
   src/chemistry/AtomicUniverse.lean — NIST-validated chemistry formalizations.
 
   This module collects the Lean proofs for chemical and coherence-dynamics
-  results that anchor the mathematical universe to empirical measurement:
+  results that anchor Eigenverse to empirical measurement:
 
     • Atomic structure   NIST 2016 standard atomic weights for H, He, C, N, O;
                          isotopic abundances; weighted-average mass formula.
@@ -16,7 +16,7 @@
 
   Usage
   ─────
-      import MathUniverse.Chemistry.AtomicUniverse
+      import Eigenverse.Chemistry.AtomicUniverse
 -/
 
 import FormalLean.Chemistry
