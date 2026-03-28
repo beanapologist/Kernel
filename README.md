@@ -17,6 +17,7 @@ empirical data.
 | Domain | Theorems | Key Results |
 |--------|----------|-------------|
 | **Algebra** | 127 | μ⁸=1, Silver ratio δS=1+√2, coherence C(r)≤1, Z/8Z memory |
+| **Geometry** | 141 | Rotation matrix R(3π/4) (det=1, orthogonal, order-8); unit circle orbit; hyperbolic Pythagorean identity; F(s,t)=t+i·s |
 | **Physics** | 159 | c=1/√(μ₀ε₀), α≈1/137, Koide formula, Lorentz geometry, NS bounds |
 | **Quantum** | 96 | Floquet time crystals, gravity-quantum duality, Theorem Q |
 | **Chemistry** | 44 | NIST atomic weights, G·R=1 Ohm-coherence duality |
@@ -26,11 +27,12 @@ empirical data.
 
 ```
 src/                        ← Lean modules organised by topic
-├── algebra/Eigenvalue.lean       μ, δS, C(r), Z/8Z memory
-├── physics/FundamentalConstants.lean  c, α, masses, spacetime
-├── quantum/QuantumUniverse.lean  Time crystals, duality, Theorem Q
-├── chemistry/AtomicUniverse.lean NIST atomic weights, Ohm-coherence
-└── Eigenverse.lean               Single-import entry point
+├── algebra/Eigenvalue.lean             μ, δS, C(r), Z/8Z memory
+├── geometry/GeometricStructures.lean   Rotation matrices, unit circle, hyperbolic geometry
+├── physics/FundamentalConstants.lean   c, α, masses, spacetime
+├── quantum/QuantumUniverse.lean        Time crystals, duality, Theorem Q
+├── chemistry/AtomicUniverse.lean       NIST atomic weights, Ohm-coherence
+└── Eigenverse.lean                     Single-import entry point
 
 formal-lean/                ← Lean 4 proof files (the proof engine)
 docs/                       ← Documentation (overview, architecture)

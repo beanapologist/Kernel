@@ -16,6 +16,9 @@
   ├──────────────────────────────────────────────────────────────────┤
   │  Algebra        CriticalEigenvalue, SilverCoherence, KernelAxle  │
   │                 → eigenvalue 8-cycle, Silver ratio, coherence     │
+  │  Geometry       CriticalEigenvalue, SpaceTime, KernelAxle        │
+  │                 → rotation matrices, unit circle S¹, hyperbolic  │
+  │                   Pythagorean identity, F(s,t) space-time map    │
   │  Physics        SpeedOfLight, FineStructure, ParticleMass,       │
   │                 SpaceTime, Turbulence                             │
   │                 → c=1/√(μ₀ε₀), α_FS, Koide, Lorentz, NS         │
@@ -25,6 +28,10 @@
   │  Chemistry      Chemistry, OhmTriality                           │
   │                 → NIST atomic weights, G·R=1 duality             │
   └──────────────────────────────────────────────────────────────────┘
+
+  Note: The crypto-application modules (PumpFunBot, EthereumTradingBot,
+  CrossChainDeFiAggregator, CryptoBridge) are available in formal-lean/ for
+  reference but are not part of the Eigenverse mathematical library.
 
   See README.md for an overview, docs/ for detailed documentation, and
   examples/ for worked demonstrations.

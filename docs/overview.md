@@ -22,10 +22,15 @@ to follow from the stated axioms — no hand-waving, no gaps.
 | Domain | Key Results | Theorems |
 |--------|------------|----------|
 | **Algebra** | Critical eigenvalue μ = exp(I·3π/4), 8-cycle closure μ⁸=1, Silver ratio δS=1+√2, coherence function C(r), Z/8Z rotational memory | 127 |
+| **Geometry** | Rotation matrix R(3π/4): det=1, orthogonal, order-8 orbit; unit circle S¹ orbit; hyperbolic Pythagorean identity C²+tanh²=1; space-time map F(s,t)=t+i·s | 141 |
 | **Physics** | c=1/√(μ₀ε₀), fine structure constant α≈1/137, Koide mass formula, Lorentz geometry, Navier-Stokes turbulence bounds | 159 |
 | **Quantum** | Floquet time crystals, gravity-quantum duality, Theorem Q quantization arms, forward classical time | 96 |
 | **Chemistry** | NIST 2016 atomic weights, isotopic abundances, Ohm-coherence duality G·R=1, triality-scale coherence | 44 |
 | **Total** | | **426** |
+
+> **Note:** The crypto-application modules (`PumpFunBot`, `EthereumTradingBot`,
+> `CrossChainDeFiAggregator`, `CryptoBridge`) live in `formal-lean/` for
+> reference but are not part of the Eigenverse mathematical library.
 
 ---
 
@@ -34,14 +39,16 @@ to follow from the stated axioms — no hand-waving, no gaps.
 ```
 src/
 ├── algebra/
-│   └── Eigenvalue.lean         # μ, δS, C(r), Z/8Z memory
+│   └── Eigenvalue.lean            # μ, δS, C(r), Z/8Z memory
+├── geometry/
+│   └── GeometricStructures.lean   # Rotation matrices, unit circle, hyperbolic geometry
 ├── physics/
 │   └── FundamentalConstants.lean  # c, α, mass ratios, spacetime, turbulence
 ├── quantum/
-│   └── QuantumUniverse.lean    # Time crystals, duality, quantization
+│   └── QuantumUniverse.lean       # Time crystals, duality, quantization
 ├── chemistry/
-│   └── AtomicUniverse.lean     # NIST atomic weights, Ohm-coherence
-└── Eigenverse.lean             # Single-import entry point
+│   └── AtomicUniverse.lean        # NIST atomic weights, Ohm-coherence
+└── Eigenverse.lean                # Single-import entry point
 
 formal-lean/                    # Lean 4 source files (the proof engine)
 docs/                           # This documentation tree
