@@ -24,9 +24,9 @@ to follow from the stated axioms — no hand-waving, no gaps.
 | **Algebra** | Critical eigenvalue μ = exp(I·3π/4), 8-cycle closure μ⁸=1, Silver ratio δS=1+√2, coherence function C(r), Z/8Z rotational memory | 127 |
 | **Geometry** | Rotation matrix R(3π/4): det=1, orthogonal, order-8 orbit; unit circle S¹ orbit; hyperbolic Pythagorean identity C²+tanh²=1; space-time map F(s,t)=t+i·s | 141 |
 | **Physics** | c=1/√(μ₀ε₀), fine structure constant α≈1/137, Koide mass formula, Lorentz geometry, Navier-Stokes turbulence bounds | 159 |
-| **Quantum** | Floquet time crystals, gravity-quantum duality, Theorem Q quantization arms, forward classical time | 96 |
+| **Quantum** | Floquet time crystals, gravity-quantum duality, Theorem Q quantization arms, forward classical time, bidirectional time & Planck floor | 120 |
 | **Chemistry** | NIST 2016 atomic weights, isotopic abundances, Ohm-coherence duality G·R=1, triality-scale coherence | 44 |
-| **Total** | | **426** |
+| **Total** | | **450** |
 
 > **Note:** The crypto-application modules (`PumpFunBot`, `EthereumTradingBot`,
 > `CrossChainDeFiAggregator`, `CryptoBridge`) live in `formal-lean/` for

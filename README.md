@@ -19,9 +19,9 @@ empirical data.
 | **Algebra** | 127 | μ⁸=1, Silver ratio δS=1+√2, coherence C(r)≤1, Z/8Z memory |
 | **Geometry** | 141 | Rotation matrix R(3π/4) (det=1, orthogonal, order-8); unit circle orbit; hyperbolic Pythagorean identity; F(s,t)=t+i·s |
 | **Physics** | 159 | c=1/√(μ₀ε₀), α≈1/137, Koide formula, Lorentz geometry, NS bounds |
-| **Quantum** | 96 | Floquet time crystals, gravity-quantum duality, Theorem Q |
+| **Quantum** | 120 | Floquet time crystals, gravity-quantum duality, Theorem Q, bidirectional time & Planck floor |
 | **Chemistry** | 44 | NIST atomic weights, G·R=1 Ohm-coherence duality |
-| **Total** | **426** | All verified by Lean 4, **0 sorry** |
+| **Total** | **450** | All verified by Lean 4, **0 sorry** |
 
 ### Repository Structure
 
@@ -45,7 +45,7 @@ tests/                      ← Cross-module consistency checks
 ```bash
 cd formal-lean/
 lake exe cache get   # download Mathlib cache (~5 min, avoids 1 h build)
-lake build           # verify all 426 theorems
+lake build           # verify all 450 theorems
 lake exe formalLean  # print theorem summary
 ```
 

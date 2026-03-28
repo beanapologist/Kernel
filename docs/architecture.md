@@ -40,7 +40,8 @@ Mathlib
                  ├─ ParticleMass
                  ├─ OhmTriality
                  ├─ GravityQuantumDuality
-                 └─ Chemistry
+                 ├─ Chemistry
+                 └─ BidirectionalTime
        └─ Quantization (imports TimeCrystal + FineStructure)
   └─ CriticalEigenvalue  (standalone)
   └─ SilverCoherence     (standalone)
@@ -120,8 +121,19 @@ equilibrium ‖ψ‖²=2.
 §5 Theorem Q synthesis.  Imports TimeCrystal and FineStructure.
 
 ### `ForwardClassicalTime.lean`
-Frustration harvesting, Planck floor `planck_frustration_bound`, and
-coherence-preserving forward time evolution.
+Frustration harvesting in classical forward time; 21 theorems, 0 sorry.
+Proves F_fwd(l) = 1−sech(l) is non-negative, strictly positive for l≠0,
+bounded above by 1, and even.  Arrow-of-time theorem: F_fwd(0) < F_fwd(l).
+
+### `BidirectionalTime.lean`
+Bidirectional time frustration and the Planck floor; 24 theorems, 0 sorry.
+Defines F_bi(lf,lb) = F_fwd(lf) + F_fwd(lb) and
+planck_frustration = F_fwd(1) = 1 - sech(1).
+Key results: §1 structural bounds (0 ≤ F_bi < 2, symmetry); §2 equilibrium
+(zero iff both exponents vanish, degenerate one-sided limits); §3 double-step
+(F_bi(l,l) = 2·F_fwd(l)); §4 dominance (F_bi ≥ each component, strictly
+when the other direction is active); §5 Planck floor (positivity and
+sub-unit bound on planck_frustration, bidirectional double quantum).
 
 ### `Chemistry.lean`
 NIST 2016 standard atomic weights; isotopic abundances for H, He, C, N, O;
