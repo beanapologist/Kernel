@@ -62,6 +62,9 @@ multi_seed_ci.png
 norm_inspection.png
 fine_eps_transition.png
 
+# Benchmark result artifacts (uploaded as CI artifacts, not committed)
+empirical-validation/benchmarks/results/
+
 # Lean 4 / Lake build artifacts
 formal-lean/.lake/
 formal-lean/build/
