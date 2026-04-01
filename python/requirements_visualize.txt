@@ -1,0 +1,9 @@
+# Requirements for PhaseBattery Geometric Learning Visualizer
+#
+# Install with:  pip install -r python/requirements_visualize.txt
+# Run with:      python3 python/visualize_phase_battery.py
+#            or: python3 python/visualize_phase_battery.py debug.csv
+
+dash>=2.14
+plotly>=5.18
+numpy>=1.24
