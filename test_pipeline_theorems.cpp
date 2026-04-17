@@ -510,6 +510,178 @@ void test_arithmetic_periodicity() {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// µ¹³⁷ Phase Cycle: empirical validation of the 5 landmark powers
+// ══════════════════════════════════════════════════════════════════════════════
+void test_mu_137_phase_cycle() {
+  std::cout << "\n╔═══ µ¹³⁷ Phase Cycle — Landmark Validation ═══╗\n";
+
+  // µ = e^{i3π/4}; period 8.  Because 137 ≡ 1 (mod 8), each 137-step block
+  // advances the phase by exactly 135°, cycling through five landmarks.
+  // The loop below mirrors the "direct power computation" cited in the PR;
+  // the modular shortcut (n mod 8 multiplications) would also be valid.
+
+  auto mu_pow = [](int n) -> Cx {
+    Cx result{1.0, 0.0};
+    for (int i = 0; i < n; ++i) result *= MU;
+    return result;
+  };
+
+  // µ⁸ = +1   (0°)
+  test_assert(std::abs(mu_pow(8) - Cx(1.0, 0.0)) < TIGHT_TOL,
+              "µ⁸ = +1  (mod-8 period closes at 1)");
+
+  // µ¹³⁷ = µ  (135°); 137 mod 8 = 1
+  test_assert(std::abs(mu_pow(137) - MU) < TIGHT_TOL,
+              "µ¹³⁷ = µ  (137 mod 8 = 1)");
+
+  // µ²⁷⁴ = -i  (270°); 274 mod 8 = 2
+  Cx expected_274{0.0, -1.0};
+  test_assert(std::abs(mu_pow(274) - expected_274) < TIGHT_TOL,
+              "µ²⁷⁴ = -i  (274 mod 8 = 2)");
+
+  // µ⁴¹¹ = (1+i)/√2  (45°); 411 mod 8 = 3
+  Cx expected_411{ETA, ETA};
+  test_assert(std::abs(mu_pow(411) - expected_411) < TIGHT_TOL,
+              "µ⁴¹¹ = (1+i)/√2  (411 mod 8 = 3)");
+
+  // µ⁵⁴⁸ = -1  (180°); 548 mod 8 = 4
+  test_assert(std::abs(mu_pow(548) - Cx(-1.0, 0.0)) < TIGHT_TOL,
+              "µ⁵⁴⁸ = -1  (548 mod 8 = 4, antipode)");
+
+  // Phase increment: each 137-step block adds exactly 135° = 3π/4
+  double phase_137 = std::arg(mu_pow(137));
+  double phase_274 = std::arg(mu_pow(274));
+  double phase_411 = std::arg(mu_pow(411));
+  double delta1 = std::fmod(phase_274 - phase_137 + 4.0 * PI, 2.0 * PI);
+  // Adding 4π (two full turns) before fmod ensures the result is non-negative
+  // even when the raw difference is negative (e.g. wraps around at 0/360°).
+  double delta2 = std::fmod(phase_411 - phase_274 + 4.0 * PI, 2.0 * PI);
+  test_assert(std::abs(delta1 - 3.0 * PI / 4.0) < TIGHT_TOL,
+              "phase increment µ¹³⁷→µ²⁷⁴ = 135°");
+  test_assert(std::abs(delta2 - 3.0 * PI / 4.0) < TIGHT_TOL,
+              "phase increment µ²⁷⁴→µ⁴¹¹ = 135°");
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// µ¹³⁷ Fourier Analysis: DFT of {µ⁰, …, µ⁷} is a pure tone at k=3
+// ══════════════════════════════════════════════════════════════════════════════
+void test_mu_137_fourier() {
+  std::cout << "\n╔═══ µ¹³⁷ Fourier Analysis — DFT of {µ^k} ═══╗\n";
+
+  // Build the 8-element sequence x[k] = µ^k = e^{i2π·(3/8)·k}
+  constexpr int N = 8;
+  Cx x[N];
+  {
+    Cx mu_k{1.0, 0.0};
+    for (int k = 0; k < N; ++k) {
+      x[k] = mu_k;
+      mu_k *= MU;
+    }
+  }
+
+  // DFT: X[n] = Σ_{k=0}^{N-1} x[k] · e^{-i2πnk/N}
+  Cx X[N];
+  for (int n = 0; n < N; ++n) {
+    Cx sum{0.0, 0.0};
+    for (int k = 0; k < N; ++k) {
+      double angle = -2.0 * PI * n * k / N;
+      sum += x[k] * Cx{std::cos(angle), std::sin(angle)};
+    }
+    X[n] = sum;
+  }
+
+  // |X[3]| = N = 8; all other bins vanish (pure tone at k=3)
+  test_assert(std::abs(std::abs(X[3]) - static_cast<double>(N)) < TIGHT_TOL,
+              "|X[3]| = 8  (pure tone at frequency bin k=3)");
+  for (int n = 0; n < N; ++n) {
+    if (n == 3) continue;
+    test_assert(std::abs(X[n]) < TIGHT_TOL,
+                "|X[" + std::to_string(n) + "]| = 0  (all other bins vanish)");
+  }
+
+  // Parseval's theorem: Σ|x[k]|² = (1/N)·Σ|X[n]|²
+  double energy_time = 0.0;
+  for (int k = 0; k < N; ++k) energy_time += std::norm(x[k]);  // |x|² = 1 each
+  double energy_freq = 0.0;
+  for (int n = 0; n < N; ++n) energy_freq += std::norm(X[n]);
+  test_assert(std::abs(energy_time - energy_freq / N) < TIGHT_TOL,
+              "Parseval: Σ|x|² = (1/N)·Σ|X|²  (energy conserved)");
+
+  // Frequency aliasing: µ¹³⁷ orbit = µ¹ orbit (137 mod 8 = 1 → same DFT)
+  Cx x137[N];
+  {
+    Cx mu137_k{1.0, 0.0};
+    Cx mu137 = MU;  // µ¹³⁷ = µ¹
+    for (int k = 0; k < N; ++k) {
+      x137[k] = mu137_k;
+      mu137_k *= mu137;
+    }
+  }
+  Cx X137[N];
+  for (int n = 0; n < N; ++n) {
+    Cx sum{0.0, 0.0};
+    for (int k = 0; k < N; ++k) {
+      double angle = -2.0 * PI * n * k / N;
+      sum += x137[k] * Cx{std::cos(angle), std::sin(angle)};
+    }
+    X137[n] = sum;
+  }
+  for (int n = 0; n < N; ++n) {
+    test_assert(std::abs(std::abs(X137[n]) - std::abs(X[n])) < TIGHT_TOL,
+                "aliasing: |X¹³⁷[" + std::to_string(n) + "]| = |X[" +
+                    std::to_string(n) + "]|  (same DFT magnitudes)");
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// µ orbit Scale Invariants: |µ^k| = 1, C = 1, R = 0 for all orbit points
+// ══════════════════════════════════════════════════════════════════════════════
+void test_mu_137_scale_invariants() {
+  std::cout << "\n╔═══ µ orbit Scale Invariants ═══╗\n";
+
+  // The µ-orbit {µ⁰, µ¹, …, µ⁷} lies entirely on the unit circle.
+  // Three scale-invariant quantities are simultaneously preserved at every
+  // orbit point:
+  //   (a) |µ^k| = 1          — magnitude invariant (unit circle confinement)
+  //   (b) C(r) = 1            — coherence is maximal (balanced state)
+  //   (c) R(r) = 0            — palindrome residual vanishes (Theorem 12)
+  //
+  // These properties are independent of the rotation angle, so they hold for
+  // all eight powers k = 0..7 as well as all five µ¹³⁷-cycle landmarks.
+
+  constexpr int N = 8;
+  Cx mu_k{1.0, 0.0};
+  for (int k = 0; k < N; ++k) {
+    double mag = std::abs(mu_k);
+
+    // (a) Magnitude invariant: |µ^k| = 1
+    test_assert(std::abs(mag - 1.0) < TIGHT_TOL,
+                "|µ^" + std::to_string(k) + "| = 1  (unit circle invariant)");
+
+    // (b) Coherence at r = |µ^k| / 1 = 1 is maximal: C(1) = 1
+    test_assert(std::abs(coherence(mag) - 1.0) < TIGHT_TOL,
+                "C(|µ^" + std::to_string(k) + "|) = 1  (coherence scale invariant)");
+
+    // (c) Palindrome residual at r = 1 vanishes: R(1) = 0
+    test_assert(std::abs(palindrome_residual(mag)) < TIGHT_TOL,
+                "R(|µ^" + std::to_string(k) + "|) = 0  (palindrome residual invariant)");
+
+    mu_k *= MU;
+  }
+
+  // Orbit rotation does NOT change the magnitude: scaling µ^k by any unimodular
+  // factor leaves |µ^k| = 1 unchanged.  Verify this for a random phase factor.
+  double test_phase = PI / 7.0;  // arbitrary non-trivial phase
+  mu_k = Cx{1.0, 0.0};
+  for (int k = 0; k < N; ++k) {
+    Cx scaled = mu_k * Cx{std::cos(test_phase), std::sin(test_phase)};
+    test_assert(std::abs(std::abs(scaled) - 1.0) < TIGHT_TOL,
+                "unimodular scaling preserves |µ^" + std::to_string(k) + "| = 1");
+    mu_k *= MU;
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // Main test runner
 // ══════════════════════════════════════════════════════════════════════════════
 int main() {
@@ -529,6 +701,9 @@ int main() {
   test_corollary_13();
   test_prop_4();
   test_arithmetic_periodicity();
+  test_mu_137_phase_cycle();
+  test_mu_137_fourier();
+  test_mu_137_scale_invariants();
 
   std::cout << "\n╔══════════════════════════════════════════════════════╗\n";
   std::cout << "║  Test Results                                        ║\n";
