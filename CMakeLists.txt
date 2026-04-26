@@ -51,6 +51,7 @@ option(KERNEL_BUILD_TESTS "Build test executables and register with CTest" ON)
 
 if(KERNEL_BUILD_TESTS)
     enable_testing()
+    find_package(Threads REQUIRED)
 
     set(_kernel_tests
         test_battery_analogy
@@ -75,6 +76,12 @@ if(KERNEL_BUILD_TESTS)
         target_link_libraries(${_test} PRIVATE Kernel::Kernel m)
         add_test(NAME ${_test} COMMAND ${_test})
     endforeach()
+
+    # test_time_crystal_rpc requires threads (std::thread / std::mutex)
+    add_executable(test_time_crystal_rpc test_time_crystal_rpc.cpp)
+    target_link_libraries(test_time_crystal_rpc PRIVATE Kernel::Kernel m
+                          Threads::Threads)
+    add_test(NAME test_time_crystal_rpc COMMAND test_time_crystal_rpc)
 endif()
 
 # ── Installation ─────────────────────────────────────────────────────────────
@@ -87,6 +94,8 @@ set(_kernel_headers
     MasterEigenOracle.hpp
     PalindromePrecession.hpp
     SpectralBridge.hpp
+    TimeCrystalSimulation.hpp
+    TimeCrystalRPC.hpp
     ohm_coherence_duality.hpp
 )
 
